@@ -19,7 +19,7 @@
       <span class="badge cat-{{ i.source.category }}">{{ i.source.name }}</span>
       <span>{{ i.kind }}</span>
       {% if i.author %}<span>{{ i.author|truncate(40) }}</span>{% endif %}
-      <span title="{{ i.published_at }}">{{ i.published_at|timeago }}</span>
+      <time datetime="{{ i.published_at.isoformat() }}Z" title="{{ i.published_at }} UTC">{{ i.published_at|timeago }}</time>
       {% if i.llm_summary %}<span class="badge new">AI summary</span>{% endif %}
     </div>
     {% if show_snippet and i.content %}<div class="snippet">{{ i.content|truncate(260) }}</div>{% endif %}

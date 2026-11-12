@@ -3,9 +3,9 @@
 {% block bare %}
 <div class="auth-wrap">
   <div class="card setup-card">
-    <div class="brand" style="padding:0 0 10px"><span class="brand-mark">◎</span>Install {{ app_name }}</div>
+    <div class="brand" style="padding:0 0 10px"><span class="brand-mark" aria-hidden="true">◎</span>Install {{ app_name }}</div>
     <p class="muted">First-run setup. Everything except the usage mode can be changed later in Settings.</p>
-    {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+    {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="/setup">
       <input type="hidden" name="csrf_token" value="{{ csrf }}">
       <h3 style="margin-top:18px">1 · Usage mode</h3>
@@ -16,45 +16,50 @@
           <strong>Multi user</strong><br><span class="muted small">Login required, roles (admin / analyst / viewer), admin dashboard with user management and audit log.</span></label>
       </div>
       <div id="admin-fields" class="grid g-3" style="margin-top:12px">
-        <div class="field"><label>Admin username</label><input type="text" name="admin_username" value="{{ form.get('admin_username','admin') }}" autocomplete="username"></div>
-        <div class="field"><label>Admin password</label><input type="password" name="admin_password" autocomplete="new-password"></div>
-        <div class="field"><label>Repeat password</label><input type="password" name="admin_password2" autocomplete="new-password"></div>
+        <div class="field"><label for="su-user">Admin username</label><input id="su-user" type="text" name="admin_username" value="{{ form.get('admin_username','admin') }}" autocomplete="username" maxlength="60"></div>
+        <div class="field"><label for="su-pw">Admin password</label><input id="su-pw" type="password" name="admin_password" autocomplete="new-password" minlength="10"></div>
+        <div class="field"><label for="su-pw2">Repeat password</label><input id="su-pw2" type="password" name="admin_password2" autocomplete="new-password" minlength="10"></div>
         <p class="muted small" style="grid-column:1/-1;margin:0">Minimum 10 characters, mixed case and at least one digit.</p>
       </div>
 
       <h3 style="margin-top:18px">2 · General</h3>
       <div class="grid g-2">
-        <div class="field"><label>Platform name</label><input type="text" name="app_name" value="{{ form.get('app_name','JATMP') }}"></div>
-        <div class="field"><label>&nbsp;</label><label class="check"><input type="checkbox" name="seed_sources" checked> Add default sources (news, Bluesky/X accounts, OTX, urlscan, ANY.RUN, ThreatFox)</label></div>
+        <div class="field"><label for="su-name">Platform name</label><input id="su-name" type="text" name="app_name" value="{{ form.get('app_name','JATMP') }}" maxlength="40"></div>
+        <div class="field"><label>&nbsp;</label><label class="check"><input type="checkbox" name="seed_sources" checked> Add default sources (news, Bluesky/Mastodon/X accounts, OTX, urlscan, ANY.RUN, ThreatFox)</label></div>
       </div>
 
       <h3 style="margin-top:18px">3 · Threat-intel API keys <span class="muted">(optional)</span></h3>
       <div class="grid g-2">
-        <div class="field"><label>VirusTotal</label><input type="password" name="virustotal_api_key" autocomplete="off"></div>
-        <div class="field"><label>AlienVault OTX</label><input type="password" name="otx_api_key" autocomplete="off"></div>
-        <div class="field"><label>urlscan.io</label><input type="password" name="urlscan_api_key" autocomplete="off"></div>
-        <div class="field"><label>ANY.RUN (TI Lookup)</label><input type="password" name="anyrun_api_key" autocomplete="off"></div>
-        <div class="field"><label>X API bearer token</label><input type="password" name="x_bearer_token" autocomplete="off"></div>
+        <div class="field"><label for="k-vt">VirusTotal</label><input id="k-vt" type="password" name="virustotal_api_key" autocomplete="off" spellcheck="false"></div>
+        <div class="field"><label for="k-otx">AlienVault OTX</label><input id="k-otx" type="password" name="otx_api_key" autocomplete="off" spellcheck="false"></div>
+        <div class="field"><label for="k-us">urlscan.io</label><input id="k-us" type="password" name="urlscan_api_key" autocomplete="off" spellcheck="false"></div>
+        <div class="field"><label for="k-ar">ANY.RUN (TI Lookup)</label><input id="k-ar" type="password" name="anyrun_api_key" autocomplete="off" spellcheck="false"></div>
+        <div class="field"><label for="k-tf">abuse.ch Auth-Key (ThreatFox)</label><input id="k-tf" type="password" name="threatfox_auth_key" autocomplete="off" spellcheck="false"></div>
+        <div class="field"><label for="k-x">X API bearer token</label><input id="k-x" type="password" name="x_bearer_token" autocomplete="off" spellcheck="false"></div>
       </div>
 
       <h3 style="margin-top:18px">4 · LLM for AI insights <span class="muted">(optional)</span></h3>
       <div class="grid g-2">
-        <div class="field"><label>Provider</label>
-          <select name="llm_provider">
+        <div class="field"><label for="llm-p">Provider</label>
+          <select id="llm-p" name="llm_provider">
             {% for p, l in [('none','None'),('ollama','Local – Ollama'),('openai_compatible','OpenAI-compatible (LM Studio, vLLM, llama.cpp, OpenRouter, OpenAI…)'),('anthropic','Anthropic Claude API')] %}
             <option value="{{ p }}" {{ 'selected' if form.get('llm_provider','none') == p }}>{{ l }}</option>{% endfor %}
           </select></div>
-        <div class="field"><label>Model</label><input type="text" name="llm_model" value="{{ form.get('llm_model','') }}" placeholder="llama3.1 · qwen2.5:14b · claude-opus-5-5"></div>
-        <div class="field"><label>Base URL (local / compatible)</label><input type="text" name="llm_base_url" value="{{ form.get('llm_base_url','') }}" placeholder="http://localhost:11434"></div>
-        <div class="field"><label>API key</label><input type="password" name="llm_api_key" autocomplete="off"></div>
+        <div class="field"><label for="llm-m">Model</label><input id="llm-m" type="text" name="llm_model" value="{{ form.get('llm_model','') }}" placeholder="llama3.1 · qwen2.5:14b · claude-opus-5-5"></div>
+        <div class="field"><label for="llm-u">Base URL (local / compatible)</label><input id="llm-u" type="url" name="llm_base_url" value="{{ form.get('llm_base_url','') }}" placeholder="http://localhost:11434"></div>
+        <div class="field"><label for="llm-k">API key</label><input id="llm-k" type="password" name="llm_api_key" autocomplete="off" spellcheck="false"></div>
       </div>
       <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn primary">Install</button></div>
     </form>
   </div>
 </div>
-<script>
+<script nonce="{{ nonce }}">
   const af = document.getElementById("admin-fields");
-  const sync = () => { af.style.display = document.querySelector('input[name=mode]:checked').value === 'multi' ? '' : 'none'; };
+  const sync = () => {
+    const multi = document.querySelector('input[name=mode]:checked').value === 'multi';
+    af.hidden = !multi;
+    af.querySelectorAll("input").forEach(i => i.required = multi);
+  };
   document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', sync)); sync();
 </script>
 {% endblock %}

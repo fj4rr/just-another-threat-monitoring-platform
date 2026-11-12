@@ -10,7 +10,7 @@
     <h1 class="{{ 'mono' if is_ioc else '' }}" style="margin-top:6px;word-break:break-all">{{ ent.display }}</h1>
   </div>
   <div class="row">
-    <button class="btn" data-post="/api/watch/{{ ent.id }}" data-watching="{{ 'true' if watching else 'false' }}">{{ '★ Watching' if watching else '☆ Watch' }}</button>
+    <button class="btn" data-post="/api/watch/{{ ent.id }}" data-watching="{{ 'true' if watching else 'false' }}" aria-pressed="{{ 'true' if watching else 'false' }}">{{ '★ Watching' if watching else '☆ Watch' }}</button>
     {% if user.role in ('admin','analyst') and (is_ioc or ent.type == 'malware') %}
     <button class="btn" data-post="/api/entities/{{ ent.id }}/enrich" data-busy="Enriching…" data-reload>⇄ Enrich now</button>{% endif %}
     <a class="btn" href="/feed?entity={{ ent.id }}&days=0">All items →</a>
@@ -38,14 +38,14 @@
       <div class="table-wrap"><table>
         <thead><tr><th>Provider</th><th>Verdict</th><th>Summary</th><th>Checked</th></tr></thead>
         <tbody>{% for e in enrichments %}
-          <tr><td>{% if e.permalink %}<a href="{{ e.permalink }}" target="_blank" rel="noopener noreferrer">{{ e.provider }} ↗</a>{% else %}{{ e.provider }}{% endif %}</td>
+          <tr><td>{% if e.permalink %}<a href="{{ e.permalink|safe_href }}" target="_blank" rel="noopener noreferrer">{{ e.provider }} ↗</a>{% else %}{{ e.provider }}{% endif %}</td>
             <td>{{ verdict(e.verdict) }}</td>
             <td>{{ e.summary }}
               {% if e.data.get('tags') %}<div>{% for t in e.data.tags[:12] %}<span class="badge">{{ t }}</span> {% endfor %}</div>{% endif %}
               {% if e.data.get('pulses') %}<details class="small"><summary>{{ e.data.pulses|length }} pulse(s)</summary>
-                {% for p in e.data.pulses %}<div><a href="https://otx.alienvault.com/pulse/{{ p.id }}" target="_blank" rel="noopener noreferrer">{{ p.name }}</a></div>{% endfor %}</details>{% endif %}
+                {% for p in e.data.pulses %}<div><a href="https://otx.alienvault.com/pulse/{{ p.id|urlencode }}" target="_blank" rel="noopener noreferrer">{{ p.name }}</a></div>{% endfor %}</details>{% endif %}
               {% if e.data.get('scans') %}<details class="small"><summary>{{ e.data.scans|length }} scan(s)</summary>
-                {% for s in e.data.scans %}<div><a href="https://urlscan.io/result/{{ s.uuid }}/" target="_blank" rel="noopener noreferrer" class="mono">{{ (s.url or '')|truncate(70, True) }}</a> <span class="muted">{{ s.country or '' }}</span></div>{% endfor %}</details>{% endif %}
+                {% for s in e.data.scans %}<div><a href="https://urlscan.io/result/{{ s.uuid|urlencode }}/" target="_blank" rel="noopener noreferrer" class="mono">{{ (s.url or '')|truncate(70, True) }}</a> <span class="muted">{{ s.country or '' }}</span></div>{% endfor %}</details>{% endif %}
             </td>
             <td class="muted small">{{ e.fetched_at|timeago }}</td></tr>{% endfor %}
         </tbody></table></div>
@@ -96,5 +96,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-{% if not is_ioc %}<script>document.addEventListener("DOMContentLoaded", () => JATMP.entityLine(document.getElementById("c-ent"), {{ ent.id }}, 60));</script>{% endif %}
+{% if not is_ioc %}<script nonce="{{ nonce }}">document.addEventListener("DOMContentLoaded", () => JATMP.entityLine(document.getElementById("c-ent"), {{ ent.id }}, 60));</script>{% endif %}
 {% endblock %}

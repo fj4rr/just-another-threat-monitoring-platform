@@ -14,6 +14,7 @@ from .config import BASE_DIR, load_config
 from .models import utcnow
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "templates"))
+# html=False: raw HTML inside LLM / feed text is escaped; markdown-it also refuses javascript: links.
 _md = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable("table")
 
 
@@ -34,8 +35,15 @@ def timeago(dt: datetime | None) -> str:
     return "just now"
 
 
+def safe_href(url: str | None) -> str:
+    """Only http(s) links are rendered as clickable; anything else becomes a dead link."""
+    u = (url or "").strip()
+    return u if u.lower().startswith(("http://", "https://")) else "#"
+
+
 templates.env.filters["md"] = md
 templates.env.filters["timeago"] = timeago
+templates.env.filters["safe_href"] = safe_href
 templates.env.globals["version"] = __version__
 
 VERDICT_CLASS = {"malicious": "crit", "suspicious": "warn", "clean": "good", "unknown": "muted", "": "muted"}
@@ -50,6 +58,7 @@ def render(request: Request, name: str, ctx: dict | None = None, status_code: in
         "multi_user": cfg.get("mode") == "multi",
         "csrf": csrf_token(request),
         "path": request.url.path,
+        "nonce": getattr(request.state, "csp_nonce", ""),
     }
     base.update(ctx or {})
     return templates.TemplateResponse(request, name, base, status_code=status_code)

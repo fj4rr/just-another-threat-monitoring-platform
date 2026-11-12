@@ -4,10 +4,10 @@
 {% block content %}
 <div class="page-head">
   <div style="min-width:0">
-    <div class="row small muted"><span class="badge cat-{{ item.source.category }}">{{ item.source.name }}</span>{{ item.kind }} · {{ item.published_at.strftime('%Y-%m-%d %H:%M') }} UTC {% if item.author %}· {{ item.author }}{% endif %}</div>
-    <h1 style="margin-top:6px">{{ item.title }}</h1>
+    <div class="row small muted"><span class="badge cat-{{ item.source.category }}">{{ item.source.name }}</span>{{ item.kind }} · <time datetime="{{ item.published_at.isoformat() }}Z">{{ item.published_at.strftime('%Y-%m-%d %H:%M') }} UTC</time> {% if item.author %}· {{ item.author }}{% endif %}</div>
+    <h1 style="margin-top:6px;overflow-wrap:anywhere">{{ item.title }}</h1>
   </div>
-  <div class="row">{{ sev(item.severity) }}{% if item.url %}<a class="btn" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">Open original ↗</a>{% endif %}</div>
+  <div class="row">{{ sev(item.severity) }}{% if item.url|safe_href != '#' %}<a class="btn" href="{{ item.url|safe_href }}" target="_blank" rel="noopener noreferrer">Open original ↗</a>{% endif %}</div>
 </div>
 
 <div class="grid g-21">
@@ -15,7 +15,7 @@
     <div class="card">
       <div class="card-head"><h2>AI analysis</h2>
         {% if llm_on and user.role in ('admin','analyst') %}<button class="btn sm primary" data-post="/api/items/{{ item.id }}/summarize" data-target="#ai" data-busy="Analysing…">✦ {{ 'Re-analyse' if item.llm_summary else 'Analyse with AI' }}</button>{% endif %}</div>
-      <div id="ai" class="prose">{% if item.llm_summary %}{{ item.llm_summary|md }}{% else %}<p class="muted">{{ 'Not analysed yet.' if llm_on else 'Configure an LLM in Settings to enable AI analysis.' }}</p>{% endif %}</div>
+      <div id="ai" class="prose">{% if item.llm_summary %}{{ item.llm_summary|md }}{% if item.llm_at %}<p class="muted small">Generated {{ item.llm_at|timeago }}</p>{% endif %}{% else %}<p class="muted">{{ 'Not analysed yet.' if llm_on else 'Configure an LLM in Settings to enable AI analysis.' }}</p>{% endif %}</div>
     </div>
     <div class="card">
       <h2>Content</h2>

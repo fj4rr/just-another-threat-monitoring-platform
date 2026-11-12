@@ -4,23 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf }}">
+  <meta name="color-scheme" content="dark light">
   <title>{% block title %}{{ app_name }}{% endblock %} · {{ app_name }}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%233987e5'/><path d='M9 17l4 4 10-10' stroke='white' stroke-width='3' fill='none'/></svg>">
   <link rel="stylesheet" href="/static/css/app.css?v={{ version }}">
-  <script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("jatmp-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <script nonce="{{ nonce }}">document.documentElement.classList.add("js");try{var t=localStorage.getItem("jatmp-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+  <script src="/static/js/vendor/chart.umd.min.js?v=4.4.1" defer></script>
   <script src="/static/js/app.js?v={{ version }}" defer></script>
   <script src="/static/js/motion.js?v={{ version }}" defer></script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 {% if user %}
 <div class="shell">
-  <aside class="side">
-    <div class="brand"><span class="brand-mark">◎</span>{{ app_name }}</div>
+  <div class="nav-backdrop" data-nav-close hidden></div>
+  <aside class="side" id="sidenav" aria-label="Main navigation">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◎</span>{{ app_name }}
+      <button class="btn sm side-close" data-nav-close aria-label="Close menu">✕</button></div>
     <nav class="nav">
       {% macro nav(href, label, icon) -%}
-      <a href="{{ href }}" class="{{ 'active' if (path == href or (href != '/' and path.startswith(href))) else '' }}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ icon|safe }}</svg>{{ label }}</a>
+      <a href="{{ href }}" class="{{ 'active' if (path == href or (href != '/' and path.startswith(href))) else '' }}" {% if path == href %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ icon|safe }}</svg>{{ label }}</a>
       {%- endmacro %}
       {{ nav('/', 'Dashboard', '<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>') }}
       {{ nav('/feed', 'Feed', '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>') }}
@@ -37,23 +41,23 @@
       {% if multi_user %}{{ nav('/admin', 'Admin', '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>') }}{% endif %}
       {% endif %}
     </nav>
-    <p class="muted small" style="padding:18px 10px 0">v{{ version }} · {{ 'multi-user' if multi_user else 'single-user' }}</p>
+    <p class="muted small side-foot">v{{ version }} · {{ 'multi-user' if multi_user else 'single-user' }}</p>
   </aside>
   <div class="main">
     <header class="topbar">
-      <button class="btn sm menu-btn" data-menu aria-label="Menu">☰</button>
-      <form class="search" action="/feed" method="get">
-        <input type="search" name="q" placeholder="Search items, malware, CVE, IOC…" value="{{ request.query_params.get('q','') }}">
+      <button class="btn sm menu-btn" data-menu aria-label="Open menu" aria-controls="sidenav" aria-expanded="false">☰</button>
+      <form class="search" action="/feed" method="get" role="search">
+        <input type="search" name="q" id="global-search" placeholder="Search items, malware, CVE, IOC…  ( / )" aria-label="Search" value="{{ request.query_params.get('q','') }}" maxlength="200">
       </form>
       <div class="row">
-        <button class="theme-toggle" data-theme-toggle title="Toggle theme">◐</button>
+        <button class="theme-toggle" data-theme-toggle title="Toggle light / dark theme" aria-label="Toggle light / dark theme">◐</button>
         {% if multi_user %}
-        <a href="/profile" class="muted">{{ user.display_name or user.username }} <span class="badge">{{ user.role }}</span></a>
+        <a href="/profile" class="muted user-link">{{ user.display_name or user.username }} <span class="badge">{{ user.role }}</span></a>
         <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn sm">Log out</button></form>
         {% endif %}
       </div>
     </header>
-    <main class="content" {% block reveal %}data-reveal{% endblock %}>
+    <main class="content" id="main" tabindex="-1" {% block reveal %}data-reveal{% endblock %}>
       {% block content %}{% endblock %}
     </main>
   </div>
@@ -61,6 +65,7 @@
 {% else %}
   {% block bare %}{% endblock %}
 {% endif %}
+<div class="toasts" role="status" aria-live="polite" id="toasts"></div>
 {% block scripts %}{% endblock %}
 </body>
 </html>

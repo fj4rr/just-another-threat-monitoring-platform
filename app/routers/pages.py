@@ -11,13 +11,26 @@ from ..db import get_db
 from ..knowledge import CATEGORIES
 from ..llm import client as llm
 from ..models import (
-    Enrichment, Entity, EntityLink, Insight, Item, ItemEntity, Source, User, Watch, utcnow,
+    Enrichment,
+    Entity,
+    EntityLink,
+    Insight,
+    Item,
+    ItemEntity,
+    Source,
+    User,
+    Watch,
+    utcnow,
 )
 from ..processing import trends
 from ..web import render
 
 router = APIRouter()
 PAGE = 40
+
+
+def _clamp(n: int, lo: int, hi: int) -> int:
+    return min(max(int(n), lo), hi)
 
 
 @router.get("/")
@@ -40,6 +53,8 @@ def dashboard(request: Request, user: User = Depends(current_user), db: Session 
 def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: int = 0, entity: int = 0,
          min_sev: int = 0, days: int = 30, page: int = 1, user: User = Depends(current_user),
          db: Session = Depends(get_db)):
+    days, min_sev, page = _clamp(days, 0, 3650), _clamp(min_sev, 0, 100), _clamp(page, 1, 100_000)
+    q = q.strip()[:200]
     stmt = select(Item).join(Source, Source.id == Item.source_id)
     if cat:
         stmt = stmt.where(Source.category == cat)
@@ -57,7 +72,6 @@ def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: i
         like = f"%{q}%"
         stmt = stmt.where(or_(Item.title.ilike(like), Item.content.ilike(like)))
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    page = max(1, page)
     items = db.execute(stmt.order_by(Item.published_at.desc()).offset((page - 1) * PAGE).limit(PAGE)).unique().scalars().all()
     sources = db.execute(select(Source).order_by(Source.category, Source.name)).scalars().all()
     ent = db.get(Entity, entity) if entity else None
@@ -73,8 +87,8 @@ def item_detail(item_id: int, request: Request, user: User = Depends(current_use
     item = db.get(Item, item_id)
     if not item:
         raise HTTPException(404, "Item not found")
-    ents = sorted((l for l in item.entity_links), key=lambda l: (l.entity.type, l.entity.display))
-    ent_ids = [l.entity_id for l in ents]
+    ents = sorted(item.entity_links, key=lambda link: (link.entity.type, link.entity.display))
+    ent_ids = [link.entity_id for link in ents]
     related = []
     if ent_ids:
         # items in OTHER sources sharing entities – the cross-source correlation view
@@ -95,6 +109,8 @@ def item_detail(item_id: int, request: Request, user: User = Depends(current_use
 
 
 def _entity_list(request, user, db, etype: str, title: str, category: str = "", q: str = "", days: int = 30):
+    days = _clamp(days, 1, 3650)
+    q = q.strip()[:100]
     since = utcnow() - timedelta(days=days)
     recent = func.count(distinct(Item.id)).filter(Item.published_at >= since)
     stmt = (
@@ -145,7 +161,7 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
     if q:
         stmt = stmt.where(Entity.value.ilike(f"%{q.lower()}%"))
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    page = max(1, page)
+    page = _clamp(page, 1, 100_000)
     rows = db.execute(stmt.order_by(Entity.last_seen.desc()).offset((page - 1) * 60).limit(60)).scalars().all()
     # attributed families for display
     fam = {}
@@ -223,9 +239,14 @@ def insights(request: Request, user: User = Depends(current_user), db: Session =
 def watchlist(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     rows = db.execute(select(Watch).where(Watch.user_id == user.id).order_by(Watch.created_at.desc())).scalars().all()
     ids = [w.entity_id for w in rows]
-    latest = {}
-    for eid in ids:
-        latest[eid] = db.execute(
-            select(Item).join(ItemEntity, ItemEntity.item_id == Item.id).where(ItemEntity.entity_id == eid)
-            .order_by(Item.published_at.desc()).limit(3)).unique().scalars().all()
+    latest: dict[int, list[Item]] = {eid: [] for eid in ids}
+    if ids:
+        # one query for every watched entity, newest first; keep the first 3 per entity
+        rows_q = db.execute(
+            select(ItemEntity.entity_id, Item).join(Item, Item.id == ItemEntity.item_id)
+            .where(ItemEntity.entity_id.in_(ids)).order_by(Item.published_at.desc()).limit(60 * max(1, len(ids)))
+        ).unique().all()
+        for eid, item in rows_q:
+            if len(latest[eid]) < 3:
+                latest[eid].append(item)
     return render(request, "watchlist.html", {"user": user, "rows": rows, "latest": latest})

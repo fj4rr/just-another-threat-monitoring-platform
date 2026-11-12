@@ -147,7 +147,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ nonce }}">
 document.addEventListener("DOMContentLoaded", () => {
   const J = window.JATMP;
   J.radar(document.getElementById("radar"), document.getElementById("radar-legend"));

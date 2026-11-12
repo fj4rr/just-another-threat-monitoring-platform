@@ -17,10 +17,14 @@ from ..web import md
 router = APIRouter(prefix="/api")
 
 
+def _days(n: int, lo: int = 1, hi: int = 365) -> int:
+    return min(max(int(n), lo), hi)
+
+
 # --------------------------------------------------------------------------- stats (read)
 @router.get("/stats/overview")
 def stats_overview(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.overview(db, days)
+    return trends.overview(db, _days(days))
 
 
 @router.get("/stats/kpi_series")
@@ -36,42 +40,42 @@ def stats_timeline(days: int = 30, _: User = Depends(current_user), db: Session 
 @router.get("/stats/top")
 def stats_top(type: str = "malware", days: int = 7, limit: int = 10, category: str = "",
               _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.top_entities(db, type, days, min(limit, 50), category or None)
+    return trends.top_entities(db, type, _days(days), min(max(limit, 1), 50), category or None)
 
 
 @router.get("/stats/trending")
 def stats_trending(type: str = "malware", limit: int = 10, _: User = Depends(current_user),
                    db: Session = Depends(get_db)):
-    return trends.trending(db, type, min(limit, 50))
+    return trends.trending(db, type, min(max(limit, 1), 50))
 
 
 @router.get("/stats/trending_timeline")
 def stats_trending_timeline(limit: int = 5, days: int = 30, _: User = Depends(current_user),
                             db: Session = Depends(get_db)):
-    top = trends.trending(db, "malware", limit=min(limit, 8))
-    tl = trends.family_timeline(db, [t["id"] for t in top], days)
+    top = trends.trending(db, "malware", limit=min(max(limit, 1), 8))
+    tl = trends.family_timeline(db, [t["id"] for t in top], _days(days, 7, 180))
     return {"labels": tl["labels"], "series": [{"id": t["id"], "name": t["name"], "data": tl["series"][t["id"]]}
                                                for t in top]}
 
 
 @router.get("/stats/categories")
 def stats_categories(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.category_breakdown(db, days)
+    return trends.category_breakdown(db, _days(days))
 
 
 @router.get("/stats/sources")
 def stats_sources(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.source_breakdown(db, days)
+    return trends.source_breakdown(db, _days(days))
 
 
 @router.get("/stats/iocs")
 def stats_iocs(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.ioc_breakdown(db, days)
+    return trends.ioc_breakdown(db, _days(days))
 
 
 @router.get("/entities/{entity_id}/timeline")
 def entity_timeline(entity_id: int, days: int = 60, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    tl = trends.family_timeline(db, [entity_id], days)
+    tl = trends.family_timeline(db, [entity_id], _days(days, 7, 365))
     return {"labels": tl["labels"], "data": tl["series"][entity_id]}
 
 
@@ -99,8 +103,10 @@ def source_run_all(request: Request, user: User = Depends(require("analyst")), d
 
 
 @router.post("/enrichment/run", dependencies=[Depends(verify_csrf)])
-def enrichment_run(user: User = Depends(require("analyst"))):
+def enrichment_run(request: Request, user: User = Depends(require("analyst")), db: Session = Depends(get_db)):
     jobs.run_now(jobs.run_enrichment)
+    audit(db, user, "enrichment_run", "", request)
+    db.commit()
     return {"ok": True, "message": "enrichment batch queued"}
 
 
@@ -131,7 +137,7 @@ def item_summarize(item_id: int, user: User = Depends(require("analyst")), db: S
     try:
         out = summarize_item(db, item)
     except LLMError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
     db.commit()
     return {"ok": True, "html": str(md(out))}
 
@@ -146,7 +152,7 @@ def entity_brief(entity_id: int, user: User = Depends(require("analyst")), db: S
     try:
         out = brief(db, ent)
     except LLMError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
     db.commit()
     return {"ok": True, "html": str(md(out))}
 
@@ -158,7 +164,7 @@ def make_digest(user: User = Depends(require("analyst")), db: Session = Depends(
     try:
         ins = daily_digest(db, user.id)
     except LLMError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
     db.commit()
     return {"ok": True, "id": ins.id, "html": str(md(ins.content))}
 
@@ -173,7 +179,7 @@ def ask(payload: dict = Body(...), user: User = Depends(require("analyst")), db:
     try:
         ins = do_ask(db, q, user.id)
     except LLMError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
     db.commit()
     return {"ok": True, "id": ins.id, "html": str(md(ins.content))}
 
@@ -183,7 +189,9 @@ def llm_test(_: User = Depends(require("admin"))):
     try:
         return {"ok": True, "message": f"{llm.provider()}:{llm.model_name()} → {llm.test_connection()}"}
     except LLMError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        raise HTTPException(400, f"{type(e).__name__}: {e}") from e
 
 
 @router.post("/watch/{entity_id}", dependencies=[Depends(verify_csrf)])

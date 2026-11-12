@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/settings")
 @router.get("")
 def settings_page(request: Request, tab: str = "sources", msg: str = "", user: User = Depends(require("admin")),
                   db: Session = Depends(get_db)):
-    sources = db.execute(select(Source).order_by(Source.category, Source.name)).scalars().all()
+    sources = db.execute(select(Source).order_by(Source.category, Source.kind, Source.name)).scalars().all()
     kinds = {k: {"label": c.label, "category": c.category, "fields": c.fields} for k, c in REGISTRY.items()}
     return render(request, "settings.html", {
         "user": user, "tab": tab, "msg": msg, "sources": sources, "kinds": kinds,
@@ -42,10 +42,10 @@ async def save_values(request: Request, user: User = Depends(require("admin")), 
             if raw is None:
                 continue
             if kind == "secret":
-                if raw == "":  # blank = keep existing
-                    continue
-                if raw == "__clear__":
+                if form.get(f"{key}__clear") == "on":
                     raw = ""
+                elif raw == "":  # blank = keep existing
+                    continue
             val = settings.coerce_form_value(key, raw)
         if settings.get(key) != val:
             settings.set(key, val)
@@ -62,7 +62,22 @@ def _source_config_from_form(kind: str, form) -> dict:
     cls = REGISTRY.get(kind)
     if not cls:
         raise HTTPException(400, "unknown kind")
-    return {name: str(form.get(f"cfg_{name}", "")).strip() for name, _, _ in cls.fields if form.get(f"cfg_{name}")}
+    cfg = {name: str(form.get(f"cfg_{name}", "")).strip()[:2000] for name, _, _ in cls.fields if form.get(f"cfg_{name}")}
+    for name, value in cfg.items():
+        if name in ("url", "rss_bridge") and not value.lower().startswith(("http://", "https://")):
+            raise HTTPException(400, f"{name} must start with http:// or https://")
+    return cfg
+
+
+def _interval(raw, fallback: int) -> int:
+    try:
+        return min(max(int(raw or fallback), 5), 10_080)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _category(raw, fallback: str) -> str:
+    return raw if raw in ("news", "social", "intel") else fallback
 
 
 @router.post("/sources", dependencies=[Depends(verify_csrf)])
@@ -74,8 +89,8 @@ async def add_source(request: Request, user: User = Depends(require("admin")), d
         raise HTTPException(400, "unknown kind")
     src = Source(
         name=str(form.get("name", "")).strip()[:120] or cls.label, kind=kind,
-        category=str(form.get("category") or cls.category), config=_source_config_from_form(kind, form),
-        interval_minutes=max(5, int(form.get("interval_minutes") or 30)), enabled=True,
+        category=_category(form.get("category"), cls.category), config=_source_config_from_form(kind, form),
+        interval_minutes=_interval(form.get("interval_minutes"), 30), enabled=True,
     )
     db.add(src)
     audit(db, user, "source_added", f"{src.kind}:{src.name}", request)
@@ -102,8 +117,8 @@ async def update_source(source_id: int, request: Request, user: User = Depends(r
         src.enabled = not src.enabled
     else:
         src.name = str(form.get("name", src.name)).strip()[:120] or src.name
-        src.interval_minutes = max(5, int(form.get("interval_minutes") or src.interval_minutes))
-        src.category = str(form.get("category") or src.category)
+        src.interval_minutes = _interval(form.get("interval_minutes"), src.interval_minutes)
+        src.category = _category(form.get("category"), src.category)
         new_cfg = _source_config_from_form(src.kind, form)
         keep = {k: v for k, v in (src.config or {}).items() if k not in dict.fromkeys(n for n, _, _ in REGISTRY[src.kind].fields)}
         src.config = {**keep, **new_cfg}

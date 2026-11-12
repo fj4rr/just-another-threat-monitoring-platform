@@ -6,7 +6,7 @@
   <div><h1>Feed</h1><p class="muted">{{ total }} item(s){% if entity %} mentioning <a href="/entities/{{ entity.id }}">{{ entity.display }}</a>{% endif %}</p></div>
 </div>
 <form class="filters" method="get">
-  <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content">
+  <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content" aria-label="Search" maxlength="200">
   <select name="cat"><option value="">All source types</option>
     {% for c in ['news','social','intel'] %}<option value="{{ c }}" {{ 'selected' if f.cat == c }}>{{ c }}</option>{% endfor %}</select>
   <select name="kind"><option value="">All kinds</option>
@@ -19,9 +19,10 @@
     <option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ l }}</option>{% endfor %}</select>
   {% if f.entity %}<input type="hidden" name="entity" value="{{ f.entity }}">{% endif %}
   <button class="btn">Filter</button>
+  {% if f.q or f.cat or f.kind or f.source or f.min_sev or f.days != 30 or f.entity %}<a class="btn" href="/feed">Reset</a>{% endif %}
 </form>
 <div class="card">
-  {% for i in items %}{{ feed_item(i) }}{% else %}<div class="empty">No items match.</div>{% endfor %}
+  {% for i in items %}{{ feed_item(i) }}{% else %}<div class="empty">No items match these filters.{% if total == 0 and not f.q and not f.entity %} Collectors run on a schedule – an admin can press “Run all enabled” in Settings → Sources to start now.{% endif %}</div>{% endfor %}
 </div>
 {% if pages > 1 %}
 {% set qs = 'q=' ~ (f.q|urlencode) ~ '&cat=' ~ f.cat ~ '&kind=' ~ f.kind ~ '&source=' ~ f.source ~ '&min_sev=' ~ f.min_sev ~ '&days=' ~ f.days ~ '&entity=' ~ f.entity %}

@@ -3,11 +3,12 @@
 {% block content %}
 <div class="page-head"><div><h1>{{ title }}</h1><p class="muted">{{ rows|length }} tracked · mentions in the last {{ f.days }} days</p></div></div>
 <form class="filters" method="get">
-  <input type="search" name="q" value="{{ f.q }}" placeholder="Filter by name">
+  <input type="search" name="q" value="{{ f.q }}" placeholder="Filter by name" aria-label="Filter by name" maxlength="100">
   {% if categories %}<select name="category"><option value="">All types</option>
     {% for c in categories %}<option value="{{ c }}" {{ 'selected' if f.category == c }}>{{ c }}</option>{% endfor %}</select>{% endif %}
-  <select name="days">{% for v in [7, 30, 90, 365] %}<option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ v }} days</option>{% endfor %}</select>
+  <select name="days" aria-label="Period">{% for v in [7, 30, 90, 365] %}<option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ v }} days</option>{% endfor %}</select>
   <button class="btn">Filter</button>
+  {% if f.q or f.category or f.days != 30 %}<a class="btn" href="{{ path }}">Reset</a>{% endif %}
 </form>
 {% if cat_breakdown %}
 <div class="card" style="margin-bottom:16px">
@@ -40,7 +41,7 @@
 {% endblock %}
 {% block scripts %}
 {% if cat_breakdown %}
-<script>
+<script nonce="{{ nonce }}">
 document.addEventListener("DOMContentLoaded", () => {
   JATMP.hbar(document.getElementById("c-cat"), "/api/stats/categories?days={{ f.days }}",
     { labelKey: "category", link: (r) => `/malware?category=${r.category}&days={{ f.days }}` });
