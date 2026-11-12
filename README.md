@@ -11,11 +11,11 @@ Single process, SQLite by default, no JavaScript build step, no external CDN at 
 
 ## Screenshots
 
-Dashboard: threat radar, KPIs with sparklines, headline ticker, collection volume, trending families.
+Dashboard: threat radar, KPI tiles (icon = link to the detail page), headline ticker, collection volume, trending families.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
-| Malware family page: timeline, indicators, coverage per source, co-occurring CVEs/actors | Item page: content, extracted entities, correlated items from other sources |
+| Malware family page: timeline, indicators, coverage per source, co-occurring CVEs/actors | Item page: severity breakdown (“why 54?”), extracted entities, correlated items ranked by evidence |
 |---|---|
 | ![Entity page](docs/screenshots/entity.png) | ![Item page](docs/screenshots/item.png) |
 
