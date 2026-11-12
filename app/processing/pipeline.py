@@ -11,7 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import Entity, Item, ItemEntity, Source, utcnow
-from .extractor import Extracted, extract_all, severity_score
+from .extractor import Extracted, extract_all
+from .severity import reasons_to_json, score_item
 
 log = logging.getLogger(__name__)
 
@@ -139,7 +140,8 @@ def ingest(db: Session, source: Source, raws: list[RawItem]) -> list[int]:
                 extracted.append(Extracted("malware", hit[0].lower(), hit[0], hit[1], "feed"))
         # dedupe by (type,value)
         uniq = {(e.type, e.value): e for e in extracted}
-        item.severity = severity_score(text, list(uniq.values()))
+        item.severity, reasons = score_item(item.title, f"{content}\n{' '.join(item.tags)}", list(uniq.values()), item.kind)
+        item.severity_detail = reasons_to_json(reasons)
         link_entities(db, item, list(uniq.values()))
         new_ids.append(item.id)
     source.items_count = (source.items_count or 0) + len(new_ids)

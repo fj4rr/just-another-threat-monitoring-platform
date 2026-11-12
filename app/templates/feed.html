@@ -1,14 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import feed_item %}
+{% from "_macros.html" import sev, th %}
 {% block title %}Feed{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Feed</h1><p class="muted">{{ total }} item(s){% if entity %} mentioning <a href="/entities/{{ entity.id }}">{{ entity.display }}</a>{% endif %}</p></div>
-  <div class="seg" role="group" aria-label="Sort order">
-    <span class="muted small">Sort by</span>
-    <a class="btn sm {{ 'primary' if f.sort == 'time' }}" href="?{{ f.qs }}{{ '&' if f.qs }}sort=time" aria-pressed="{{ 'true' if f.sort == 'time' else 'false' }}">Newest</a>
-    <a class="btn sm {{ 'primary' if f.sort == 'severity' }}" href="?{{ f.qs }}{{ '&' if f.qs }}sort=severity" aria-pressed="{{ 'true' if f.sort == 'severity' else 'false' }}">Severity</a>
-  </div>
+  <div><h1>Feed</h1><p class="muted">{{ total }} item(s){% if entity %} mentioning <a href="/entities/{{ entity.id }}">{{ entity.display }}</a>{% endif %} · click a column header to sort</p></div>
 </div>
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content" aria-label="Search" maxlength="200">
@@ -23,22 +18,49 @@
   <select name="days" aria-label="Period">{% for v, l in [(1,'24 hours'),(7,'7 days'),(30,'30 days'),(90,'90 days'),(0,'All time')] %}
     <option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ l }}</option>{% endfor %}</select>
   {% if f.entity %}<input type="hidden" name="entity" value="{{ f.entity }}">{% endif %}
-  <input type="hidden" name="sort" value="{{ f.sort }}">
+  <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
   <button class="btn">Filter</button>
   {% if f.q or f.cat or f.kind or f.source or f.min_sev or f.days != 30 or f.entity %}<a class="btn" href="/feed">Reset</a>{% endif %}
 </form>
-<div class="card">
-  <div class="list-head">
-    <span title="Heuristic severity score, 0–100: keywords (zero-day, ransomware, actively exploited…) plus the kinds of entities found">Severity · time</span>
-    <span>Item · source{% if f.sort == 'severity' %} <span class="muted">(highest severity first)</span>{% else %} <span class="muted">(newest first)</span>{% endif %}</span>
-  </div>
-  {% for i in items %}{{ feed_item(i) }}{% else %}<div class="empty">No items match these filters.{% if total == 0 and not f.q and not f.entity %} Collectors run on a schedule – an admin can press “Run all enabled” in Settings → Sources to start now.{% endif %}</div>{% endfor %}
+<div class="card table-wrap feed-table">
+  <table>
+    <thead><tr>
+      {{ th('Severity', 'severity', f, 'col-sev') }}
+      {{ th('Title', 'title', f, 'col-title', default='asc') }}
+      {{ th('Source', 'source', f, 'col-src', default='asc') }}
+      {{ th('Time', 'time', f, 'col-time') }}
+    </tr></thead>
+    <tbody>
+    {% for i in items %}
+    <tr>
+      <td class="col-sev">{{ sev(i.severity) }}</td>
+      <td class="col-title">
+        <a class="title" href="/items/{{ i.id }}">{{ i.title or '(untitled)' }}</a>
+        {% if i.content %}<div class="snippet one-line">{{ i.content|truncate(200) }}</div>{% endif %}
+        {% set ents = i.entity_links|selectattr('entity.type', 'in', ['malware','actor','cve','technique'])|list %}
+        {% set iocs = i.entity_links|rejectattr('entity.type', 'in', ['malware','actor','cve','technique'])|list %}
+        {% if ents or iocs or i.llm_summary %}<div class="ent-row">
+          {% for l in ents[:8] %}<a class="chip" href="/entities/{{ l.entity.id }}"><span class="t">{{ l.entity.type }}</span>{{ l.entity.display|truncate(36, True) }}</a>{% endfor %}
+          {% if ents|length > 8 %}<span class="chip muted">+{{ ents|length - 8 }}</span>{% endif %}
+          {% if iocs %}<a class="chip" href="/items/{{ i.id }}" title="{{ iocs|length }} indicator(s) extracted"><span class="t">ioc</span>{{ iocs|length }}</a>{% endif %}
+          {% if i.llm_summary %}<span class="badge new">AI</span>{% endif %}
+        </div>{% endif %}
+      </td>
+      <td class="col-src"><span class="badge cat-{{ i.source.category }}">{{ i.source.category }}</span>
+        <div class="small" style="margin-top:3px"><a class="muted" href="?{{ f.qs }}{{ '&' if f.qs }}source={{ i.source.id }}&sort={{ f.sort }}&dir={{ f.dir }}" title="Only this source">{{ i.source.name }}</a>
+          <span class="muted"> · {{ i.kind }}</span></div></td>
+      <td class="col-time"><time class="muted small" datetime="{{ i.published_at.isoformat() }}Z" title="{{ i.published_at }} UTC">{{ i.published_at|timeago }}</time></td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="empty">No items match these filters.{% if total == 0 and not f.q and not f.entity %} Collectors run on a schedule – an admin can press “Run all enabled” in Settings → Sources to start now.{% endif %}</td></tr>{% endfor %}
+    </tbody>
+  </table>
 </div>
 {% if pages > 1 %}
 <div class="pager">
-  {% if page > 1 %}<a class="btn sm" href="?{{ f.qs }}{{ '&' if f.qs }}sort={{ f.sort }}&page={{ page - 1 }}">← Prev</a>{% endif %}
+  {% set qs = f.qs ~ ('&' if f.qs) ~ 'sort=' ~ f.sort ~ '&dir=' ~ f.dir %}
+  {% if page > 1 %}<a class="btn sm" href="?{{ qs }}&page={{ page - 1 }}">← Prev</a>{% endif %}
   <span class="muted small">Page {{ page }} / {{ pages }}</span>
-  {% if page < pages %}<a class="btn sm" href="?{{ f.qs }}{{ '&' if f.qs }}sort={{ f.sort }}&page={{ page + 1 }}">Next →</a>{% endif %}
+  {% if page < pages %}<a class="btn sm" href="?{{ qs }}&page={{ page + 1 }}">Next →</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Report builder</h1>
+  <p class="muted">Curated snapshot of a period – volumes, trending families, actors, CVEs, indicators with verdicts and the notable items – as a file you can share.</p></div></div>
+<form method="post" action="/reports/build" class="card" style="max-width:860px" id="report-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf }}">
+  <h2>1 · Period</h2>
+  <div class="grid g-2">
+    <div class="field"><label for="preset">Quick range (UTC)</label>
+      <select id="preset" name="preset">{% for d, l in presets %}<option value="{{ d }}" {{ 'selected' if d == 7 }}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="field"><label>…or exact dates (inclusive)</label>
+      <div class="row" style="flex-wrap:nowrap"><input type="date" name="start" aria-label="Start date" max="{{ today }}" placeholder="{{ month_ago }}">
+        <span class="muted">to</span><input type="date" name="end" aria-label="End date" max="{{ today }}"></div>
+      <div class="muted small">Leave empty to use the quick range.</div></div>
+  </div>
+  <h2 style="margin-top:8px">2 · Sections</h2>
+  <div class="grid g-2 sections">
+    {% for k, l in sections.items() %}<label class="check"><input type="checkbox" name="sections" value="{{ k }}" checked> {{ l }}</label>{% endfor %}
+  </div>
+  <details class="small" style="margin:12px 0"><summary class="muted">Fine-tune</summary>
+    <div class="grid g-3" style="margin-top:10px">
+      <div class="field"><label for="min_sev">Notable items: minimum severity</label><input id="min_sev" type="number" name="min_sev" min="0" max="100" value="40"></div>
+      <div class="field"><label for="limit">Rows per table (indicators ×4)</label><input id="limit" type="number" name="limit" min="5" max="500" value="50"></div>
+      <div class="field"><label for="title">Report title</label><input id="title" type="text" name="title" maxlength="120" placeholder="Threat landscape report"></div>
+    </div>
+    <div class="field"><label>Indicators to include</label>
+      <div class="row">{% for v in ['malicious','suspicious','unknown','clean','pending'] %}<label class="check small" style="margin:0"><input type="checkbox" name="verdicts" value="{{ v }}" {{ 'checked' if v in ('malicious','suspicious') }}> {{ v }}</label>{% endfor %}</div>
+      <div class="muted small">Untick everything to include all indicators seen in the period.</div></div>
+  </details>
+  <h2>3 · Format</h2>
+  <div class="mode-pick formats">
+    {% for k, l in formats.items() %}<label><input type="radio" name="format" value="{{ k }}" {{ 'checked' if k == 'pdf' }}> <strong>{{ l }}</strong>
+      <div class="muted small">{% if k == 'csv' %}One file, one block per section – opens in Excel / Sheets.{% elif k == 'md' %}Plain text with tables – paste into a wiki or ticket.{% elif k == 'docx' %}Editable Word document, landscape tables.{% else %}Ready to share, landscape A4.{% endif %}</div></label>{% endfor %}
+  </div>
+  <div class="row" style="margin-top:14px"><button class="btn primary">⤓ Build & download</button>
+    <span class="muted small">Generated on the server from the data collected so far; nothing is sent anywhere.</span></div>
+</form>
+{% endblock %}

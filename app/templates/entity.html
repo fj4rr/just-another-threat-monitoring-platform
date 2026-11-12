@@ -28,7 +28,7 @@
       <div class="card-head"><h2>AI threat brief</h2>
         {% if llm_on and user.role in ('admin','analyst') %}<button class="btn sm primary" data-post="/api/entities/{{ ent.id }}/brief" data-target="#brief" data-busy="Writing brief…">✦ {{ 'Refresh brief' if ent.llm_brief else 'Generate brief' }}</button>{% endif %}</div>
       <div id="brief" class="prose">{% if ent.llm_brief %}{{ ent.llm_brief|md }}<p class="muted small">Generated {{ ent.llm_at|timeago }}</p>
-        {% else %}<p class="muted">{{ 'No brief yet. The brief combines coverage from every source with enrichment results.' if llm_on else 'Configure an LLM in Settings to generate briefs.' }}</p>{% endif %}</div>
+        {% else %}<p class="muted">{{ 'No brief yet. The brief combines coverage from every source with enrichment results.' if llm_on else 'Configure an LLM in Settings → AI to generate briefs.' }}</p>{% endif %}</div>
     </div>
     {% endif %}
 

@@ -12,13 +12,13 @@ import logging
 import re
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from .. import settings
 from ..intel import LookupResult, NotConfigured
 from ..intel.clients import OTX, AnyRun, URLScan, VirusTotal
-from ..knowledge import canonical_malware
+from ..knowledge import AMBIGUOUS, canonical_malware
 from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, utcnow
 from .extractor import Extracted
 from .pipeline import get_or_create_entity
@@ -27,6 +27,12 @@ log = logging.getLogger(__name__)
 
 IOC_TYPES = ("md5", "sha1", "sha256", "ip", "domain", "url")
 VERDICT_RANK = {"malicious": 3, "suspicious": 2, "clean": 1, "unknown": 0, "": 0}
+# How much an item's severity rises when one of its indicators is confirmed by enrichment.
+VERDICT_BONUS = {"malicious": 12, "suspicious": 5}
+# Re-check cadence: providers learn about an indicator days after it is first posted.
+RECHECK_UNKNOWN_AFTER = timedelta(days=3)
+RECHECK_ERROR_AFTER = timedelta(hours=6)
+RECHECK_MAX_AGE = timedelta(days=21)
 
 
 def available_providers() -> list:
@@ -45,8 +51,12 @@ def resolve_family(label: str) -> tuple[str, str] | None:
     if hit:
         return hit
     for tok in re.split(r"[./,:\s_\-]+", label.lower()):
-        if len(tok) < 4 or tok in {"trojan", "generic", "malware", "win32", "win64", "msil", "agent",
-                                   "stealer", "ransom", "backdoor", "downloader", "dropper", "heur"}:
+        # short / ambiguous tokens ("play", "hook", "fog") only count when they ARE the label
+        if len(tok) < 4 or tok in AMBIGUOUS or tok in {
+                "trojan", "generic", "malware", "win32", "win64", "msil", "agent", "stealer", "ransom",
+                "backdoor", "downloader", "dropper", "heur", "variant", "family", "riskware", "adware",
+                "pua", "pup", "hacktool", "packed", "suspicious", "malicious", "virus", "worm", "script",
+                "android", "linux", "macos", "osx", "unix", "python", "powershell", "java", "html", "phishing"}:
             continue
         hit = canonical_malware(tok)
         if hit:
@@ -78,44 +88,100 @@ def _link(db: Session, src: Entity, dst: Entity, relation: str, provider: str) -
         db.add(EntityLink(src_id=src.id, dst_id=dst.id, relation=relation, provider=provider))
 
 
+def _consensus(entity: Entity, results: list[LookupResult]) -> str:
+    """Combine provider verdicts. Any provider saying *malicious* wins; otherwise the strongest
+    verdict, except that a lone OTX pulse mention is only *suspicious* unless pulses attribute
+    a family (OTX pulses include plenty of benign infrastructure)."""
+    best = entity.verdict or ""
+    for res in results:
+        v = res.verdict
+        if res.provider == "otx" and v == "malicious" and not res.malware and (res.data.get("pulse_count") or 0) < 5:
+            v = "suspicious"
+        if VERDICT_RANK.get(v, 0) > VERDICT_RANK.get(best, 0):
+            best = v
+    return best
+
+
+def _bump_items(db: Session, entity: Entity, old: str, new: str) -> int:
+    """Feed a confirmed verdict back into the severity of the items that mention the IOC."""
+    gain = VERDICT_BONUS.get(new, 0) - VERDICT_BONUS.get(old, 0)
+    if gain <= 0:
+        return 0
+    items = db.execute(select(Item).join(ItemEntity, ItemEntity.item_id == Item.id)
+                       .where(ItemEntity.entity_id == entity.id)).unique().scalars().all()
+    label = f"indicator confirmed {new} ({entity.type})"
+    for item in items:
+        detail = [d for d in (item.severity_detail or []) if not str(d.get("label", "")).startswith("indicator confirmed")]
+        detail.append({"label": label, "points": gain})
+        item.severity_detail = detail
+        item.severity = min(100, (item.severity or 0) + gain)
+    return len(items)
+
+
 def enrich_entity(db: Session, entity: Entity, providers: list | None = None) -> list[str]:
     """Look an IOC up on every configured provider. Returns list of messages."""
     msgs = []
     providers = providers if providers is not None else available_providers()
-    best = entity.verdict or ""
+    results: list[LookupResult] = []
+    attempted = failed = 0
     for p in providers:
+        if entity.type not in getattr(p, "supports", {entity.type}) and entity.type not in getattr(p, "FIELD", {entity.type}):
+            continue
+        attempted += 1
         try:
             res = p.lookup(entity.type, entity.value)
         except Exception as e:  # provider errors must not stop the batch
+            failed += 1
             msgs.append(f"{p.name}: {e}")
             log.warning("enrich %s %s via %s failed: %s", entity.type, entity.value, p.name, e)
             continue
         if res is None:
             continue
+        results.append(res)
         _upsert(db, entity, res)
-        if VERDICT_RANK[res.verdict] > VERDICT_RANK.get(best, 0):
-            best = res.verdict
         for label in res.malware[:5]:
             fam = resolve_family(label)
             if fam:
                 fam_ent = get_or_create_entity(db, Extracted("malware", fam[0].lower(), fam[0], fam[1]))
                 _link(db, entity, fam_ent, "attributed-to", p.name)
-        for rel in res.related[:15]:
+        for rel in res.related[:8]:
             rel_ent = get_or_create_entity(db, rel)
             _link(db, entity, rel_ent, "related", p.name)
         msgs.append(f"{p.name}: {res.verdict}")
-    entity.verdict = best or "unknown"
+    old = entity.verdict or ""
+    if results:
+        new = _consensus(entity, results) or "unknown"
+        entity.verdict = new
+        n = _bump_items(db, entity, old, new)
+        if n:
+            msgs.append(f"severity raised on {n} item(s)")
+    elif attempted and failed == attempted:
+        # every provider errored (quota, network): keep "" so the re-check pass retries soon
+        entity.verdict = entity.verdict or ""
+    else:
+        entity.verdict = entity.verdict or "unknown"
     entity.enriched_at = utcnow()
     return msgs
+
+
+def _pulse_mentions(pulse: dict, name_l: str) -> bool:
+    """Only trust pulses that actually name the family (OTX full-text search is fuzzy)."""
+    fams = " ".join(str(f.get("display_name") if isinstance(f, dict) else f) for f in pulse.get("malware_families") or [])
+    hay = " ".join([pulse.get("name") or "", " ".join(pulse.get("tags") or []), fams]).lower()
+    squashed = name_l.replace(" ", "")
+    return name_l in hay or squashed in hay.replace(" ", "")
 
 
 def enrich_family(db: Session, entity: Entity) -> list[str]:
     """Pull fresh IOCs & context for a malware family from OTX and ANY.RUN."""
     msgs = []
     name = entity.display or entity.value
+    low = name.lower()
     try:
         otx = OTX()
-        pulses = otx.search_pulses(name, limit=10)
+        # short / ambiguous names ("Play", "Fog") need a qualifier or the search returns noise
+        query = name if len(low) > 5 and low not in AMBIGUOUS else f'"{name}" {entity.category or "malware"}'
+        pulses = [p for p in otx.search_pulses(query, limit=20) if _pulse_mentions(p, low)][:10]
         linked = 0
         for pulse in pulses[:5]:
             for ex in otx.pulse_indicators(pulse, limit=40):
@@ -180,8 +246,23 @@ def run_batch(db: Session) -> str:
             .order_by(Entity.first_seen.desc()).limit(batch - len(iocs))
         ).scalars()
         iocs += [e for e in extra if e not in iocs]
+    # 3) re-check: "unknown" results age (providers learn about an IOC days later) and
+    #    errored lookups (quota / network) deserve a retry. Uses up to a quarter of the batch.
+    recheck_slots = max(1, batch // 4) if len(iocs) < batch else max(0, batch // 4)
+    rechecked: list[Entity] = []
+    if recheck_slots:
+        now = utcnow()
+        rq = (
+            select(Entity)
+            .where(Entity.type.in_(IOC_TYPES), Entity.enriched_at.is_not(None), Entity.last_seen >= now - RECHECK_MAX_AGE,
+                   or_(and_(Entity.verdict == "", Entity.enriched_at < now - RECHECK_ERROR_AFTER),
+                       and_(Entity.verdict == "unknown", Entity.enriched_at < now - RECHECK_UNKNOWN_AFTER)))
+            .order_by(Entity.mention_count.desc(), Entity.enriched_at.asc())
+            .limit(recheck_slots)
+        )
+        rechecked = [e for e in db.execute(rq).scalars() if e not in iocs]
     done = 0
-    for ent in iocs:
+    for ent in iocs + rechecked:
         enrich_entity(db, ent, providers)
         db.commit()
         done += 1
@@ -198,4 +279,4 @@ def run_batch(db: Session) -> str:
                 fam_done += 1
                 if fam_done >= 2:
                     break
-    return f"enriched {done} IOC(s), {fam_done} family(ies)"
+    return f"enriched {done} IOC(s) ({len(rechecked)} re-checked), {fam_done} family(ies)"

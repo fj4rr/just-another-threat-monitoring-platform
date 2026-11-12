@@ -110,6 +110,14 @@ def enrichment_run(request: Request, user: User = Depends(require("analyst")), d
     return {"ok": True, "message": "enrichment batch queued"}
 
 
+@router.post("/items/rescore", dependencies=[Depends(verify_csrf)])
+def items_rescore(request: Request, user: User = Depends(require("admin")), db: Session = Depends(get_db)):
+    jobs.run_now(jobs.run_rescore)
+    audit(db, user, "items_rescore", "", request)
+    db.commit()
+    return {"ok": True, "message": "re-scoring queued; severities update in the background"}
+
+
 @router.post("/entities/{entity_id}/enrich", dependencies=[Depends(verify_csrf)])
 def entity_enrich(entity_id: int, request: Request, user: User = Depends(require("analyst")),
                   db: Session = Depends(get_db)):
@@ -192,6 +200,28 @@ def llm_test(_: User = Depends(require("admin"))):
         raise HTTPException(400, str(e)) from e
     except Exception as e:
         raise HTTPException(400, f"{type(e).__name__}: {e}") from e
+
+
+@router.post("/llm/models", dependencies=[Depends(verify_csrf)])
+def llm_models(payload: dict = Body(default={}), _: User = Depends(require("admin"))):
+    """Live model list for the Settings page. Unsaved form values are passed in so the user
+    can browse models before saving; a blank key uses the saved one."""
+    from ..llm import presets
+
+    mode = str(payload.get("mode") or "")
+    vendor = str(payload.get("vendor") or "")
+    sp = presets.spec(mode, vendor)
+    if not sp:
+        raise HTTPException(400, "choose local or cloud and a vendor first")
+    base = str(payload.get("base_url") or "").strip()[:500] or sp["base_url"]
+    if base and not base.lower().startswith(("http://", "https://")):
+        raise HTTPException(400, "base URL must start with http:// or https://")
+    key = str(payload.get("api_key") or "")[:500]
+    try:
+        models = llm.list_models(sp["provider"], base, key)
+    except LLMError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"ok": True, "models": models, "message": f"{len(models)} model(s) found"}
 
 
 @router.post("/watch/{entity_id}", dependencies=[Depends(verify_csrf)])

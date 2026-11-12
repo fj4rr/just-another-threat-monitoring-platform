@@ -136,6 +136,41 @@ def run_digest(force: bool = False) -> str:
         db.close()
 
 
+def run_rescore() -> str:
+    """Recompute the severity of every item with the current scoring rules, using the
+    entities already linked to it (no re-extraction, no network)."""
+    from .processing.enrichment import VERDICT_BONUS
+    from .processing.severity import reasons_to_json, score_item
+
+    db = SessionLocal()
+    run = _start_run(db, "rescore")
+    n = 0
+    try:
+        for item in db.execute(select(Item)).scalars():
+            ents = [link.entity for link in item.entity_links]
+            score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}", ents, item.kind)
+            detail = reasons_to_json(reasons)
+            # keep the enrichment feedback that was applied to the old score
+            confirmed = max((VERDICT_BONUS.get(e.verdict or "", 0) for e in ents), default=0)
+            if confirmed:
+                best = max(ents, key=lambda e: VERDICT_BONUS.get(e.verdict or "", 0))
+                detail.append({"label": f"indicator confirmed {best.verdict} ({best.type})", "points": confirmed})
+                score = min(100, score + confirmed)
+            item.severity, item.severity_detail = score, detail
+            n += 1
+            if n % 500 == 0:
+                db.commit()
+        db.commit()
+        _finish(db, run, "ok", f"re-scored {n} item(s)")
+        return f"re-scored {n} item(s)"
+    except Exception as e:
+        db.rollback()
+        _finish(db, run, "error", str(e))
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
 def run_housekeeping() -> str:
     days = int(settings.get("retention_days") or 0)
     db = SessionLocal()

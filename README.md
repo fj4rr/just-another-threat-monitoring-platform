@@ -19,13 +19,17 @@ Dashboard: threat radar, KPIs with sparklines, headline ticker, collection volum
 |---|---|
 | ![Entity page](docs/screenshots/entity.png) | ![Item page](docs/screenshots/item.png) |
 
-| Feed with filters, severity and time/severity sort | IOC table with verdicts, attributed families and where each indicator was seen |
+| Feed: sortable table (severity, title + entities, source type, time) | IOC table with verdicts, attributed families and where each indicator was seen |
 |---|---|
 | ![Feed](docs/screenshots/feed.png) | ![IOCs](docs/screenshots/iocs.png) |
 
-| Malware families: sortable columns, trend score, mentions by type | Settings: add source, source status and per-source actions |
+| Malware families: sortable columns, trend score, mentions by type | AI settings: local or cloud, vendor presets, live model list |
 |---|---|
-| ![Malware families](docs/screenshots/malware.png) | ![Settings](docs/screenshots/settings.png) |
+| ![Malware families](docs/screenshots/malware.png) | ![AI settings](docs/screenshots/settings.png) |
+
+| Report builder: period, sections and CSV / Markdown / Word / PDF output |
+|---|
+| ![Report builder](docs/screenshots/reports.png) |
 
 <img src="docs/screenshots/mobile.jpg" alt="Mobile dashboard" width="300">
 
@@ -38,13 +42,15 @@ Dashboard: threat radar, KPIs with sparklines, headline ticker, collection volum
 | **Mastodon** (public API, no key) | Marcus Hutchins, Brian Krebs, Brad Duncan (malware-traffic), SANS ISC, Proofpoint Threat Insight, Thomas Roccia, ffforward, Matt Taggart, Kevin Beaumont |
 | **X / Twitter** (API v2 bearer token **or** an RSS bridge) | Enabled: vxunderground, MalwareTechBlog, malwrhunterteam. Available but **disabled** by default (enable them in Settings so the API quota isn't burned unintentionally): GossiTheDog, cyb3rops, 1ZRR4H, BushidoToken, TheDFIRReport, Unit42_Intel, abuse_ch, malware_traffic, ESETresearch, MsftSecIntel, executemalware, pr0xylife, g0njxa, Max_Mal_, RedDrip7, fr0gger_, StopMalvertisin, ViriBack, Fox_threatintel, FalconFeedsio, H4ckManac, anyrun_app, ffforward |
 | **Threat-intel collectors** | OTX subscribed pulses / search, urlscan.io search, ANY.RUN TI Lookup query, latest ThreatFox IOCs |
-| **Entity extraction** | Malware families (~150 families + aliases), threat actors (~45), CVEs, ATT&CK techniques, IOCs (IP, domain, URL, MD5/SHA1/SHA256 — including *defanged* ones such as `hxxp` and `[.]`). Detects **new** families that are not in the knowledge base yet (patterns like “`PipeMagic backdoor`”, “`WhiteArmor ransomware`”) |
-| **Cross-source enrichment** | IOCs found in news and social posts are checked against VirusTotal, OTX, urlscan and ANY.RUN → verdict plus attributed family (e.g. a hash from a Bluesky post → “Lumma Stealer” from VT), which links it to other articles about that family. IOCs for trending families are pulled from OTX & ANY.RUN |
-| **Correlation** | Item pages list items from other sources that share entities; entity pages show per-source coverage, co-occurrence, related IOCs and enrichment results |
+| **Entity extraction** | Malware families (~150 families + aliases), threat actors (~45), CVEs, ATT&CK techniques, IOCs (IP, domain, URL, MD5/SHA1/SHA256 — including *defanged* ones such as `hxxp`, `[.]`, `[:]`, `[://]`, `\.`, `(dot)`). Detects **new** families that are not in the knowledge base yet (patterns like “`PipeMagic backdoor`”); legitimate tools that get abused (ConnectWise, AnyDesk…) are never promoted to families. Hashes inside URLs (commit SHAs, tracking ids) and version numbers that look like IPs are ignored; ~200 vendor / media / platform domains are never indicators |
+| **Severity (explainable)** | Every item gets a 0–100 score built from signal groups (exploitation, impact, threat class, activity) plus the entities found. Title hits weigh ×1.5; patch notes, roundups/guides and routine leak-site victim posts are damped; confirmed-malicious indicators raise the score later. The item page shows the full breakdown (“why 72?”) |
+| **Cross-source enrichment** | IOCs found in news and social posts are checked against VirusTotal, OTX, urlscan and ANY.RUN → consensus verdict plus attributed family (e.g. a hash from a Bluesky post → “Lumma Stealer” from VT), which links it to other articles about that family. OTX-whitelisted infrastructure is marked clean, a lone OTX pulse hit is only *suspicious*, failed lookups are retried, *unknown* results are re-checked after 3 days, and verdicts feed back into item severity. IOCs for trending families are pulled from OTX & ANY.RUN (only pulses that actually name the family) |
+| **Correlation** | Item pages rank related items by evidence strength: a shared hash/URL/domain weighs far more than a shared CVE, rare entities more than common ones, other sources and other source *types* get a bonus, and the shared entities are listed. Entity pages show per-source coverage, co-occurrence, related IOCs and enrichment results |
+| **Reports** | Report builder: pick a period (quick range or exact dates), the sections (overview, trending families, actors, CVEs, indicators with verdicts, notable items with their severity reasons, new families, latest AI digest) and download **CSV**, **Markdown**, **Word (.docx)** or **PDF** |
 | **Dashboard** | Animated: a *threat radar* (trending families as blips that light up as the sweep passes; closer to the centre = hotter), count-up KPIs with sparklines, a headline ticker, staggered card entrance, animated charts, 60-second auto-refresh (respects *prefers-reduced-motion*). Content: KPIs, volume per source type, trending families (score = 7-day rate vs 30-day baseline × source spread), top-5 family timeline, most-mentioned families, malware by type, IOC verdicts, items per source, hottest actors & CVEs |
-| **AI (optional)** | Per-item summary + extraction, *threat brief* per family/actor, automatic *daily digest* at 06:00 UTC, Q&A over the collected data. Providers: **Ollama** (local), **OpenAI-compatible** (LM Studio, vLLM, llama.cpp, OpenRouter, OpenAI, Groq…), **Anthropic Claude** (official SDK, default `claude-opus-5-5`). Output language is configurable (e.g. *Bahasa Indonesia*) |
+| **AI (optional)** | Per-item summary + extraction, *threat brief* per family/actor, automatic *daily digest* at 06:00 UTC, Q&A over the collected data. Set-up is a three-way choice — **Off / Local / Cloud** — then a vendor (Local: Ollama, LM Studio, llama.cpp, vLLM, Jan, any OpenAI-compatible server · Cloud: Anthropic, OpenAI, OpenRouter, Groq, Gemini, Mistral, DeepSeek, xAI, Together, any OpenAI-compatible API) and a model picked from the live list the server/provider reports. Output language is configurable (e.g. *Bahasa Indonesia*) |
 | **Install modes** | **Single-user** (no login) or **multi-user** (login, admin/analyst/viewer roles, admin dashboard: user management, job status, audit log, system stats) |
-| **Other** | Sortable intelligence tables, per-family IOC lists, per-user watchlist, dark/light theme, keyboard shortcut `/` for search, mobile layout, data retention, Docker with health check |
+| **Other** | Sortable tables everywhere (feed included), per-family IOC lists, per-user watchlist, dark/light theme, keyboard shortcut `/` for search, mobile layout, data retention, Docker with health check |
 
 ## Quick start (local)
 
@@ -120,6 +126,12 @@ Create `data/knowledge_extra.json`:
 
 Restart, then run `python manage.py reextract` to reprocess existing items.
 
+### After upgrading to 0.3
+
+Scores and their breakdowns are computed on ingest. Existing items keep their old score until you run
+`python manage.py rescore` (or press **Re-score all items** in Settings → General); this is a local,
+network-free pass over the database. The new `severity_detail` column is added automatically on start-up.
+
 ## Security notes
 
 - **Strict Content-Security-Policy**: scripts only from the app's own origin plus a per-request nonce for the
@@ -147,6 +159,7 @@ python manage.py collect          # run every collector now (or: collect 1 5 7)
 python manage.py enrich           # run one enrichment batch
 python manage.py digest           # generate the AI digest now
 python manage.py reextract        # re-extract entities on every item
+python manage.py rescore          # recompute severity with the current rules (also a button in Settings → General)
 python manage.py seed-sources     # add new built-in sources to an existing install (also a button in Settings)
 python manage.py create-user alice analyst
 ```
@@ -164,7 +177,8 @@ pytest
 ```
 
 Tests run against a throw-away SQLite database (no network, no scheduler) and cover the extractor,
-password/CSRF/redirect handling, feed sanitisation, the settings form and the multi-user login flow.
+severity scoring, enrichment consensus, feed sorting, the AI settings mapping, the report builder (all four
+formats), password/CSRF/redirect handling, feed sanitisation, the settings form and the multi-user login flow.
 GitHub Actions runs lint + tests on Python 3.11 and 3.12 and builds the Docker image.
 
 ## Architecture
@@ -173,10 +187,13 @@ GitHub Actions runs lint + tests on Python 3.11 and 3.12 and builds the Docker i
 app/
   collectors/   rss, bluesky, mastodon, x_twitter, intel (OTX, urlscan, ANY.RUN, ThreatFox)  → RawItem
   processing/   pipeline (dedupe, sanitise, store, link entities) · extractor (IOC/CVE/family/actor)
-                enrichment (cross-source) · trends (dashboard aggregations)
+                severity (explainable 0–100 score) · enrichment (cross-source, consensus, re-checks)
+                trends (dashboard aggregations, weighted correlation)
   intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox (+ rate limits/budgets)
-  llm/          client (Ollama / OpenAI-compatible / Anthropic) · insights (summary, brief, digest, Q&A)
-  routers/      pages, api (JSON + actions), settings, admin, auth/setup
+  llm/          client (Ollama / OpenAI-compatible / Anthropic, live model list) · presets (local/cloud vendors)
+                insights (summary, brief, digest, Q&A)
+  reports.py    report builder: gather() + CSV / Markdown / Word / PDF exporters
+  routers/      pages, api (JSON + actions), settings, reports, admin, auth/setup
   jobs.py       APScheduler: one job per source, enrichment every N minutes, daily digest, housekeeping
   static/       app.css (theme tokens, dark/light) · app.js (CSP-safe behaviours, charts) · motion.js (radar, sparklines)
 data/           config.json (install mode, secret), jatmp.db (SQLite)
@@ -187,6 +204,34 @@ The default database is SQLite (WAL mode). For larger deployments set `JATMP_DAT
 Run a single web worker: the scheduler lives in-process (scale collection by adjusting source intervals).
 
 ## Changelog
+
+### 0.3.0
+
+- **Severity rewritten** (`app/processing/severity.py`): grouped signals instead of a flat keyword sum (strongest
+  term per group, runner-up at half weight), title matches ×1.5, dampeners for patch notes / roundups / non-incident
+  news, a cap for routine leak-site victim posts, entity signals (unknown family, actor, CVE count, indicator count,
+  ATT&CK), and a stored breakdown shown on the item page. `manage.py rescore` / Settings → General re-score
+  existing items.
+- **Extraction**: more defang styles (`[:]`, `[://]`, `\.`, `(dot)`, `fxp`), hashes embedded in URLs and
+  tracking ids are skipped, version numbers that look like IPs (`Chrome 131.0.6778.85`, `v1.2.3.4`) are skipped,
+  a much larger benign-domain list, and a denylist of legitimate tools (ConnectWise, AnyDesk, PsExec…) for the
+  new-family heuristic.
+- **Enrichment**: provider consensus (a lone OTX pulse hit is *suspicious*, not malicious; OTX whitelist →
+  clean), lookups that all failed are retried after 6 h instead of being marked done forever, *unknown* IOCs are
+  re-checked after 3 days, confirmed verdicts raise the severity of the items that mention the IOC, family
+  attribution ignores ambiguous tokens (`play`, `hook`…), OTX family searches only accept pulses that name the
+  family, fewer secondary urlscan IPs are created.
+- **Correlation**: related items are ranked by evidence strength (type weight ÷ log mentions, other-source bonus)
+  and list the shared entities.
+- **Feed** is a real table with sortable Severity / Title / Source / Time headers; the separate sort buttons are
+  gone. Dashboard KPI tiles keep the icon link only (no duplicate “feed →” text links).
+- **AI settings** reduced to Off / Local / Cloud + vendor + model, with presets for 6 local runtimes and 10 cloud
+  providers, a live “Load models” list, and an advanced base-URL override. The classic `LLM_PROVIDER` /
+  `LLM_BASE_URL` / `LLM_MODEL` variables still work and are reflected in the new UI.
+- **Report builder** (`/reports`): period, sections, indicator verdict filter, CSV / Markdown / Word / PDF.
+- Fix: modal popovers (source edit, severity breakdown) opened inside their card after the entrance animation
+  (an identity transform made the card the containing block).
+- New dependencies: `python-docx`, `reportlab` (Word / PDF export).
 
 ### 0.2.1
 
@@ -225,4 +270,8 @@ Issues and pull requests are welcome.
   (and Marcus is also on Mastodon). X handles can't be verified without an API token.
 - The ANY.RUN TI Lookup endpoint (`/v1/intelligence/api/search`) has not been tested against a real key, and the
   official documentation could not be checked while writing it; the parser is defensive and the base URL is configurable.
-- The severity score is a heuristic (keywords + entity types); the LLM can raise it during analysis.
+- The severity score is a heuristic (signal groups + entity types, see `app/processing/severity.py`); the item page
+  shows the breakdown, enrichment raises it when an indicator is confirmed malicious, and the LLM can raise it during
+  analysis. Treat it as triage order, not as a CVSS-like absolute.
+- Model names in the AI presets are suggestions that were current when this version was written; use **Load models**
+  to see what your server or provider actually offers.

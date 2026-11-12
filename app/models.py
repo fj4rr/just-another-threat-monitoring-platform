@@ -78,6 +78,8 @@ class Item(Base):
     published_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     collected_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     severity: Mapped[int] = mapped_column(Integer, default=0)  # 0-100 heuristic
+    # why the item scored what it did: [{"label": "zero-day", "points": 30}, ...]
+    severity_detail: Mapped[list] = mapped_column(JSON, default=list)
     raw: Mapped[dict] = mapped_column(JSON, default=dict)
     llm_summary: Mapped[str] = mapped_column(Text, default="")
     llm_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -43,7 +43,7 @@
       <div class="grid g-2">
         <div class="field"><label for="llm-p">Provider</label>
           <select id="llm-p" name="llm_provider">
-            {% for p, l in [('none','None'),('ollama','Local – Ollama'),('openai_compatible','OpenAI-compatible (LM Studio, vLLM, llama.cpp, OpenRouter, OpenAI…)'),('anthropic','Anthropic Claude API')] %}
+            {% for p, l in [('none','Off – set up later in Settings → AI'),('ollama','Local – Ollama'),('openai_compatible','Local – LM Studio / llama.cpp / vLLM, or cloud – OpenAI / OpenRouter / Groq…'),('anthropic','Cloud – Anthropic Claude')] %}
             <option value="{{ p }}" {{ 'selected' if form.get('llm_provider','none') == p }}>{{ l }}</option>{% endfor %}
           </select></div>
         <div class="field"><label for="llm-m">Model</label><input id="llm-m" type="text" name="llm_model" value="{{ form.get('llm_model','') }}" placeholder="llama3.1 · qwen2.5:14b · claude-opus-5-5"></div>

@@ -1,6 +1,6 @@
 [project]
 name = "jatmp"
-version = "0.2.1"
+version = "0.3.0"
 description = "Just Another Threat Monitoring Platform – self-hosted malware campaign tracking"
 requires-python = ">=3.11"
 readme = "README.md"

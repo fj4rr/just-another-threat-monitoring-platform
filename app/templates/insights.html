@@ -2,7 +2,7 @@
 {% block title %}AI insights{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>AI insights</h1>
-  <p class="muted">{% if llm_on %}Using <span class="mono">{{ provider }}:{{ model }}</span>{% else %}No LLM configured – set one up in Settings → LLM (local Ollama / LM Studio, or an API).{% endif %}</p></div>
+  <p class="muted">{% if llm_on %}Using <span class="mono">{{ provider }}:{{ model }}</span>{% else %}No LLM configured – set one up in Settings → AI (local Ollama / LM Studio, or an API).{% endif %}</p></div>
   {% if llm_on and user.role in ('admin','analyst') %}<button class="btn primary" data-post="/api/insights/digest" data-busy="Writing digest…" data-reload>✦ Generate digest now</button>{% endif %}
 </div>
 {% if llm_on and user.role in ('admin','analyst') %}

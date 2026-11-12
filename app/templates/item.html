@@ -7,7 +7,14 @@
     <div class="row small muted"><span class="badge cat-{{ item.source.category }}">{{ item.source.name }}</span>{{ item.kind }} · <time datetime="{{ item.published_at.isoformat() }}Z">{{ item.published_at.strftime('%Y-%m-%d %H:%M') }} UTC</time> {% if item.author %}· {{ item.author }}{% endif %}</div>
     <h1 style="margin-top:6px;overflow-wrap:anywhere">{{ item.title }}</h1>
   </div>
-  <div class="row">{{ sev(item.severity) }}{% if item.url|safe_href != '#' %}<a class="btn" href="{{ item.url|safe_href }}" target="_blank" rel="noopener noreferrer">Open original ↗</a>{% endif %}</div>
+  <div class="row">
+    <details class="pop"><summary class="sev-why" title="Why this severity?">{{ sev(item.severity) }}</summary>
+      <div class="card pop-card"><div class="card-head"><h2>Severity {{ item.severity }} / 100</h2><button type="button" class="btn sm" data-pop-close aria-label="Close">✕</button></div>
+        {% if item.severity_detail %}<table class="small"><tbody>{% for d in item.severity_detail %}<tr><td>{{ d.label }}</td><td class="num {{ 'muted' if d.points < 0 }}">{{ '%+d'|format(d.points) }}</td></tr>{% endfor %}</tbody></table>
+        {% else %}<p class="muted small">No breakdown stored for this item (scored by an older version). <code>python manage.py rescore</code> recomputes every score.</p>{% endif %}
+        <p class="muted small" style="margin:8px 0 0">Signals are keyword groups (strongest term per group, runner-up at half weight, title matches ×1.5) plus extracted entities; patch notes, roundups and routine leak-site posts are damped. Enrichment raises the score when an indicator is confirmed malicious.</p>
+      </div></details>
+    {% if item.url|safe_href != '#' %}<a class="btn" href="{{ item.url|safe_href }}" target="_blank" rel="noopener noreferrer">Open original ↗</a>{% endif %}</div>
 </div>
 
 <div class="grid g-21">
@@ -15,7 +22,7 @@
     <div class="card">
       <div class="card-head"><h2>AI analysis</h2>
         {% if llm_on and user.role in ('admin','analyst') %}<button class="btn sm primary" data-post="/api/items/{{ item.id }}/summarize" data-target="#ai" data-busy="Analysing…">✦ {{ 'Re-analyse' if item.llm_summary else 'Analyse with AI' }}</button>{% endif %}</div>
-      <div id="ai" class="prose">{% if item.llm_summary %}{{ item.llm_summary|md }}{% if item.llm_at %}<p class="muted small">Generated {{ item.llm_at|timeago }}</p>{% endif %}{% else %}<p class="muted">{{ 'Not analysed yet.' if llm_on else 'Configure an LLM in Settings to enable AI analysis.' }}</p>{% endif %}</div>
+      <div id="ai" class="prose">{% if item.llm_summary %}{{ item.llm_summary|md }}{% if item.llm_at %}<p class="muted small">Generated {{ item.llm_at|timeago }}</p>{% endif %}{% else %}<p class="muted">{{ 'Not analysed yet.' if llm_on else 'Configure an LLM in Settings → AI to enable AI analysis.' }}</p>{% endif %}</div>
     </div>
     <div class="card">
       <h2>Content</h2>
@@ -23,11 +30,13 @@
       {% if item.tags %}<div style="margin-top:10px">{% for t in item.tags %}<span class="badge">{{ t }}</span> {% endfor %}</div>{% endif %}
     </div>
     <div class="card">
-      <div class="card-head"><h2>Correlated items from other sources</h2><span class="muted small">sharing malware, actors, CVEs or IOCs</span></div>
-      {% for r, shared in related %}
-      <div class="feed-item"><div><span class="sev" title="shared entities">{{ shared }}</span></div>
-        <div><a class="title" href="/items/{{ r.id }}">{{ r.title }}</a>
-          <div class="meta"><span class="badge cat-{{ r.source.category }}">{{ r.source.name }}</span><span>{{ r.published_at|timeago }}</span></div></div></div>
+      <div class="card-head"><h2>Correlated items</h2><span class="muted small" title="Shared hashes, URLs and domains weigh most; common CVEs and techniques least. Items from other sources rank higher.">ranked by evidence strength</span></div>
+      {% for r in related %}
+      <div class="feed-item"><div><span class="sev {{ 's-med' if r.strong }}" title="correlation score {{ r.score }} · {{ r.shared }} shared entit{{ 'y' if r.shared == 1 else 'ies' }}">{{ r.shared }}</span></div>
+        <div style="min-width:0"><a class="title" href="/items/{{ r.item.id }}">{{ r.item.title }}</a>
+          <div class="meta"><span class="badge cat-{{ r.item.source.category }}">{{ r.item.source.name }}</span><span>{{ r.item.published_at|timeago }}</span>
+            {% if r.item.source_id != item.source_id %}<span class="badge new">other source</span>{% endif %}</div>
+          <div class="muted small" style="margin-top:2px">shares: {% for t, n in r.entities %}<span class="{{ 'mono' if t not in ('malware','actor','cve','technique') }}">{{ n|truncate(40, True) }}</span>{{ ', ' if not loop.last }}{% endfor %}</div></div></div>
       {% else %}<div class="empty">No correlated items yet.</div>{% endfor %}
     </div>
   </div>

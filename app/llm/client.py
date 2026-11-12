@@ -41,7 +41,7 @@ def model_name() -> str:
 def complete(system: str, prompt: str, max_tokens: int = 4000) -> str:
     p = provider()
     if p == "none":
-        raise LLMNotConfigured("No LLM provider configured (Settings → LLM)")
+        raise LLMNotConfigured("No LLM provider configured (Settings → AI)")
     if p == "ollama":
         return _ollama(system, prompt, max_tokens)
     if p == "openai_compatible":
@@ -138,3 +138,40 @@ def _anthropic(system: str, prompt: str, max_tokens: int) -> str:
 def test_connection() -> str:
     out = complete("You are a connectivity check.", "Reply with exactly: OK", max_tokens=20)
     return out[:200]
+
+
+def list_models(provider_name: str, base_url: str = "", api_key: str = "") -> list[str]:
+    """Live model list from a local server or a provider. Used by the Settings page.
+    ``api_key`` falls back to the saved key when empty."""
+    provider_name = (provider_name or "").lower()
+    key = api_key or settings.get("llm_api_key") or ""
+    try:
+        if provider_name == "ollama":
+            base = (base_url or settings.get("llm_base_url") or "http://localhost:11434").rstrip("/")
+            r = httpx.get(f"{base}/api/tags", timeout=15)
+            r.raise_for_status()
+            names = [m.get("name") or m.get("model") for m in r.json().get("models") or []]
+        elif provider_name == "openai_compatible":
+            base = (base_url or settings.get("llm_base_url") or "http://localhost:1234/v1").rstrip("/")
+            headers = {"Authorization": f"Bearer {key}"} if key else {}
+            r = httpx.get(f"{base}/models", headers=headers, timeout=20)
+            r.raise_for_status()
+            data = r.json()
+            rows = data.get("data") if isinstance(data, dict) else data
+            names = [m.get("id") if isinstance(m, dict) else str(m) for m in rows or []]
+        elif provider_name == "anthropic":
+            import anthropic
+
+            client = anthropic.Anthropic(api_key=key) if key else anthropic.Anthropic()
+            names = [m.id for m in client.models.list(limit=100).data]
+        else:
+            raise LLMError("choose a vendor first")
+    except LLMError:
+        raise
+    except httpx.HTTPStatusError as e:
+        raise LLMError(f"server answered {e.response.status_code}: {e.response.text[:200]}") from e
+    except httpx.HTTPError as e:
+        raise LLMError(f"could not reach the server: {e}") from e
+    except Exception as e:  # SDK / JSON errors
+        raise LLMError(f"{type(e).__name__}: {str(e)[:200]}") from e
+    return sorted({str(n) for n in names if n})[:500]

@@ -4,7 +4,7 @@
 <div class="page-head"><div><h1>Settings</h1><p class="muted">Sources, API keys, enrichment and LLM. Values set through environment variables are locked here.</p></div></div>
 {% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
 <nav class="tabs" aria-label="Settings sections">
-  {% for t, l in [('sources','Sources'),('intel','Threat-intel APIs'),('social','Social'),('enrichment','Enrichment'),('llm','LLM / AI'),('general','General')] %}
+  {% for t, l in [('sources','Sources'),('intel','Threat-intel APIs'),('social','Social'),('enrichment','Enrichment'),('llm','AI'),('general','General')] %}
   <a href="?tab={{ t }}" class="{{ 'active' if tab == t }}" {% if tab == t %}aria-current="page"{% endif %}>{{ l }}</a>{% endfor %}
 </nav>
 
@@ -88,6 +88,122 @@
 </div>
 
 
+{% elif tab == 'llm' %}
+<div class="card" style="max-width:860px">
+  <form method="post" action="/settings/values" id="ai-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <input type="hidden" name="group" value="llm">
+    {% set lock = ai.locked %}
+    {% if lock.llm_provider %}<div class="alert small">The provider is set through <code>$LLM_PROVIDER</code>, so the choice below is locked. Remove the variable to change it here.</div>{% endif %}
+    <h2>Where should the AI run?</h2>
+    <div class="mode-pick three" id="ai-modes">
+      <label><input type="radio" name="llm_mode" value="none" {{ 'checked' if ai.mode == 'none' }} {{ 'disabled' if lock.llm_provider }}> <strong>Off</strong>
+        <div class="muted small">No AI features. Everything else keeps working.</div></label>
+      <label><input type="radio" name="llm_mode" value="local" {{ 'checked' if ai.mode == 'local' }} {{ 'disabled' if lock.llm_provider }}> <strong>Local</strong>
+        <div class="muted small">Runs on this machine or your LAN (Ollama, LM Studio…). Free and private; needs enough RAM/GPU.</div></label>
+      <label><input type="radio" name="llm_mode" value="cloud" {{ 'checked' if ai.mode == 'cloud' }} {{ 'disabled' if lock.llm_provider }}> <strong>Cloud</strong>
+        <div class="muted small">A hosted API (Anthropic, OpenAI, OpenRouter…). Needs an API key; article text is sent to the provider.</div></label>
+    </div>
+
+    <div data-mode-section="local" hidden>
+      <div class="field"><label for="vendor-local">Local runtime</label>
+        <select id="vendor-local" name="vendor_local" {{ 'disabled' if lock.llm_provider }}>
+          {% for k, v in ai.catalog.local.items() %}<option value="{{ k }}" {{ 'selected' if ai.mode == 'local' and ai.vendor == k }}>{{ v.label }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <div data-mode-section="cloud" hidden>
+      <div class="field"><label for="vendor-cloud">Provider</label>
+        <select id="vendor-cloud" name="vendor_cloud" {{ 'disabled' if lock.llm_provider }}>
+          {% for k, v in ai.catalog.cloud.items() %}<option value="{{ k }}" {{ 'selected' if ai.mode == 'cloud' and ai.vendor == k }}>{{ v.label }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label for="llm-key">API key {% if lock.llm_api_key %}<span class="badge">set by $LLM_API_KEY</span>{% endif %} <a id="key-link" class="small" href="#" target="_blank" rel="noopener noreferrer" hidden>Get a key ↗</a></label>
+        <div class="row" style="flex-wrap:nowrap">
+          <input id="llm-key" type="password" name="llm_api_key" autocomplete="new-password" spellcheck="false"
+                 placeholder="{{ '•••••••• configured – leave blank to keep' if ai.key_set else 'paste your API key' }}" {{ 'disabled' if lock.llm_api_key }}>
+          {% if ai.key_set and not lock.llm_api_key %}<label class="check small" style="white-space:nowrap;margin:0"><input type="checkbox" name="llm_api_key__clear"> Remove</label>{% endif %}
+        </div></div>
+    </div>
+
+    <div data-mode-section="local cloud" hidden>
+      <p class="muted small" id="vendor-hint"></p>
+      <div class="field"><label for="llm-model">Model</label>
+        <div class="row" style="flex-wrap:nowrap">
+          <input id="llm-model" list="model-list" name="llm_model" value="{{ ai.model }}" autocomplete="off" spellcheck="false" placeholder="choose or type a model name" {{ 'disabled' if lock.llm_model }}>
+          <button type="button" class="btn" data-load-models {{ 'disabled' if lock.llm_model }}>Load models</button>
+        </div>
+        <datalist id="model-list"></datalist>
+        <div class="muted small" id="model-note" style="margin-top:4px">Start typing to see suggestions, or press “Load models” to list what the server / provider actually offers.</div>
+      </div>
+      <details class="small" style="margin-bottom:12px" id="adv">
+        <summary class="muted">Advanced: server address</summary>
+        <div class="field" style="margin-top:8px"><label for="llm-base">Base URL {% if lock.llm_base_url %}<span class="badge">set by $LLM_BASE_URL</span>{% endif %}</label>
+          <input id="llm-base" type="text" name="llm_base_url" value="{{ ai.base_url }}" placeholder="filled from the preset" {{ 'disabled' if lock.llm_base_url }}>
+          <div class="muted small">Only change this if your server runs on another host or port (e.g. <code>http://192.168.1.20:11434</code>, or <code>http://ollama:11434</code> in Docker).</div></div>
+      </details>
+      <h3>What the AI should do</h3>
+      <div class="field"><label class="check"><input type="checkbox" name="llm_auto_extract" {{ 'checked' if ai.vals.llm_auto_extract }}> Discover malware families that are not in the knowledge base yet</label></div>
+      <div class="field"><label class="check"><input type="checkbox" name="llm_daily_digest" {{ 'checked' if ai.vals.llm_daily_digest }}> Write a daily digest (06:00 UTC)</label></div>
+      <div class="field"><label class="check"><input type="checkbox" name="llm_auto_summarize" {{ 'checked' if ai.vals.llm_auto_summarize }}> Summarise new high-severity items automatically <span class="muted">(uses more tokens)</span></label></div>
+      <div class="field"><label for="llm-lang">Language for AI output</label><input id="llm-lang" type="text" name="llm_language" value="{{ ai.vals.llm_language or 'English' }}" placeholder="English, Bahasa Indonesia, Deutsch…"></div>
+    </div>
+
+    <div class="row"><button class="btn primary">Save</button>
+      <button type="button" class="btn" data-post="/api/llm/test" data-busy="Testing…" title="Tests the saved settings – press Save first">Test connection</button></div>
+  </form>
+</div>
+<script nonce="{{ nonce }}">
+document.addEventListener("DOMContentLoaded", () => {
+  const AI = {{ ai|tojson }};
+  const form = document.getElementById("ai-form");
+  const sections = [...form.querySelectorAll("[data-mode-section]")];
+  const modelInput = document.getElementById("llm-model"), list = document.getElementById("model-list");
+  const base = document.getElementById("llm-base"), hint = document.getElementById("vendor-hint");
+  const keyLink = document.getElementById("key-link"), note = document.getElementById("model-note");
+  const vendorSel = { local: document.getElementById("vendor-local"), cloud: document.getElementById("vendor-cloud") };
+  let lastPreset = { url: "", model: "" };
+  const mode = () => (form.querySelector("input[name=llm_mode]:checked") || {}).value || "none";
+  const vendor = () => (mode() === "none" ? "" : vendorSel[mode()].value);
+  const spec = () => (AI.catalog[mode()] || {})[vendor()] || null;
+  const fillModels = (models, fromServer) => {
+    list.innerHTML = "";
+    models.forEach((m) => { const o = document.createElement("option"); o.value = m; list.appendChild(o); });
+    note.textContent = fromServer ? `${models.length} model(s) available on the server – pick one from the list.`
+      : (models.length ? "Suggestions shown; press “Load models” to list what the server / provider actually offers."
+                       : "Press “Load models” to list what the server offers, or type the model name.");
+  };
+  const applyVendor = (init) => {
+    const sp = spec();
+    sections.forEach((el) => { el.hidden = !el.dataset.modeSection.split(" ").includes(mode()); });
+    if (!sp) return;
+    hint.textContent = sp.hint || "";
+    keyLink.hidden = !sp.key_url; if (sp.key_url) keyLink.href = sp.key_url;
+    // keep user-entered values; replace values that still equal the previous preset
+    if (!base.disabled && (!init || !base.value) && (base.value === "" || base.value === lastPreset.url)) base.value = sp.base_url || "";
+    if (!base.value && sp.base_url === "") document.getElementById("adv").open = true;
+    const def = (sp.models || [])[0] || "";
+    if (!modelInput.disabled && (!init || !modelInput.value) && (modelInput.value === "" || modelInput.value === lastPreset.model)) modelInput.value = def;
+    lastPreset = { url: sp.base_url || "", model: def };
+    fillModels(sp.models || [], false);
+  };
+  form.querySelectorAll("input[name=llm_mode]").forEach((r) => r.addEventListener("change", () => applyVendor(false)));
+  Object.values(vendorSel).forEach((s) => s.addEventListener("change", () => applyVendor(false)));
+  // remember the preset that matches the saved state so a vendor switch replaces preset values only
+  const sp0 = spec(); if (sp0) lastPreset = { url: sp0.base_url || "", model: (sp0.models || [])[0] || "" };
+  applyVendor(true);
+  form.querySelector("[data-load-models]").addEventListener("click", async (e) => {
+    const btn = e.currentTarget; btn.disabled = true; btn.setAttribute("aria-busy", "true");
+    try {
+      const d = await window.JATMP.api("/api/llm/models", { mode: mode(), vendor: vendor(), base_url: base.value,
+        api_key: (document.getElementById("llm-key") || {}).value || "" });
+      fillModels(d.models || [], true);
+      if (d.models && d.models.length && !d.models.includes(modelInput.value)) modelInput.value = d.models[0];
+      window.JATMP.toast(d.message || "Models loaded");
+      modelInput.focus();
+    } catch (err) { window.JATMP.toast("Could not load models: " + err.message, 7000); }
+    finally { btn.disabled = false; btn.removeAttribute("aria-busy"); }
+  });
+});
+</script>
 {% else %}
 <div class="card" style="max-width:760px">
   <form method="post" action="/settings/values">
@@ -116,17 +232,9 @@
     </div>
     {% endfor %}
     <div class="row"><button class="btn primary">Save</button>
-      {% if tab == 'llm' %}<button type="button" class="btn" data-post="/api/llm/test" data-busy="Testing…">Test connection</button>{% endif %}</div>
+      {% if tab == 'general' %}<button type="button" class="btn" data-post="/api/items/rescore" data-busy="Queuing…" title="Recompute every item's severity with the current rules (background job, no network)">Re-score all items</button>{% endif %}</div>
   </form>
-  {% if tab == 'llm' %}
-  <div class="alert small" style="margin-top:16px">
-    <strong>Local:</strong> <code>ollama</code> → base URL <code>http://localhost:11434</code>, model e.g. <code>llama3.1</code> / <code>qwen2.5:14b</code>.
-    LM Studio / llama.cpp / vLLM → <code>openai_compatible</code> with base URL ending in <code>/v1</code>.<br>
-    <strong>API:</strong> <code>openai_compatible</code> also works for OpenAI, OpenRouter, Groq, Gemini's OpenAI endpoint, etc.
-    <code>anthropic</code> uses the official Claude SDK (default model <code>claude-opus-5-5</code>; reads <code>ANTHROPIC_API_KEY</code> if no key is set here).
-    Save first, then press “Test connection”.
-  </div>
-  {% elif tab == 'intel' %}
+  {% if tab == 'intel' %}
   <div class="alert small" style="margin-top:16px">Keys are used both by collectors (OTX pulses, urlscan searches, ANY.RUN queries, ThreatFox) and by the cross-source enrichment that checks IOCs found in news and social posts. Keys are stored in the local database; prefer environment variables on shared hosts.</div>
   {% elif tab == 'social' %}
   <div class="alert small" style="margin-top:16px">Bluesky and Mastodon accounts need no key. X requires a paid API v2 bearer token, or set an RSS-bridge URL (e.g. self-hosted RSSHub/Nitter) on each X source instead.</div>

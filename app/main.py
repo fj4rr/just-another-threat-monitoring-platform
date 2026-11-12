@@ -15,7 +15,7 @@ from . import __version__, jobs
 from .auth import LoginRequired
 from .config import BASE_DIR, env_flag, is_installed, load_config
 from .db import init_db
-from .routers import admin, api, auth_routes, pages, settings_routes
+from .routers import admin, api, auth_routes, pages, reports_routes, settings_routes
 from .web import render
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -82,7 +82,7 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "app" / "static")), name="static")
-for r in (auth_routes.router, pages.router, api.router, settings_routes.router, admin.router):
+for r in (auth_routes.router, pages.router, api.router, settings_routes.router, reports_routes.router, admin.router):
     app.include_router(r)
 
 

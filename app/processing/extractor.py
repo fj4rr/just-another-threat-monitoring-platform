@@ -18,16 +18,20 @@ class Extracted:
 
 
 def refang(text: str) -> str:
+    """Undo the usual defanging conventions: hxxp, [.], (.), {.}, [dot], \\., [:], [://], [at], fxp."""
     t = text
-    t = re.sub(r"h[xX]{2}p(s?)", r"http\1", t)
-    t = re.sub(r"\[\s*\.\s*\]|\(\s*\.\s*\)|\{\s*\.\s*\}|\[dot\]|\(dot\)", ".", t, flags=re.I)
-    t = re.sub(r"\[\s*:\s*\]", ":", t)
+    t = re.sub(r"\bh[xX]{2}p(s?)\b", r"http\1", t)
+    t = re.sub(r"\bh[xX]{2}ps?(?=\[)", lambda m: "https" if m.group(0).lower().endswith("s") else "http", t)
+    t = re.sub(r"\bfxp(s?)://", r"ftp\1://", t, flags=re.I)
+    t = re.sub(r"\[\s*\.\s*\]|\(\s*\.\s*\)|\{\s*\.\s*\}|\[dot\]|\(dot\)|\{dot\}|\\\.", ".", t, flags=re.I)
+    t = re.sub(r"\[\s*:\s*//\s*\]|\(\s*:\s*//\s*\)", "://", t)
+    t = re.sub(r"\[\s*:\s*\]|\(\s*:\s*\)", ":", t)
     t = re.sub(r"\[\s*/\s*\]", "/", t)
-    t = re.sub(r"\[at\]|\(at\)", "@", t, flags=re.I)
+    t = re.sub(r"\[at\]|\(at\)|\{at\}", "@", t, flags=re.I)
     return t
 
 
-DEFANG_HINT = re.compile(r"\[\.\]|\(\.\)|\{\.\}|\[dot\]|hxxp", re.I)
+DEFANG_HINT = re.compile(r"\[\.\]|\(\.\)|\{\.\}|\[dot\]|\(dot\)|\\\.|\[:\]|\[://\]|hxxp|fxp", re.I)
 
 RE_CVE = re.compile(r"\bCVE-(\d{4})-(\d{4,7})\b", re.I)
 RE_TECH = re.compile(r"\bT1\d{3}(?:\.\d{3})?\b")
@@ -50,6 +54,36 @@ BENIGN_DOMAINS = {
     "cisa.gov", "t.co", "bit.ly", "feedburner.com", "feeds.feedburner.com", "wordpress.com",
     "gravatar.com", "w3.org", "schema.org", "abuse.ch", "bazaar.abuse.ch", "threatfox.abuse.ch",
     "securityweek.com", "darkreading.com", "therecord.media", "malwarebytes.com",
+    # social / publishing platforms
+    "infosec.exchange", "mastodon.social", "mastodon.online", "fosstodon.org", "reddit.com", "substack.com",
+    "youtu.be", "instagram.com", "tiktok.com", "threads.net", "discord.com", "discord.gg", "t.me",
+    "telegram.org", "slack.com", "zoom.us", "vimeo.com", "spotify.com", "apple.co", "goo.gl", "ow.ly",
+    "buff.ly", "tinyurl.com", "lnkd.in", "mailchimp.com", "list-manage.com", "eventbrite.com",
+    # press / security media
+    "theregister.com", "zdnet.com", "wired.com", "arstechnica.com", "techcrunch.com", "reuters.com",
+    "bloomberg.com", "nytimes.com", "bbc.com", "bbc.co.uk", "theguardian.com", "forbes.com", "cnn.com",
+    "krebsonsecurity.com", "scmagazine.com", "scworld.com", "helpnetsecurity.com", "infosecurity-magazine.com",
+    "cyberscoop.com", "thedfirreport.com", "isc.sans.edu", "sans.org", "sans.edu", "404media.co",
+    # vendors / research blogs
+    "paloaltonetworks.com", "unit42.paloaltonetworks.com", "crowdstrike.com", "sentinelone.com", "trendmicro.com",
+    "kaspersky.com", "securelist.com", "talosintelligence.com", "mandiant.com", "cloud.google.com", "proofpoint.com",
+    "eset.com", "welivesecurity.com", "sophos.com", "fortinet.com", "fortiguard.com", "checkpoint.com",
+    "research.checkpoint.com", "zscaler.com", "elastic.co", "huntress.com", "rapid7.com", "tenable.com",
+    "qualys.com", "greynoise.io", "shadowserver.org", "spamhaus.org", "recordedfuture.com", "intel471.com",
+    "group-ib.com", "bitdefender.com", "avast.com", "mcafee.com", "symantec.com", "broadcom.com", "cisco.com",
+    "ibm.com", "akamai.com", "netskope.com", "trellix.com", "withsecure.com", "f-secure.com", "cyble.com",
+    "socradar.io", "cybereason.com", "secureworks.com", "arcticwolf.com", "dragos.com", "claroty.com",
+    "silentpush.com", "censys.io", "shodan.io", "abuseipdb.com", "hybrid-analysis.com", "joesandbox.com",
+    "tria.ge", "malshare.com", "malpedia.caad.fkie.fraunhofer.de", "exploit-db.com", "packetstormsecurity.com",
+    # platforms & standards bodies
+    "android.com", "mozilla.org", "chromium.org", "chrome.com", "oracle.com", "vmware.com", "ivanti.com",
+    "citrix.com", "atlassian.com", "adobe.com", "sap.com", "zoho.com", "okta.com", "salesforce.com",
+    "cve.org", "first.org", "nist.gov", "fbi.gov", "justice.gov", "ic3.gov", "ncsc.gov.uk", "europol.europa.eu",
+    "enisa.europa.eu", "bsi.bund.de", "cert.org", "us-cert.gov", "ransomware.live", "ransomlook.io",
+    "huggingface.co", "openai.com", "anthropic.com", "gitlab.com", "bitbucket.org", "npmjs.com", "pypi.org",
+    "docs.google.com", "drive.google.com", "play.google.com", "office.com", "live.com", "outlook.com",
+    "gmail.com", "yahoo.com", "protonmail.com", "proton.me", "example.com", "example.net", "example.org",
+    "localhost", "wp.com", "s.w.org", "jetpack.com", "i0.wp.com", "i1.wp.com", "i2.wp.com",
 }
 FILE_EXT_TLDS = {
     "exe", "dll", "zip", "rar", "js", "ps1", "bat", "vbs", "lnk", "msi", "iso", "png", "jpg",
@@ -101,15 +135,27 @@ def extract_iocs(text: str, *, strict: bool = True) -> list[Extracted]:
                 continue
             if len(set(h)) < 6:  # 000000... style junk
                 continue
+            # hex inside a URL path / query (commit SHAs, tracking ids, CDN asset names) is not a sample hash
+            pre = t[max(0, m.start() - 1): m.start()]
+            if pre in ("/", "=", "#", "-", "_") or t[m.end(): m.end() + 1] in ("/", "-", "_"):
+                continue
+            token_head = t[max(0, m.start() - 120): m.start()].rsplit(None, 1)[-1] if m.start() and not t[m.start() - 1].isspace() else ""
+            if typ in ("md5", "sha1") and re.search(r"(?:utm_|fbclid|gclid|token=|session|/commit/|/blob/|/tree/)", token_head, re.I):
+                continue
             hashes.add(h)
             out[(typ, h)] = Extracted(typ, h, h)
 
     for m in RE_IPV4.finditer(t):
         ip = m.group(0)
         if _public_ip(ip):
-            # skip version-number-ish matches like 1.2.3.4 in "version 1.2.3.4"
-            pre = t[max(0, m.start() - 10): m.start()].lower()
-            if "version" in pre or pre.endswith("v"):
+            # skip version-number-ish matches: "version 1.2.3.4", "v1.2.3.4", "Chrome 131.0.6778.85", "1.2.3.4.5"
+            pre = t[max(0, m.start() - 24): m.start()].lower()
+            post = t[m.end(): m.end() + 2]
+            if re.search(r"(?:version|versions|build|release|update|firmware|v|ver\.?|chrome|firefox|edge|safari|ios|android|kernel|openssl|php|java|python|node|windows|macos)\s*$", pre):
+                continue
+            if post.startswith(".") and post[1:2].isdigit():
+                continue
+            if m.start() > 0 and t[m.start() - 1] == ".":
                 continue
             out[("ip", ip)] = Extracted("ip", ip, ip)
 
@@ -194,6 +240,26 @@ GENERIC_WORDS |= {
 }
 
 
+# Legitimate software that is routinely *abused* and therefore appears next to malware nouns
+# ("ConnectWise RAT", "AnyDesk remote access trojan…"); never a family of its own.
+LEGIT_TOOLS = {
+    "connectwise", "screenconnect", "anydesk", "teamviewer", "atera", "splashtop", "rustdesk", "ngrok",
+    "psexec", "rclone", "megasync", "winscp", "putty", "7zip", "winrar", "chrome", "edge", "firefox", "safari",
+    "office", "outlook", "onedrive", "sharepoint", "dropbox", "docker", "kubernetes", "vscode", "zoom", "slack",
+    "teams", "whatsapp", "signal", "telegram", "cloudflare", "azure", "aws", "gcp", "okta", "microsoft", "google",
+    "apple", "meta", "amazon", "linkedin", "github", "gitlab", "bitbucket", "jenkins", "ansible", "terraform",
+    "vmware", "esxi", "citrix", "fortinet", "fortigate", "ivanti", "cisco", "paloalto", "sonicwall", "veeam",
+    "adobe", "acrobat", "notepad", "winzip", "steam", "discord", "spotify", "netflix", "paypal", "stripe",
+    "quickbooks", "salesforce", "zendesk", "servicenow", "jira", "confluence", "trello", "notion", "evernote",
+    "cursor", "copilot", "chatgpt", "claude", "gemini", "ollama", "openai", "anthropic", "deepseek", "nvidia",
+    "intel", "amd", "lenovo", "dell", "asus", "samsung", "huawei", "xiaomi", "oppo", "vivo", "sony", "lg",
+    "ubuntu", "debian", "fedora", "redhat", "centos", "alpine", "arch", "kali", "parrot", "tails",
+    "mimikatz", "metasploit", "bloodhound", "sharphound", "rubeus", "certify", "impacket", "nmap", "masscan",
+    "wireshark", "procdump", "advanced", "process", "task", "regedit", "cmd", "wmic", "certutil", "bitsadmin",
+    "mshta", "rundll32", "regsvr32", "msbuild", "installutil", "cscript", "wscript", "schtasks",
+}
+
+
 def _sentence_start(text: str, pos: int) -> bool:
     before = text[:pos].rstrip(" \t\"'“‘(")
     return not before or before[-1] in ".!?:\n|—–-"
@@ -216,7 +282,7 @@ def extract_candidate_families(text: str, known: set[str]) -> list[Extracted]:
         if "-" in name:
             continue
         low = name.lower()
-        if low in GENERIC_WORDS or len(low) < 3 or low.isdigit():
+        if low in GENERIC_WORDS or low in LEGIT_TOOLS or len(low) < 3 or low.isdigit():
             continue
         camel = bool(re.search(r"[a-z][A-Z]", name)) or bool(re.search(r"[A-Za-z]\d|\d[A-Za-z]", name))
         prose = noun_raw.islower() or noun_raw == "RAT"
@@ -243,33 +309,9 @@ def extract_all(text: str, *, strict: bool = True) -> list[Extracted]:
     return known + extract_candidate_families(text, names) + extract_iocs(text, strict=strict)
 
 
-SEVERITY_TERMS = {
-    r"\bzero[\s-]?day\b|\b0[\s-]?day\b": 25,
-    r"actively exploited|exploited in the wild|in-the-wild": 25,
-    r"\bransomware\b": 15,
-    r"critical|cvss\s*(?:score\s*)?(?:of\s*)?(?:9|10)": 15,
-    r"supply[\s-]chain": 15,
-    r"\bnew\b.{0,30}\b(malware|campaign|variant|stealer|loader|botnet|ransomware)\b": 10,
-    r"\bcampaign\b": 8,
-    r"\bbackdoor\b|\bwiper\b": 10,
-    r"data breach|exfiltrat": 8,
-    r"\bkev\b|known exploited": 15,
-}
+def severity_score(text: str, entities: list[Extracted], kind: str = "article") -> int:
+    """Backwards-compatible wrapper: first line of ``text`` is treated as the title."""
+    from .severity import score_item
 
-
-def severity_score(text: str, entities: list[Extracted]) -> int:
-    t = (text or "").lower()
-    score = 0
-    for pat, w in SEVERITY_TERMS.items():
-        if re.search(pat, t):
-            score += w
-    types = {e.type for e in entities}
-    if "malware" in types:
-        score += 10
-    if "actor" in types:
-        score += 8
-    if types & {"sha256", "sha1", "md5", "ip", "domain", "url"}:
-        score += 10
-    if "cve" in types:
-        score += 5
-    return min(score, 100)
+    title, _, body = (text or "").partition("\n")
+    return score_item(title, body, entities, kind)[0]

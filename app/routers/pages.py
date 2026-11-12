@@ -60,13 +60,22 @@ def dashboard(request: Request, user: User = Depends(current_user), db: Session 
     })
 
 
+FEED_SORTS = {
+    "time": (lambda: (Item.published_at,), "desc"),
+    "severity": (lambda: (Item.severity, Item.published_at), "desc"),
+    "title": (lambda: (func.lower(Item.title),), "asc"),
+    "source": (lambda: (Source.category, Source.name, Item.published_at), "asc"),
+}
+
+
 @router.get("/feed")
 def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: int = 0, entity: int = 0,
-         min_sev: int = 0, days: int = 30, page: int = 1, sort: str = "time",
+         min_sev: int = 0, days: int = 30, page: int = 1, sort: str = "time", dir: str = "",
          user: User = Depends(current_user), db: Session = Depends(get_db)):
     days, min_sev, page = _clamp(days, 0, 3650), _clamp(min_sev, 0, 100), _clamp(page, 1, 100_000)
     q = q.strip()[:200]
-    sort = sort if sort in ("time", "severity") else "time"
+    sort = sort if sort in FEED_SORTS else "time"
+    direction = _dir(dir, FEED_SORTS[sort][1])
     stmt = select(Item).join(Source, Source.id == Item.source_id)
     if cat:
         stmt = stmt.where(Source.category == cat)
@@ -84,12 +93,13 @@ def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: i
         like = f"%{q}%"
         stmt = stmt.where(or_(Item.title.ilike(like), Item.content.ilike(like)))
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    order = (Item.severity.desc(), Item.published_at.desc()) if sort == "severity" else (Item.published_at.desc(),)
+    cols = FEED_SORTS[sort][0]()
+    order = [c.asc() if direction == "asc" else c.desc() for c in cols] + [Item.id.desc()]
     items = db.execute(stmt.order_by(*order).offset((page - 1) * PAGE).limit(PAGE)).unique().scalars().all()
     sources = db.execute(select(Source).order_by(Source.category, Source.name)).scalars().all()
     ent = db.get(Entity, entity) if entity else None
     f = {"cat": cat, "kind": kind, "q": q, "source": source, "entity": entity, "min_sev": min_sev, "days": days,
-         "sort": sort}
+         "sort": sort, "dir": direction}
     f["qs"] = _qs(cat=cat, kind=kind, q=q, source=source, entity=entity, min_sev=min_sev, days=days)
     return render(request, "feed.html", {
         "user": user, "items": items, "total": total, "page": page, "pages": max(1, -(-total // PAGE)),
@@ -104,17 +114,7 @@ def item_detail(item_id: int, request: Request, user: User = Depends(current_use
         raise HTTPException(404, "Item not found")
     ents = sorted(item.entity_links, key=lambda link: (link.entity.type, link.entity.display))
     ent_ids = [link.entity_id for link in ents]
-    related = []
-    if ent_ids:
-        # items in OTHER sources sharing entities – the cross-source correlation view
-        rows = db.execute(
-            select(Item, func.count(distinct(ItemEntity.entity_id)).label("shared"))
-            .join(ItemEntity, ItemEntity.item_id == Item.id)
-            .where(ItemEntity.entity_id.in_(ent_ids), Item.id != item.id)
-            .group_by(Item.id).order_by(func.count(distinct(ItemEntity.entity_id)).desc(), Item.published_at.desc())
-            .limit(15)
-        ).unique().all()
-        related = [(r[0], r[1]) for r in rows]
+    related = trends.correlated_items(db, item, limit=15)
     enr = {}
     if ent_ids:
         for e in db.execute(select(Enrichment).where(Enrichment.entity_id.in_(ent_ids))).scalars():

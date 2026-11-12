@@ -20,10 +20,23 @@ def settings_page(request: Request, tab: str = "sources", msg: str = "", user: U
                   db: Session = Depends(get_db)):
     sources = db.execute(select(Source).order_by(Source.category, Source.kind, Source.name)).scalars().all()
     kinds = {k: {"label": c.label, "category": c.category, "fields": c.fields} for k, c in REGISTRY.items()}
-    return render(request, "settings.html", {
-        "user": user, "tab": tab, "msg": msg, "sources": sources, "kinds": kinds,
-        "settings": settings.all_for_ui(),
-    })
+    ctx = {"user": user, "tab": tab, "msg": msg, "sources": sources, "kinds": kinds, "settings": settings.all_for_ui()}
+    if tab == "llm":
+        from ..llm import presets
+
+        mode, vendor = settings.get("llm_mode") or "", settings.get("llm_vendor") or ""
+        if mode not in presets.MODES or (mode != "none" and not presets.spec(mode, vendor)):
+            mode, vendor = presets.infer(settings.get("llm_provider"), settings.get("llm_base_url"))
+        if settings.env_locked("llm_provider"):  # env wins: show what is really in use
+            mode, vendor = presets.infer(settings.get("llm_provider"), settings.get("llm_base_url"))
+        ctx["ai"] = {
+            "mode": mode, "vendor": vendor, "catalog": presets.ui_catalog(),
+            "model": settings.get("llm_model") or "", "base_url": settings.get("llm_base_url") or "",
+            "key_set": bool(settings.get("llm_api_key")), "locked": {k: settings.env_locked(k) for k in
+                       ("llm_provider", "llm_base_url", "llm_model", "llm_api_key")},
+            "vals": {k: settings.get(k) for k in ("llm_auto_summarize", "llm_auto_extract", "llm_daily_digest", "llm_language")},
+        }
+    return render(request, "settings.html", ctx)
 
 
 @router.post("/values", dependencies=[Depends(verify_csrf)])
@@ -31,6 +44,8 @@ async def save_values(request: Request, user: User = Depends(require("admin")), 
     form = await request.form()
     group = form.get("group", "")
     changed = []
+    if group == "llm":
+        form = _normalise_llm_form(form)
     for key, spec in settings.SCHEMA.items():
         if spec[4] != group or settings.env_locked(key):
             continue
@@ -56,6 +71,24 @@ async def save_values(request: Request, user: User = Depends(require("admin")), 
         jobs.scheduler.reschedule_job("enrichment", trigger="interval",
                                       minutes=max(2, int(settings.get("enrichment_interval") or 10)))
     return RedirectResponse(f"/settings?tab={group}&msg=Saved", status_code=303)
+
+
+def _normalise_llm_form(form) -> dict:
+    """The AI tab posts mode + vendor; derive provider / base URL / model from the presets so
+    the rest of the app keeps reading the three classic settings."""
+    from ..llm import presets
+
+    data = {k: v for k, v in form.multi_items()}
+    mode = data.get("llm_mode") or "none"
+    vendor = data.get("vendor_local" if mode == "local" else "vendor_cloud") or ""
+    if mode != "none" and not presets.spec(mode, vendor):
+        mode = "none"
+    data["llm_mode"], data["llm_vendor"] = mode, vendor
+    data.update(presets.resolve(mode, vendor, data.get("llm_base_url", ""), data.get("llm_model", "")))
+    if mode == "none":
+        data.pop("llm_base_url", None)
+        data.pop("llm_model", None)
+    return data
 
 
 def _source_config_from_form(kind: str, form) -> dict:

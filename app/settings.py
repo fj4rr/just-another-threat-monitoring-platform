@@ -27,7 +27,9 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "vt_daily_budget": (400, "", "VirusTotal lookups per day (free tier = 500)", "int", "enrichment"),
     "vt_min_interval": (16, "", "Seconds between VirusTotal calls (free tier = 4/min)", "int", "enrichment"),
     "enrich_families": (True, "", "Pull IOCs for trending malware families from OTX / ANY.RUN", "bool", "enrichment"),
-    # LLM
+    # LLM (llm_mode / llm_vendor drive the simple UI; llm_provider is what the client uses)
+    "llm_mode": ("none", "", "AI", "select:none,local,cloud", "llm"),
+    "llm_vendor": ("ollama", "", "Vendor / runtime", "text", "llm"),
     "llm_provider": ("none", "LLM_PROVIDER", "LLM provider", "select:none,ollama,openai_compatible,anthropic", "llm"),
     "llm_base_url": ("http://localhost:11434", "LLM_BASE_URL", "Base URL (Ollama / OpenAI-compatible)", "text", "llm"),
     "llm_model": ("llama3.1", "LLM_MODEL", "Model name", "text", "llm"),

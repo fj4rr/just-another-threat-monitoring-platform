@@ -5,6 +5,7 @@
     python manage.py enrich                    run one enrichment batch
     python manage.py digest                    generate the AI digest now
     python manage.py reextract                 re-run entity extraction on every item
+    python manage.py rescore                   recompute severity scores (keeps entities)
                                                (after editing the knowledge base)
     python manage.py create-user NAME ROLE     create a user (multi-user mode), prompts for password
     python manage.py seed-sources              add new built-in sources missing from this install
@@ -41,8 +42,9 @@ def main(argv: list[str]) -> int:
         from sqlalchemy import delete, func, update
 
         from app.models import Entity, EntityLink, ItemEntity
-        from app.processing.extractor import extract_all, severity_score
+        from app.processing.extractor import extract_all
         from app.processing.pipeline import link_entities
+        from app.processing.severity import reasons_to_json, score_item
 
         db = SessionLocal()
         # drop links the extractor produced (keep feed-supplied and LLM-found ones), then rebuild
@@ -54,7 +56,8 @@ def main(argv: list[str]) -> int:
             text = f"{item.title}\n{item.content}\n{' '.join(item.tags or [])}"
             ex = extract_all(text, strict=item.source.category != "intel")
             link_entities(db, item, ex)
-            item.severity = max(item.severity, severity_score(text, ex))
+            score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}", ex, item.kind)
+            item.severity, item.severity_detail = score, reasons_to_json(reasons)
             n += 1
             if n % 200 == 0:
                 db.commit()
@@ -67,6 +70,8 @@ def main(argv: list[str]) -> int:
                                               Entity.type.in_(["malware", "actor"])))
         db.commit()
         print(f"re-extracted {n} items, removed {res.rowcount} orphaned entities")
+    elif cmd == "rescore":
+        print(jobs.run_rescore())
     elif cmd == "seed-sources":
         from app.setup_service import seed_missing_sources
 

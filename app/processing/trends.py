@@ -200,3 +200,63 @@ def kpi_series(db: Session, days: int = 14) -> dict:
         "iocs": per_day(base.where(Entity.type.in_(IOC_TYPES)).group_by(day)),
         "cves": per_day(base.where(Entity.type == "cve").group_by(day)),
     }
+
+
+# --------------------------------------------------------------------------- correlation
+# How strongly a shared entity ties two items together. A shared file hash is near-proof
+# that two reports describe the same activity; a shared CVE or technique is weak evidence.
+CORRELATION_WEIGHT = {
+    "sha256": 6.0, "sha1": 6.0, "md5": 6.0, "url": 5.0, "domain": 4.0, "ip": 3.0,
+    "malware": 2.5, "actor": 2.5, "cve": 1.5, "technique": 0.5,
+}
+# Entities mentioned in more items than this are too generic to generate candidates
+# (they still weigh in for candidates found through rarer entities).
+CORRELATION_MAX_MENTIONS = 400
+
+
+def correlated_items(db: Session, item: Item, limit: int = 15) -> list[dict]:
+    """Items that share entities with ``item``, ranked by evidence strength rather than by a
+    plain count: weight(type) / log2(2 + mentions) per shared entity, with a bonus for items
+    from another source (×1.15) or another source *type* (×1.3) — the cross-source view."""
+    import math
+
+    links = [(link.entity_id, link.entity) for link in item.entity_links]
+    if not links:
+        return []
+    weights = {eid: CORRELATION_WEIGHT.get(e.type, 1.0) / math.log2(2 + (e.mention_count or 0)) for eid, e in links}
+    names = {eid: (e.type, e.display) for eid, e in links}
+    seeds = [eid for eid, e in links if (e.mention_count or 0) <= CORRELATION_MAX_MENTIONS] or [eid for eid, _ in links]
+    rows = db.execute(
+        select(ItemEntity.item_id, ItemEntity.entity_id)
+        .join(Item, Item.id == ItemEntity.item_id)
+        .where(ItemEntity.entity_id.in_(seeds), ItemEntity.item_id != item.id)
+        .order_by(Item.published_at.desc()).limit(4000)
+    ).all()
+    shared: dict[int, set[int]] = defaultdict(set)
+    for iid, eid in rows:
+        shared[iid].add(eid)
+    if not shared:
+        return []
+    # all shared entities for the candidates (including the generic ones skipped as seeds)
+    cand_ids = list(shared)
+    if len(seeds) != len(weights):
+        extra = db.execute(select(ItemEntity.item_id, ItemEntity.entity_id)
+                           .where(ItemEntity.item_id.in_(cand_ids[:500]), ItemEntity.entity_id.in_(list(weights)))).all()
+        for iid, eid in extra:
+            shared[iid].add(eid)
+    scored = sorted(((sum(weights[e] for e in ents), iid) for iid, ents in shared.items()), reverse=True)[:limit * 4]
+    items = {i.id: i for i in db.execute(select(Item).where(Item.id.in_([iid for _, iid in scored]))).unique().scalars()}
+    out = []
+    for base, iid in scored:
+        other = items.get(iid)
+        if not other:
+            continue
+        score = base
+        if other.source_id != item.source_id:
+            score *= 1.3 if other.source.category != item.source.category else 1.15
+        ents = sorted(shared[iid], key=lambda e: -weights[e])
+        out.append({"item": other, "score": round(score, 2), "shared": len(ents),
+                    "entities": [names[e] for e in ents[:6]],
+                    "strong": any(names[e][0] in ("sha256", "sha1", "md5", "url", "domain", "ip") for e in ents)})
+    out.sort(key=lambda d: (-d["score"], -d["item"].published_at.timestamp()))
+    return out[:limit]

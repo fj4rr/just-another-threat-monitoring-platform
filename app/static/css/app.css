@@ -378,3 +378,39 @@ th.sortable.active .arrow { opacity: 1; color: var(--accent); }
   .feed-side { width: 56px; }
   .add-src-grid { grid-template-columns: 1fr; }
 }
+
+/* ======================================================================= round 3 */
+.feed-table table { table-layout: auto; }
+.feed-table td { vertical-align: top; }
+.feed-table .col-sev { width: 72px; text-align: center; }
+.feed-table th.col-sev a { justify-content: center; }
+.feed-table .col-src { width: 180px; white-space: nowrap; }
+.feed-table .col-time { width: 90px; white-space: nowrap; }
+.feed-table .title { font-weight: 600; color: var(--text-primary); }
+.feed-table .snippet { color: var(--text-secondary); font-size: 12.5px; margin-top: 2px; }
+.feed-table .snippet.one-line { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.feed-table .ent-row { margin-top: 5px; display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
+.feed-table .ent-row .chip { margin: 0; }
+.feed-table .col-src .badge { text-transform: capitalize; }
+details.pop > summary.sev-why { cursor: help; display: inline-flex; }
+details.pop > summary.sev-why .sev { outline: 1px dashed transparent; }
+details.pop > summary.sev-why:hover .sev { outline-color: var(--accent); }
+@media (max-width: 760px) {
+  .feed-table .col-src { width: auto; white-space: normal; }
+  .feed-table .col-src .small { display: none; }
+  .feed-table .col-time { width: auto; }
+  .feed-table .snippet { display: none; }
+}
+.mode-pick.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
+.mode-pick.three label strong { display: block; margin-bottom: 2px; }
+.mode-pick.three label input { float: right; margin: 2px 0 0; }
+[data-mode-section][hidden] { display: none; }
+@media (max-width: 760px) { .mode-pick.three { grid-template-columns: 1fr; } }
+/* A finished entrance animation leaves an identity transform behind, which makes the ancestor the
+   containing block of position:fixed children – modal popovers would open inside the card. */
+[data-reveal] > *:has(details.pop[open]), .reveal:has(details.pop[open]) { animation: none; }
+.mode-pick.formats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mode-pick.formats label strong { display: block; } .mode-pick.formats label input { float: right; margin: 2px 0 0; }
+.sections .check { margin: 0; }
+@media (max-width: 1100px) { .mode-pick.formats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .mode-pick.formats { grid-template-columns: 1fr; } }

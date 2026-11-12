@@ -178,12 +178,21 @@ class OTX:
         for f in (pinfo.get("related", {}) or {}).get("alienvault", {}).get("malware_families", []) or []:
             if f not in families:
                 families.append(f)
-        verdict = "malicious" if count >= 3 else "suspicious" if count else "unknown"
+        # OTX marks well-known benign infrastructure (CDNs, big-tech domains) in `validation`
+        validation = [v for v in (data.get("validation") or []) if isinstance(v, dict)]
+        whitelisted = any("whitelist" in str(v.get("source", "")).lower() or "false positive" in str(v.get("message", "")).lower()
+                          for v in validation)
+        if whitelisted:
+            verdict = "clean"
+            summary = f"Whitelisted by OTX ({validation[0].get('message') or validation[0].get('source')}); {count} pulse(s)"
+        else:
+            verdict = "malicious" if (count >= 3 or (count and families)) else "suspicious" if count else "unknown"
+            summary = f"Referenced in {count} OTX pulse(s)"
         gui_t = {"ip": "ip", "domain": "domain", "url": "url"}.get(etype, "file")
         if etype == "cve":
             gui_t = "cve"
         res = LookupResult(
-            self.name, verdict, min(100, count * 10), f"Referenced in {count} OTX pulse(s)",
+            self.name, verdict, 0 if whitelisted else min(100, count * 10), summary,
             f"https://otx.alienvault.com/indicator/{gui_t}/{value}",
         )
         res.malware = families[:10]
@@ -193,8 +202,9 @@ class OTX:
             "pulses": [{"id": p.get("id"), "name": p.get("name"), "created": p.get("created")} for p in pulses[:10]],
             "country": data.get("country_name"),
             "asn": data.get("asn"),
+            "validation": validation[:5],
         }
-        if families:
+        if families and not whitelisted:
             res.summary += f" · families: {', '.join(families[:3])}"
         return res
 
@@ -247,11 +257,14 @@ class URLScan:
                        "ip": (r.get("page") or {}).get("ip")} for r in results[:10]],
             "brands": brands[:10],
         }
-        for r in results[:20]:
+        seen_ips: set[str] = set()
+        for r in (mal or results)[:20]:
             page = r.get("page") or {}
-            if page.get("ip") and etype != "ip":
-                ex = make_ioc(page["ip"], "ip")
+            ip = page.get("ip")
+            if ip and etype != "ip" and ip not in seen_ips and len(seen_ips) < 5:
+                ex = make_ioc(ip, "ip")
                 if ex:
+                    seen_ips.add(ip)
                     res.related.append(ex)
         return res
 
