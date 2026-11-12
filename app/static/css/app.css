@@ -43,6 +43,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
+body { overflow-x: clip; } /* decorative glows may extend past the edge; never a horizontal scrollbar */
 body { background: var(--bg); color: var(--text-primary); font: 14px/1.5 var(--font); }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -222,7 +223,7 @@ details summary { cursor: pointer; }
 
 /* ambient glow behind the dashboard */
 .ambient { position: relative; isolation: isolate; }
-.ambient::before { content: ""; position: absolute; inset: -80px -40px auto -40px; height: 520px; z-index: -1; pointer-events: none;
+.ambient::before { content: ""; position: absolute; inset: -80px -16px auto -16px; height: 520px; z-index: -1; pointer-events: none;
   background: radial-gradient(600px 260px at 15% 20%, color-mix(in srgb, var(--series-1) 18%, transparent), transparent 70%),
               radial-gradient(500px 240px at 85% 10%, color-mix(in srgb, var(--series-7) 14%, transparent), transparent 70%),
               radial-gradient(400px 200px at 55% 60%, color-mix(in srgb, var(--series-3) 10%, transparent), transparent 70%);

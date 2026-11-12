@@ -9,6 +9,24 @@ the result on a trend dashboard. Optionally, a local or API-hosted LLM adds extr
 
 Single process, SQLite by default, no JavaScript build step, no external CDN at runtime.
 
+## Screenshots
+
+Dashboard: threat radar, KPIs with sparklines, headline ticker, collection volume, trending families.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+| Malware family page: timeline, coverage per source, co-occurring CVEs/actors/IOCs | Item page: content, extracted entities, correlated items from other sources |
+|---|---|
+| ![Entity page](docs/screenshots/entity.png) | ![Item page](docs/screenshots/item.png) |
+
+| Feed with filters and severity | IOC table with verdicts and attributed families |
+|---|---|
+| ![Feed](docs/screenshots/feed.png) | ![IOCs](docs/screenshots/iocs.png) |
+
+| Settings: sources, status and per-source actions | Mobile layout |
+|---|---|
+| ![Settings](docs/screenshots/settings.png) | <img src="docs/screenshots/mobile.jpg" alt="Mobile dashboard" width="300"> |
+
 ## Features
 
 | Area | What you get |
@@ -177,7 +195,7 @@ Run a single web worker: the scheduler lives in-process (scale collection by adj
   HTML entities in feeds were dropped instead of decoded; future-dated items showed “in 3h”; deprecated
   `datetime.utcnow()` usage; `canonical_malware` rebuilt the knowledge table on every call; per-entry
   duplicate checks on ingest; N+1 queries on the watchlist; mention counts left stale after retention cleanup.
-- UX: modal popovers for source edit / password reset (usable on mobile), mobile sidebar with backdrop and
+- UX: no horizontal overflow on phones (dashboard glow extended past the viewport), modal popovers for source edit / password reset (usable on mobile), mobile sidebar with backdrop and
   Escape, “Remove” checkbox for secrets instead of typing `__clear__`, Reset buttons on filters, `/` focuses
   search, ARIA labels, skip link, focus rings, labelled inputs, grouped source list, radar blips fan out when
   scores tie, friendlier empty states.
