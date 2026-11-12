@@ -183,20 +183,33 @@ def test_ai_settings_mode_vendor_mapping(client):
 def test_report_builder_formats(client):
     assert client.get("/reports").status_code == 200
     tok = _csrf(client, "/reports")
-    base = {"csrf_token": tok, "preset": "30", "sections": ["overview", "malware", "iocs", "items", "cves", "actors", "new", "digest"],
-            "min_sev": "0", "limit": "20"}
-    for fmt, mime, magic in (("csv", "text/csv", b"\xef\xbb\xbf"), ("md", "text/markdown", b"# "),
+    base = {"csrf_token": tok, "preset": "30", "sections": ["findings", "families", "iocs", "overview", "actors", "cves", "new", "digest"]}
+    for fmt, mime, magic in (("csv", "text/csv", b"\xef\xbb\xbf"), ("md", "text/markdown", b"# Threat Intel Findings"),
                              ("docx", "wordprocessingml", b"PK"), ("pdf", "application/pdf", b"%PDF")):
         r = client.post("/reports/build", data={**base, "format": fmt})
         assert r.status_code == 200, (fmt, r.text[:200])
         assert mime in r.headers["content-type"] and r.content.startswith(magic)
-        assert "attachment" in r.headers["content-disposition"]
-    csv_text = client.post("/reports/build", data={**base, "format": "csv"}).text
-    assert "## Trending malware families" in csv_text and "## Notable items" in csv_text
-    assert "Zero-day actively exploited" in csv_text
-    # explicit dates and validation
-    r = client.post("/reports/build", data={**base, "format": "md", "start": "2026-11-01", "end": "2026-11-12"})
-    assert r.status_code == 200 and b"2026-11-01" in r.content
+        assert "attachment" in r.headers["content-disposition"] and "threat-intel-findings-" in r.headers["content-disposition"]
+    md = client.post("/reports/build", data={**base, "format": "md"}).text
+    assert "## Summary" in md and "## Top findings" in md and "malware families" in md and "indicators of compromise" in md
+    assert "Zero-day actively exploited" in md and "severity" in md and "Related malware" in md
+    # counts, explicit dates, custom title and validation
+    r = client.post("/reports/build", data={**base, "format": "md", "n_findings": "1", "n_families": "2", "n_iocs": "5",
+                                             "title": "Weekly brief", "start": "2026-11-01", "end": "2026-11-12"})
+    assert r.status_code == 200 and r.text.startswith("# Weekly brief") and "### 2. " not in r.text
     assert client.post("/reports/build", data={**base, "format": "md", "start": "2026-11-12", "end": "2026-11-01"}).status_code == 400
     assert client.post("/reports/build", data={**base, "format": "exe"}).status_code == 400
     assert client.post("/reports/build", data={**base, "format": "pdf", "csrf_token": "bad"}).status_code == 403
+
+
+def test_report_period_label_and_summary():
+    from app.reports import period_label, summary_text
+
+    assert period_label(datetime(2026, 11, 5), datetime(2026, 11, 13)) == "5–12 Nov 2026"
+    assert period_label(datetime(2026, 10, 28), datetime(2026, 11, 13)) == "28 Oct – 12 Nov 2026"
+    assert period_label(datetime(2025, 12, 30), datetime(2026, 1, 3)) == "30 Dec 2025 – 2 Jan 2026"
+    rep = {"period": "5–12 Nov 2026", "stats": {"items": 10, "by_category": {"news": 8, "social": 2, "intel": 0},
+                                              "high_sev": 2, "families": 3, "new_families": 1, "cves": 4, "iocs": 7, "malicious": 0}}
+    text = summary_text(rep)
+    assert "collected 10 item(s)" in text and "3 malware families were discussed, 1 of them seen for the first time." in text
+    assert "none has been confirmed malicious yet" in text

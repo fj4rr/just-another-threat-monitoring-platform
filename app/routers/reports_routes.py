@@ -43,6 +43,7 @@ def _parse_range(preset: str, start: str, end: str) -> tuple[datetime, datetime]
 def report_page(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     return render(request, "reports.html", {
         "user": user, "sections": reports.SECTIONS, "formats": reports.FORMATS, "presets": PRESETS,
+        "counts": reports.DEFAULT_COUNTS,
         "today": utcnow().strftime("%Y-%m-%d"), "month_ago": (utcnow() - timedelta(days=30)).strftime("%Y-%m-%d"),
     })
 
@@ -56,13 +57,13 @@ async def report_build(request: Request, user: User = Depends(current_user), db:
     if fmt not in reports.FORMATS:
         raise HTTPException(400, "unknown format")
     try:
-        min_sev = min(max(int(form.get("min_sev") or 40), 0), 100)
-        limit = min(max(int(form.get("limit") or 50), 5), 500)
+        counts = {k: min(max(int(form.get(f"n_{k}") or v), 1), 200) for k, v in reports.DEFAULT_COUNTS.items()}
+        min_sev = min(max(int(form.get("min_sev") or 0), 0), 100)
     except ValueError as e:
         raise HTTPException(400, "numbers expected") from e
     verdicts = {v for v in form.getlist("verdicts") if v in ("malicious", "suspicious", "clean", "unknown", "pending")}
     title = str(form.get("title", "")).strip()[:120]
-    rep = reports.gather(db, since, until, chosen, min_sev=min_sev, ioc_verdicts=verdicts or None, limit=limit, title=title)
+    rep = reports.gather(db, since, until, chosen, counts=counts, ioc_verdicts=verdicts or None, title=title, min_sev=min_sev)
     try:
         data, name, mime = reports.build(rep, fmt)
     except RuntimeError as e:  # optional dependency missing
