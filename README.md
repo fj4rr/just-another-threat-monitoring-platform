@@ -15,17 +15,19 @@ Dashboard: threat radar, KPIs with sparklines, headline ticker, collection volum
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
-| Malware family page: timeline, coverage per source, co-occurring CVEs/actors/IOCs | Item page: content, extracted entities, correlated items from other sources |
+| Malware family page: timeline, indicators, coverage per source, co-occurring CVEs/actors | Item page: content, extracted entities, correlated items from other sources |
 |---|---|
 | ![Entity page](docs/screenshots/entity.png) | ![Item page](docs/screenshots/item.png) |
 
-| Feed with filters and severity | IOC table with verdicts and attributed families |
+| Feed with filters, severity and time/severity sort | IOC table with verdicts, attributed families and where each indicator was seen |
 |---|---|
 | ![Feed](docs/screenshots/feed.png) | ![IOCs](docs/screenshots/iocs.png) |
 
-| Settings: sources, status and per-source actions | Mobile layout |
+| Malware families: sortable columns, trend score, mentions by type | Settings: add source, source status and per-source actions |
 |---|---|
-| ![Settings](docs/screenshots/settings.png) | <img src="docs/screenshots/mobile.jpg" alt="Mobile dashboard" width="300"> |
+| ![Malware families](docs/screenshots/malware.png) | ![Settings](docs/screenshots/settings.png) |
+
+<img src="docs/screenshots/mobile.jpg" alt="Mobile dashboard" width="300">
 
 ## Features
 
@@ -42,7 +44,7 @@ Dashboard: threat radar, KPIs with sparklines, headline ticker, collection volum
 | **Dashboard** | Animated: a *threat radar* (trending families as blips that light up as the sweep passes; closer to the centre = hotter), count-up KPIs with sparklines, a headline ticker, staggered card entrance, animated charts, 60-second auto-refresh (respects *prefers-reduced-motion*). Content: KPIs, volume per source type, trending families (score = 7-day rate vs 30-day baseline × source spread), top-5 family timeline, most-mentioned families, malware by type, IOC verdicts, items per source, hottest actors & CVEs |
 | **AI (optional)** | Per-item summary + extraction, *threat brief* per family/actor, automatic *daily digest* at 06:00 UTC, Q&A over the collected data. Providers: **Ollama** (local), **OpenAI-compatible** (LM Studio, vLLM, llama.cpp, OpenRouter, OpenAI, Groq…), **Anthropic Claude** (official SDK, default `claude-opus-5-5`). Output language is configurable (e.g. *Bahasa Indonesia*) |
 | **Install modes** | **Single-user** (no login) or **multi-user** (login, admin/analyst/viewer roles, admin dashboard: user management, job status, audit log, system stats) |
-| **Other** | Per-user watchlist, dark/light theme, keyboard shortcut `/` for search, mobile layout, data retention, Docker with health check |
+| **Other** | Sortable intelligence tables, per-family IOC lists, per-user watchlist, dark/light theme, keyboard shortcut `/` for search, mobile layout, data retention, Docker with health check |
 
 ## Quick start (local)
 
@@ -186,6 +188,16 @@ Run a single web worker: the scheduler lives in-process (scale collection by adj
 
 ## Changelog
 
+### 0.2.1
+
+- Sortable columns on the Malware / Threat actors / CVEs / IOCs tables; feed can be sorted by time or severity
+  and labels the severity column; IOC table shows where each indicator was seen; family/actor pages get an
+  Indicators card with a link to all related IOCs (`/iocs?entity=ID`).
+- Dashboard: KPI tiles link to their detail pages, radar explains placement with an axis key instead of a
+  sentence, "All families" is a button, items-per-source chart shows the top 12 with readable labels.
+- Chrome: new radar logo, brand links home, back button, burger menu only on small screens, "Add source"
+  moved above the table as a full-width panel, credits in the sidebar.
+
 ### 0.2.0
 
 - Security: CSP with nonces, vendored Chart.js, no inline handlers, extra response headers, HSTS/Secure
@@ -200,6 +212,11 @@ Run a single web worker: the scheduler lives in-process (scale collection by adj
   search, ARIA labels, skip link, focus rings, labelled inputs, grouped source list, radar blips fan out when
   scores tie, friendlier empty states.
 - Tooling: pytest suite, ruff config, GitHub Actions CI, `.dockerignore`, Docker health check, `/healthz`.
+
+## Credits
+
+Built and maintained by [**fj4rr**](https://github.com/fj4rr) · [github.com/fj4rr/just-another-threat-monitoring-platform](https://github.com/fj4rr/just-another-threat-monitoring-platform).
+Issues and pull requests are welcome.
 
 ## Notes
 
