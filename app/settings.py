@@ -1,0 +1,105 @@
+"""Runtime settings stored in the DB (editable from the UI), with env-var overrides."""
+from __future__ import annotations
+
+import os
+from typing import Any
+
+from .db import session_scope
+from .models import Setting
+
+# key -> (default, env var, label, kind, group)
+SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
+    # Threat-intel API keys
+    "virustotal_api_key": ("", "VT_API_KEY", "VirusTotal API key", "secret", "intel"),
+    "otx_api_key": ("", "OTX_API_KEY", "AlienVault OTX API key", "secret", "intel"),
+    "urlscan_api_key": ("", "URLSCAN_API_KEY", "urlscan.io API key", "secret", "intel"),
+    "anyrun_api_key": ("", "ANYRUN_API_KEY", "ANY.RUN API key (TI Lookup)", "secret", "intel"),
+    "anyrun_api_base": ("https://api.any.run/v1", "ANYRUN_API_BASE", "ANY.RUN API base URL", "text", "intel"),
+    "threatfox_auth_key": ("", "ABUSECH_AUTH_KEY", "abuse.ch Auth-Key (ThreatFox, optional)", "secret", "intel"),
+    # Social
+    "x_bearer_token": ("", "X_BEARER_TOKEN", "X (Twitter) API v2 bearer token", "secret", "social"),
+    # Enrichment
+    "enrichment_enabled": (True, "", "Automatic cross-source enrichment", "bool", "enrichment"),
+    "enrichment_interval": (10, "", "Enrichment interval (minutes)", "int", "enrichment"),
+    "enrichment_batch": (8, "", "Entities enriched per run", "int", "enrichment"),
+    "vt_daily_budget": (400, "", "VirusTotal lookups per day (free tier = 500)", "int", "enrichment"),
+    "vt_min_interval": (16, "", "Seconds between VirusTotal calls (free tier = 4/min)", "int", "enrichment"),
+    "enrich_families": (True, "", "Pull IOCs for trending malware families from OTX / ANY.RUN", "bool", "enrichment"),
+    # LLM
+    "llm_provider": ("none", "LLM_PROVIDER", "LLM provider", "select:none,ollama,openai_compatible,anthropic", "llm"),
+    "llm_base_url": ("http://localhost:11434", "LLM_BASE_URL", "Base URL (Ollama / OpenAI-compatible)", "text", "llm"),
+    "llm_model": ("llama3.1", "LLM_MODEL", "Model name", "text", "llm"),
+    "llm_api_key": ("", "LLM_API_KEY", "API key (OpenAI-compatible / Anthropic)", "secret", "llm"),
+    "llm_auto_summarize": (False, "", "Auto-summarize new high-severity items", "bool", "llm"),
+    "llm_auto_extract": (True, "", "Let the LLM discover malware families not in the knowledge base", "bool", "llm"),
+    "llm_daily_digest": (True, "", "Generate a daily AI digest", "bool", "llm"),
+    "llm_language": ("English", "", "Language for AI output (e.g. English, Bahasa Indonesia)", "text", "llm"),
+    # Housekeeping
+    "retention_days": (180, "", "Delete items older than N days (0 = keep forever)", "int", "general"),
+}
+
+
+def get(key: str, default: Any = None) -> Any:
+    spec = SCHEMA.get(key)
+    if spec and spec[1]:
+        env = os.getenv(spec[1])
+        if env not in (None, ""):
+            return _coerce(env, spec[3])
+    with session_scope() as db:
+        row = db.get(Setting, key)
+        if row is not None and row.value is not None:
+            return row.value
+    if default is not None:
+        return default
+    return spec[0] if spec else None
+
+
+def set(key: str, value: Any) -> None:  # noqa: A001
+    with session_scope() as db:
+        row = db.get(Setting, key)
+        if row is None:
+            db.add(Setting(key=key, value=value))
+        else:
+            row.value = value
+
+
+def env_locked(key: str) -> bool:
+    spec = SCHEMA.get(key)
+    return bool(spec and spec[1] and os.getenv(spec[1]))
+
+
+def _coerce(raw: Any, kind: str) -> Any:
+    if kind == "bool":
+        if isinstance(raw, bool):
+            return raw
+        return str(raw).lower() in ("1", "true", "yes", "on")
+    if kind == "int":
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return 0
+    return raw
+
+
+def coerce_form_value(key: str, raw: Any) -> Any:
+    return _coerce(raw, SCHEMA[key][3])
+
+
+def all_for_ui() -> list[dict]:
+    out = []
+    for key, (default, env, label, kind, group) in SCHEMA.items():
+        val = get(key)
+        out.append(
+            {
+                "key": key,
+                "label": label,
+                "kind": kind,
+                "group": group,
+                "value": val,
+                "is_set": bool(val),
+                "env_locked": env_locked(key),
+                "env": env,
+                "options": kind.split(":", 1)[1].split(",") if kind.startswith("select:") else [],
+            }
+        )
+    return out

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}AI insights{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>AI insights</h1>
+  <p class="muted">{% if llm_on %}Using <span class="mono">{{ provider }}:{{ model }}</span>{% else %}No LLM configured – set one up in Settings → LLM (local Ollama / LM Studio, or an API).{% endif %}</p></div>
+  {% if llm_on and user.role in ('admin','analyst') %}<button class="btn primary" data-post="/api/insights/digest" data-busy="Writing digest…" data-reload>✦ Generate digest now</button>{% endif %}
+</div>
+{% if llm_on and user.role in ('admin','analyst') %}
+<div class="card" style="margin-bottom:16px">
+  <h2>Ask about the threat landscape</h2>
+  <form data-ask="#answer" class="row" style="flex-wrap:nowrap">
+    <input type="text" name="question" placeholder="e.g. What's new with Lumma Stealer this week? Which ransomware groups are most active?" maxlength="1000">
+    <button class="btn primary">Ask</button>
+  </form>
+  <div id="answer" class="prose" style="margin-top:12px"></div>
+</div>
+{% endif %}
+<div class="grid">
+{% for r in rows %}
+  <details class="card" {{ 'open' if loop.first }}>
+    <summary><strong>{{ r.title }}</strong> <span class="badge">{{ r.kind }}</span> <span class="muted small">{{ r.created_at|timeago }} · {{ r.model }}</span></summary>
+    <div class="prose" style="margin-top:10px">{{ r.content|md }}</div>
+  </details>
+{% else %}<div class="card empty">No insights yet.</div>{% endfor %}
+</div>
+{% endblock %}

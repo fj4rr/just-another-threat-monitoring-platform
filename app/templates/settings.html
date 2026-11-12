@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Settings</h1><p class="muted">Sources, API keys, enrichment and LLM. Values set through environment variables are locked here.</p></div></div>
+{% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+<nav class="tabs">
+  {% for t, l in [('sources','Sources'),('intel','Threat-intel APIs'),('social','Social'),('enrichment','Enrichment'),('llm','LLM / AI'),('general','General')] %}
+  <a href="?tab={{ t }}" class="{{ 'active' if tab == t }}">{{ l }}</a>{% endfor %}
+</nav>
+
+{% if tab == 'sources' %}
+<div class="card table-wrap" style="margin-bottom:16px">
+  <div class="card-head"><h2>Sources ({{ sources|length }})</h2>
+    <div class="row">
+      <form method="post" action="/settings/sources-seed"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <button class="btn sm" title="Add built-in sources this install doesn't have yet">＋ Add new built-in sources</button></form>
+      <button class="btn sm" data-post="/api/sources/run_all" data-busy="Queuing…">↻ Run all enabled</button></div></div>
+  <table>
+    <thead><tr><th>Name</th><th>Kind</th><th>Status</th><th class="num">Items</th><th>Every</th><th>Last run</th><th></th></tr></thead>
+    <tbody>
+    {% for s in sources %}
+    <tr>
+      <td><strong>{{ s.name }}</strong> <span class="badge cat-{{ s.category }}">{{ s.category }}</span>
+        <div class="muted small mono" style="word-break:break-all">{% for k, v in (s.config or {}).items() if k not in ('user_id','since_id') %}{{ k }}={{ v }} {% endfor %}</div></td>
+      <td>{{ s.kind }}</td>
+      <td>{% if not s.enabled %}<span class="muted">disabled</span>{% else %}<span class="status-dot {{ s.last_status }}"></span>{{ s.last_status }}{% endif %}
+        {% if s.last_error %}<div class="muted small" title="{{ s.last_error }}">{{ s.last_error|truncate(80) }}</div>{% endif %}</td>
+      <td class="num">{{ s.items_count }}</td>
+      <td>{{ s.interval_minutes }}m</td>
+      <td class="muted small">{{ s.last_run|timeago }}</td>
+      <td style="white-space:nowrap">
+        <button class="btn sm" data-post="/api/sources/{{ s.id }}/run" data-busy="…">Run</button>
+        <form method="post" action="/settings/sources/{{ s.id }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <button class="btn sm" name="action" value="toggle">{{ 'Disable' if s.enabled else 'Enable' }}</button></form>
+        <details style="display:inline-block"><summary class="btn sm">Edit</summary>
+          <form method="post" action="/settings/sources/{{ s.id }}" class="card" style="position:absolute;right:28px;z-index:10;width:380px;margin-top:6px">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <div class="field"><label>Name</label><input type="text" name="name" value="{{ s.name }}"></div>
+            {% for name, label, ph in kinds[s.kind].fields %}
+            <div class="field"><label>{{ label }}</label><input type="text" name="cfg_{{ name }}" value="{{ (s.config or {}).get(name, '') }}" placeholder="{{ ph }}"></div>{% endfor %}
+            <div class="grid g-2">
+              <div class="field"><label>Interval (min)</label><input type="number" min="5" name="interval_minutes" value="{{ s.interval_minutes }}"></div>
+              <div class="field"><label>Category</label><select name="category">{% for c in ['news','social','intel'] %}<option {{ 'selected' if s.category == c }}>{{ c }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="row" style="justify-content:space-between">
+              <button class="btn sm danger" name="action" value="delete" onclick="return confirm('Delete this source and all its items?')">Delete</button>
+              <button class="btn sm primary" name="action" value="save">Save</button></div>
+          </form></details>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card" style="max-width:720px">
+  <h2>Add source</h2>
+  <form method="post" action="/settings/sources" id="add-src">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="grid g-2">
+      <div class="field"><label>Kind</label><select name="kind" id="kind">
+        {% for k, v in kinds.items() %}<option value="{{ k }}">{{ v.label }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Name</label><input type="text" name="name" placeholder="e.g. SANS ISC"></div>
+    </div>
+    {% for k, v in kinds.items() %}
+    <div class="kind-fields" data-kind="{{ k }}">
+      {% for name, label, ph in v.fields %}<div class="field"><label>{{ label }}</label><input type="text" name="cfg_{{ name }}" placeholder="{{ ph }}" disabled></div>{% endfor %}
+    </div>{% endfor %}
+    <div class="grid g-2">
+      <div class="field"><label>Interval (minutes)</label><input type="number" min="5" name="interval_minutes" value="30"></div>
+      <div class="field"><label>Category</label><select name="category" id="cat"><option>news</option><option>social</option><option>intel</option></select></div>
+    </div>
+    <button class="btn primary">Add source</button>
+  </form>
+</div>
+<script>
+  const kinds = {{ kinds|tojson }};
+  const sel = document.getElementById("kind");
+  const sync = () => {
+    document.querySelectorAll(".kind-fields").forEach(d => {
+      const on = d.dataset.kind === sel.value;
+      d.style.display = on ? "" : "none";
+      d.querySelectorAll("input").forEach(i => i.disabled = !on);
+    });
+    document.getElementById("cat").value = kinds[sel.value].category;
+  };
+  sel.addEventListener("change", sync); sync();
+</script>
+
+{% else %}
+<div class="card" style="max-width:760px">
+  <form method="post" action="/settings/values">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <input type="hidden" name="group" value="{{ tab }}">
+    {% for s in settings if s.group == tab %}
+    <div class="field">
+      {% if s.kind == 'bool' %}
+        <label class="check"><input type="checkbox" name="{{ s.key }}" {{ 'checked' if s.value }} {{ 'disabled' if s.env_locked }}> {{ s.label }}</label>
+      {% else %}
+        <label>{{ s.label }} {% if s.env_locked %}<span class="badge">set by ${{ s.env }}</span>{% elif s.env %}<span class="muted small">(env: {{ s.env }})</span>{% endif %}</label>
+        {% if s.options %}
+          <select name="{{ s.key }}" {{ 'disabled' if s.env_locked }}>{% for o in s.options %}<option {{ 'selected' if s.value == o }}>{{ o }}</option>{% endfor %}</select>
+        {% elif s.kind == 'secret' %}
+          <input type="password" name="{{ s.key }}" autocomplete="off" placeholder="{{ '•••••••• configured – leave blank to keep, type __clear__ to remove' if s.is_set else 'not set' }}" {{ 'disabled' if s.env_locked }}>
+        {% elif s.kind == 'int' %}
+          <input type="number" name="{{ s.key }}" value="{{ s.value }}" {{ 'disabled' if s.env_locked }}>
+        {% else %}
+          <input type="text" name="{{ s.key }}" value="{{ s.value }}" {{ 'disabled' if s.env_locked }}>
+        {% endif %}
+      {% endif %}
+    </div>
+    {% endfor %}
+    <div class="row"><button class="btn primary">Save</button>
+      {% if tab == 'llm' %}<button type="button" class="btn" data-post="/api/llm/test" data-busy="Testing…">Test connection</button>{% endif %}</div>
+  </form>
+  {% if tab == 'llm' %}
+  <div class="alert small" style="margin-top:16px">
+    <strong>Local:</strong> <code>ollama</code> → base URL <code>http://localhost:11434</code>, model e.g. <code>llama3.1</code> / <code>qwen2.5:14b</code>.
+    LM Studio / llama.cpp / vLLM → <code>openai_compatible</code> with base URL ending in <code>/v1</code>.<br>
+    <strong>API:</strong> <code>openai_compatible</code> also works for OpenAI, OpenRouter, Groq, Gemini's OpenAI endpoint, etc.
+    <code>anthropic</code> uses the official Claude SDK (default model <code>claude-opus-5-5</code>; reads <code>ANTHROPIC_API_KEY</code> if no key is set here).
+  </div>
+  {% elif tab == 'intel' %}
+  <div class="alert small" style="margin-top:16px">Keys are used both by collectors (OTX pulses, urlscan searches, ANY.RUN queries, ThreatFox) and by the cross-source enrichment that checks IOCs found in news and social posts. urlscan works without a key at a lower rate limit.</div>
+  {% elif tab == 'social' %}
+  <div class="alert small" style="margin-top:16px">Bluesky accounts need no key. X requires a paid API v2 bearer token, or set an RSS-bridge URL (e.g. self-hosted RSSHub/Nitter) on each X source instead.</div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

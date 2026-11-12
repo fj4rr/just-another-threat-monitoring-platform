@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Profile</h1><p class="muted">{{ user.username }} · {{ user.role }}</p></div></div>
+{% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+<div class="card" style="max-width:520px">
+  <form method="post" action="/profile">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="field"><label>Display name</label><input type="text" name="display_name" value="{{ user.display_name }}"></div>
+    {% if multi_user %}
+    <h3 style="margin-top:16px">Change password</h3>
+    <div class="field"><label>Current password</label><input type="password" name="current" autocomplete="current-password"></div>
+    <div class="field"><label>New password</label><input type="password" name="new" autocomplete="new-password"></div>
+    <div class="field"><label>Repeat new password</label><input type="password" name="new2" autocomplete="new-password"></div>
+    {% endif %}
+    <button class="btn primary">Save</button>
+  </form>
+</div>
+{% endblock %}

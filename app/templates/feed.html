@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_macros.html" import feed_item %}
+{% block title %}Feed{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Feed</h1><p class="muted">{{ total }} item(s){% if entity %} mentioning <a href="/entities/{{ entity.id }}">{{ entity.display }}</a>{% endif %}</p></div>
+</div>
+<form class="filters" method="get">
+  <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content">
+  <select name="cat"><option value="">All source types</option>
+    {% for c in ['news','social','intel'] %}<option value="{{ c }}" {{ 'selected' if f.cat == c }}>{{ c }}</option>{% endfor %}</select>
+  <select name="kind"><option value="">All kinds</option>
+    {% for k in ['article','post','pulse','scan','analysis'] %}<option value="{{ k }}" {{ 'selected' if f.kind == k }}>{{ k }}</option>{% endfor %}</select>
+  <select name="source"><option value="0">All sources</option>
+    {% for s in sources %}<option value="{{ s.id }}" {{ 'selected' if f.source == s.id }}>{{ s.name }}</option>{% endfor %}</select>
+  <select name="min_sev">{% for v, l in [(0,'Any severity'),(30,'Severity ≥ 30'),(50,'Severity ≥ 50'),(70,'Severity ≥ 70')] %}
+    <option value="{{ v }}" {{ 'selected' if f.min_sev == v }}>{{ l }}</option>{% endfor %}</select>
+  <select name="days">{% for v, l in [(1,'24 hours'),(7,'7 days'),(30,'30 days'),(90,'90 days'),(0,'All time')] %}
+    <option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ l }}</option>{% endfor %}</select>
+  {% if f.entity %}<input type="hidden" name="entity" value="{{ f.entity }}">{% endif %}
+  <button class="btn">Filter</button>
+</form>
+<div class="card">
+  {% for i in items %}{{ feed_item(i) }}{% else %}<div class="empty">No items match.</div>{% endfor %}
+</div>
+{% if pages > 1 %}
+{% set qs = 'q=' ~ (f.q|urlencode) ~ '&cat=' ~ f.cat ~ '&kind=' ~ f.kind ~ '&source=' ~ f.source ~ '&min_sev=' ~ f.min_sev ~ '&days=' ~ f.days ~ '&entity=' ~ f.entity %}
+<div class="pager">
+  {% if page > 1 %}<a class="btn sm" href="?{{ qs }}&page={{ page - 1 }}">← Prev</a>{% endif %}
+  <span class="muted small">Page {{ page }} / {{ pages }}</span>
+  {% if page < pages %}<a class="btn sm" href="?{{ qs }}&page={{ page + 1 }}">Next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ title }}</h1><p class="muted">{{ rows|length }} tracked · mentions in the last {{ f.days }} days</p></div></div>
+<form class="filters" method="get">
+  <input type="search" name="q" value="{{ f.q }}" placeholder="Filter by name">
+  {% if categories %}<select name="category"><option value="">All types</option>
+    {% for c in categories %}<option value="{{ c }}" {{ 'selected' if f.category == c }}>{{ c }}</option>{% endfor %}</select>{% endif %}
+  <select name="days">{% for v in [7, 30, 90, 365] %}<option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ v }} days</option>{% endfor %}</select>
+  <button class="btn">Filter</button>
+</form>
+{% if cat_breakdown %}
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head"><h2>Mentions by malware type</h2></div>
+  <div class="chart-wrap short"><canvas id="c-cat"></canvas></div>
+</div>
+{% endif %}
+<div class="card table-wrap">
+  {% set maxn = (rows|map(attribute=1)|max) if rows else 1 %}
+  <table>
+    <thead><tr><th>Name</th>{% if categories %}<th>Type</th>{% endif %}<th class="num">Mentions ({{ f.days }}d)</th><th style="width:18%"></th>
+      <th class="num">Sources</th><th class="num">Trend</th><th>First seen</th><th>Last seen</th></tr></thead>
+    <tbody>
+    {% for e, recent, srcs in rows %}
+    {% set t = trend.get(e.id) %}
+    <tr>
+      <td><a href="/entities/{{ e.id }}">{{ e.display }}</a>{% if t and t.is_new %} <span class="badge new">new</span>{% endif %}</td>
+      {% if categories %}<td><a class="muted" href="?category={{ e.category }}">{{ e.category or 'other' }}</a></td>{% endif %}
+      <td class="num">{{ recent }}</td>
+      <td><div class="bar-inline" style="width:{{ (100 * recent / (maxn or 1))|round(0) }}%"></div></td>
+      <td class="num">{{ srcs }}</td>
+      <td class="num">{% if t %}{{ t.score }}{% if t.baseline and t.growth >= 2 %} <span class="muted small">×{{ t.growth }}</span>{% endif %}{% else %}<span class="muted">–</span>{% endif %}</td>
+      <td class="muted small">{{ e.first_seen.strftime('%Y-%m-%d') }}</td>
+      <td class="muted small">{{ e.last_seen|timeago }}</td>
+    </tr>
+    {% else %}<tr><td colspan="8" class="empty">Nothing tracked yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if cat_breakdown %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  JATMP.hbar(document.getElementById("c-cat"), "/api/stats/categories?days={{ f.days }}",
+    { labelKey: "category", link: (r) => `/malware?category=${r.category}&days={{ f.days }}` });
+});
+</script>
+{% endif %}
+{% endblock %}

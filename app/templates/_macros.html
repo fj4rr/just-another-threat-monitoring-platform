@@ -1,0 +1,30 @@
+{% macro sev(n) -%}
+<span class="sev {{ 's-high' if n >= 60 else 's-med' if n >= 35 else '' }}" title="Severity score">{{ n }}</span>
+{%- endmacro %}
+
+{% macro verdict(v) -%}
+{% if v %}<span class="badge {{ verdict_class(v) }}">{{ v }}</span>{% else %}<span class="badge">pending</span>{% endif %}
+{%- endmacro %}
+
+{% macro chip(e) -%}
+<a class="chip" href="/entities/{{ e.id }}"><span class="t">{{ e.type }}</span>{{ e.display|truncate(48, True) }}</a>
+{%- endmacro %}
+
+{% macro feed_item(i, show_snippet=True) -%}
+<div class="feed-item">
+  <div>{{ sev(i.severity) }}</div>
+  <div style="min-width:0">
+    <a class="title" href="/items/{{ i.id }}">{{ i.title or '(untitled)' }}</a>
+    <div class="meta">
+      <span class="badge cat-{{ i.source.category }}">{{ i.source.name }}</span>
+      <span>{{ i.kind }}</span>
+      {% if i.author %}<span>{{ i.author|truncate(40) }}</span>{% endif %}
+      <span title="{{ i.published_at }}">{{ i.published_at|timeago }}</span>
+      {% if i.llm_summary %}<span class="badge new">AI summary</span>{% endif %}
+    </div>
+    {% if show_snippet and i.content %}<div class="snippet">{{ i.content|truncate(260) }}</div>{% endif %}
+    {% set ents = i.entity_links|selectattr('entity.type', 'in', ['malware','actor','cve'])|list %}
+    {% if ents %}<div style="margin-top:6px">{% for l in ents[:8] %}{{ chip(l.entity) }}{% endfor %}</div>{% endif %}
+  </div>
+</div>
+{%- endmacro %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Admin dashboard</h1><p class="muted">Users, platform health, job runs and audit trail</p></div></div>
+{% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+
+<div class="grid g-4">
+  <div class="card tile"><div class="label">Users</div><div class="value">{{ users|length }}</div>
+    <div class="delta">{{ by_role.admin }} admin · {{ by_role.analyst }} analyst · {{ by_role.viewer }} viewer</div></div>
+  <div class="card tile"><div class="label">Items stored</div><div class="value">{{ stats['items'] }}</div><div class="delta">{{ stats.entities }} entities · {{ stats.enrichments }} enrichments</div></div>
+  <div class="card tile"><div class="label">Sources</div><div class="value">{{ stats.sources }}</div><div class="delta">{{ stats.errors }} in error state</div></div>
+  <div class="card tile"><div class="label">Database</div><div class="value">{{ stats.db_size_mb if stats.db_size_mb is not none else '–' }}<span class="small muted"> MB</span></div><div class="delta">{{ stats.insights }} AI insights</div></div>
+</div>
+
+<div class="grid g-21" style="margin-top:16px">
+  <div class="card table-wrap">
+    <h2>Users</h2>
+    <table>
+      <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+      <tbody>
+      {% for u in users %}
+      <tr>
+        <td><strong>{{ u.username }}</strong><div class="muted small">{{ u.display_name }}</div></td>
+        <td><form method="post" action="/admin/users/{{ u.id }}" class="row" style="flex-wrap:nowrap"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <input type="hidden" name="action" value="role">
+          <select name="role" onchange="this.form.submit()" style="width:auto">{% for r in roles %}<option {{ 'selected' if u.role == r }}>{{ r }}</option>{% endfor %}</select></form></td>
+        <td>{% if u.is_active %}<span class="badge good">active</span>{% else %}<span class="badge">disabled</span>{% endif %}</td>
+        <td class="muted small">{{ u.last_login|timeago }}</td>
+        <td style="white-space:nowrap">
+          <form method="post" action="/admin/users/{{ u.id }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+            <button class="btn sm" name="action" value="toggle">{{ 'Disable' if u.is_active else 'Enable' }}</button></form>
+          <details style="display:inline-block"><summary class="btn sm">Reset password</summary>
+            <form method="post" action="/admin/users/{{ u.id }}" class="card" style="position:absolute;z-index:10;width:300px;right:28px">
+              <input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="action" value="password">
+              <div class="field"><label>New password</label><input type="password" name="password" autocomplete="new-password"></div>
+              <button class="btn sm primary">Set password</button></form></details>
+          {% if u.id != user.id %}
+          <form method="post" action="/admin/users/{{ u.id }}" style="display:inline" onsubmit="return confirm('Delete user {{ u.username }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn sm danger" name="action" value="delete">Delete</button></form>{% endif %}
+        </td>
+      </tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card" style="align-self:start">
+    <h2>Add user</h2>
+    <form method="post" action="/admin/users">
+      <input type="hidden" name="csrf_token" value="{{ csrf }}">
+      <div class="field"><label>Username</label><input type="text" name="username" required autocomplete="off"></div>
+      <div class="field"><label>Display name</label><input type="text" name="display_name"></div>
+      <div class="field"><label>Password</label><input type="password" name="password" required autocomplete="new-password"></div>
+      <div class="field"><label>Role</label><select name="role">
+        <option value="viewer">viewer – read only</option><option value="analyst" selected>analyst – run collectors, enrichment, AI</option>
+        <option value="admin">admin – settings, sources, users</option></select></div>
+      <button class="btn primary">Create user</button>
+    </form>
+  </div>
+</div>
+
+<div class="grid g-2" style="margin-top:16px">
+  <div class="card table-wrap">
+    <div class="card-head"><h2>Job runs</h2><span class="muted small">latest 60</span></div>
+    <div style="max-height:460px;overflow:auto">
+    <table><thead><tr><th>Job</th><th>Status</th><th class="num">New</th><th>Started</th><th>Message</th></tr></thead>
+      <tbody>{% for r in runs %}
+      <tr><td>{{ src_names.get(r.source_id, r.job) if r.source_id else r.job }}</td>
+        <td><span class="status-dot {{ r.status }}"></span>{{ r.status }}</td>
+        <td class="num">{{ r.new_items }}</td>
+        <td class="muted small">{{ r.started_at|timeago }}</td>
+        <td class="small"><details><summary class="muted">{{ (r.message or '')|truncate(50) }}</summary><pre class="mono small" style="white-space:pre-wrap">{{ r.message }}</pre></details></td></tr>
+      {% else %}<tr><td colspan="5" class="empty">No runs yet.</td></tr>{% endfor %}</tbody></table>
+    </div>
+  </div>
+  <div class="card table-wrap">
+    <div class="card-head"><h2>Audit log</h2><span class="muted small">latest 100</span></div>
+    <div style="max-height:460px;overflow:auto">
+    <table><thead><tr><th>When</th><th>User</th><th>Action</th><th>Detail</th><th>IP</th></tr></thead>
+      <tbody>{% for l in logs %}
+      <tr><td class="muted small" title="{{ l.created_at }}">{{ l.created_at|timeago }}</td><td>{{ l.username or '–' }}</td>
+        <td><span class="badge {{ 'crit' if 'failed' in l.action else '' }}">{{ l.action }}</span></td>
+        <td class="small">{{ l.detail|truncate(60) }}</td><td class="muted small mono">{{ l.ip }}</td></tr>
+      {% else %}<tr><td colspan="5" class="empty">No events.</td></tr>{% endfor %}</tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h2>Scheduled jobs</h2>
+  {% for j in stats.jobs %}<span class="chip"><span class="t">{{ j.id }}</span>{{ j.next.strftime('%m-%d %H:%M') if j.next else 'paused' }}</span>{% else %}<p class="muted">Scheduler not running.</p>{% endfor %}
+</div>
+{% endblock %}

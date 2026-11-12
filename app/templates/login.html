@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block bare %}
+<div class="auth-wrap">
+  <div class="card auth-card">
+    <div class="brand" style="padding:0 0 14px"><span class="brand-mark">◎</span>{{ app_name }}</div>
+    <h1 style="margin-bottom:14px">Sign in</h1>
+    {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+    <form method="post" action="/login">
+      <input type="hidden" name="csrf_token" value="{{ csrf }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="field"><label>Username</label><input type="text" name="username" autocomplete="username" autofocus required></div>
+      <div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password" required></div>
+      <button class="btn primary" style="width:100%;justify-content:center">Sign in</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

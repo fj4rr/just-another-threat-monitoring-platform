@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Watchlist{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Watchlist</h1><p class="muted">Families, actors, CVEs and IOCs you follow. Use “☆ Watch” on any entity page.</p></div></div>
+<div class="grid g-2">
+{% for w in rows %}
+  <div class="card">
+    <div class="card-head"><h2><a href="/entities/{{ w.entity.id }}">{{ w.entity.display|truncate(60, True) }}</a> <span class="badge">{{ w.entity.type }}</span></h2>
+      <span class="muted small">last seen {{ w.entity.last_seen|timeago }}</span></div>
+    {% for i in latest.get(w.entity_id, []) %}
+      <div class="small" style="margin:4px 0"><span class="badge cat-{{ i.source.category }}">{{ i.source.name }}</span> <a href="/items/{{ i.id }}">{{ i.title|truncate(90) }}</a> <span class="muted">{{ i.published_at|timeago }}</span></div>
+    {% else %}<p class="muted small">No items yet.</p>{% endfor %}
+  </div>
+{% else %}<div class="card empty" style="grid-column:1/-1">Your watchlist is empty.</div>{% endfor %}
+</div>
+{% endblock %}

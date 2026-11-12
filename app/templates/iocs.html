@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import verdict %}
+{% block title %}IOCs{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Indicators of compromise</h1><p class="muted">{{ total }} indicator(s) extracted from items or pulled in by enrichment</p></div>
+  {% if user.role in ('admin','analyst') %}<button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…">⇄ Run enrichment batch</button>{% endif %}</div>
+<form class="filters" method="get">
+  <input type="search" name="q" value="{{ f.q }}" placeholder="Search value">
+  <select name="type"><option value="">All types</option>{% for t in types %}<option value="{{ t }}" {{ 'selected' if f.type == t }}>{{ t }}</option>{% endfor %}</select>
+  <select name="verdict"><option value="">Any verdict</option>
+    {% for v in ['malicious','suspicious','clean','unknown','pending'] %}<option value="{{ v }}" {{ 'selected' if f.verdict == v }}>{{ v }}</option>{% endfor %}</select>
+  <button class="btn">Filter</button>
+  <a class="btn" href="#" onclick="navigator.clipboard.writeText([...document.querySelectorAll('td.ioc a')].map(a=>a.textContent.trim()).join('\n'));JATMP.toast('Copied visible IOCs');return false;">Copy visible</a>
+</form>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Type</th><th>Value</th><th>Verdict</th><th>Attributed family</th><th class="num">Mentions</th><th>Last seen</th></tr></thead>
+    <tbody>
+    {% for e in rows %}
+    <tr><td><span class="badge">{{ e.type }}</span></td>
+      <td class="ioc" style="word-break:break-all"><a class="mono" href="/entities/{{ e.id }}">{{ e.display }}</a></td>
+      <td>{{ verdict(e.verdict if e.enriched_at else '') }}</td>
+      <td>{% for fid, name in fam.get(e.id, {}).items() %}<a class="chip" href="/entities/{{ fid }}">{{ name }}</a>{% endfor %}</td>
+      <td class="num">{{ e.mention_count }}</td>
+      <td class="muted small">{{ e.last_seen|timeago }}</td></tr>
+    {% else %}<tr><td colspan="6" class="empty">No indicators.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if pages > 1 %}
+<div class="pager">
+  {% set qs = 'q=' ~ (f.q|urlencode) ~ '&type=' ~ f.type ~ '&verdict=' ~ f.verdict %}
+  {% if page > 1 %}<a class="btn sm" href="?{{ qs }}&page={{ page - 1 }}">← Prev</a>{% endif %}
+  <span class="muted small">Page {{ page }} / {{ pages }}</span>
+  {% if page < pages %}<a class="btn sm" href="?{{ qs }}&page={{ page + 1 }}">Next →</a>{% endif %}
+</div>{% endif %}
+{% endblock %}

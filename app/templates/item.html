@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_macros.html" import sev, verdict, chip %}
+{% block title %}{{ item.title|truncate(60) }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div style="min-width:0">
+    <div class="row small muted"><span class="badge cat-{{ item.source.category }}">{{ item.source.name }}</span>{{ item.kind }} · {{ item.published_at.strftime('%Y-%m-%d %H:%M') }} UTC {% if item.author %}· {{ item.author }}{% endif %}</div>
+    <h1 style="margin-top:6px">{{ item.title }}</h1>
+  </div>
+  <div class="row">{{ sev(item.severity) }}{% if item.url %}<a class="btn" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">Open original ↗</a>{% endif %}</div>
+</div>
+
+<div class="grid g-21">
+  <div class="grid" style="align-content:start">
+    <div class="card">
+      <div class="card-head"><h2>AI analysis</h2>
+        {% if llm_on and user.role in ('admin','analyst') %}<button class="btn sm primary" data-post="/api/items/{{ item.id }}/summarize" data-target="#ai" data-busy="Analysing…">✦ {{ 'Re-analyse' if item.llm_summary else 'Analyse with AI' }}</button>{% endif %}</div>
+      <div id="ai" class="prose">{% if item.llm_summary %}{{ item.llm_summary|md }}{% else %}<p class="muted">{{ 'Not analysed yet.' if llm_on else 'Configure an LLM in Settings to enable AI analysis.' }}</p>{% endif %}</div>
+    </div>
+    <div class="card">
+      <h2>Content</h2>
+      <div class="content-body">{{ item.content or '(no content)' }}</div>
+      {% if item.tags %}<div style="margin-top:10px">{% for t in item.tags %}<span class="badge">{{ t }}</span> {% endfor %}</div>{% endif %}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Correlated items from other sources</h2><span class="muted small">sharing malware, actors, CVEs or IOCs</span></div>
+      {% for r, shared in related %}
+      <div class="feed-item"><div><span class="sev" title="shared entities">{{ shared }}</span></div>
+        <div><a class="title" href="/items/{{ r.id }}">{{ r.title }}</a>
+          <div class="meta"><span class="badge cat-{{ r.source.category }}">{{ r.source.name }}</span><span>{{ r.published_at|timeago }}</span></div></div></div>
+      {% else %}<div class="empty">No correlated items yet.</div>{% endfor %}
+    </div>
+  </div>
+  <div class="card" style="align-self:start">
+    <h2>Extracted entities</h2>
+    {% set groups = ents|groupby('entity.type') %}
+    {% for type, links in groups %}
+      <h3 style="margin-top:12px">{{ type }} ({{ links|length }})</h3>
+      {% for l in links %}
+        {% if type in ('malware','actor','cve','technique') %}{{ chip(l.entity) }}
+        {% else %}
+        <div class="row" style="justify-content:space-between;margin:4px 0;flex-wrap:nowrap">
+          <a class="mono" href="/entities/{{ l.entity.id }}" style="word-break:break-all">{{ l.entity.display|truncate(70, True) }}</a>
+          {{ verdict(l.entity.verdict if l.entity.enriched_at else '') }}
+        </div>
+        {% for e in enr.get(l.entity.id, []) %}<div class="muted small" style="margin-left:8px">{{ e.provider }}: {{ e.summary|truncate(90) }}</div>{% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% else %}<p class="muted">No entities extracted.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

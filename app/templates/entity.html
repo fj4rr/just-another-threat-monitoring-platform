@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "_macros.html" import verdict, chip %}
+{% block title %}{{ ent.display|truncate(50) }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div style="min-width:0">
+    <div class="row small muted"><span class="badge">{{ ent.type }}</span>{% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
+      {% if is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
+      first seen {{ ent.first_seen.strftime('%Y-%m-%d') }} · last seen {{ ent.last_seen|timeago }} · {{ ent.mention_count }} mention(s)</div>
+    <h1 class="{{ 'mono' if is_ioc else '' }}" style="margin-top:6px;word-break:break-all">{{ ent.display }}</h1>
+  </div>
+  <div class="row">
+    <button class="btn" data-post="/api/watch/{{ ent.id }}" data-watching="{{ 'true' if watching else 'false' }}">{{ '★ Watching' if watching else '☆ Watch' }}</button>
+    {% if user.role in ('admin','analyst') and (is_ioc or ent.type == 'malware') %}
+    <button class="btn" data-post="/api/entities/{{ ent.id }}/enrich" data-busy="Enriching…" data-reload>⇄ Enrich now</button>{% endif %}
+    <a class="btn" href="/feed?entity={{ ent.id }}&days=0">All items →</a>
+  </div>
+</div>
+
+<div class="grid g-21">
+  <div class="grid" style="align-content:start">
+    {% if not is_ioc %}
+    <div class="card">
+      <div class="card-head"><h2>Mentions over time</h2><span class="muted small">60 days</span></div>
+      <div class="chart-wrap short"><canvas id="c-ent"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>AI threat brief</h2>
+        {% if llm_on and user.role in ('admin','analyst') %}<button class="btn sm primary" data-post="/api/entities/{{ ent.id }}/brief" data-target="#brief" data-busy="Writing brief…">✦ {{ 'Refresh brief' if ent.llm_brief else 'Generate brief' }}</button>{% endif %}</div>
+      <div id="brief" class="prose">{% if ent.llm_brief %}{{ ent.llm_brief|md }}<p class="muted small">Generated {{ ent.llm_at|timeago }}</p>
+        {% else %}<p class="muted">{{ 'No brief yet. The brief combines coverage from every source with enrichment results.' if llm_on else 'Configure an LLM in Settings to generate briefs.' }}</p>{% endif %}</div>
+    </div>
+    {% endif %}
+
+    {% if enrichments %}
+    <div class="card">
+      <h2>Threat-intel enrichment</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Provider</th><th>Verdict</th><th>Summary</th><th>Checked</th></tr></thead>
+        <tbody>{% for e in enrichments %}
+          <tr><td>{% if e.permalink %}<a href="{{ e.permalink }}" target="_blank" rel="noopener noreferrer">{{ e.provider }} ↗</a>{% else %}{{ e.provider }}{% endif %}</td>
+            <td>{{ verdict(e.verdict) }}</td>
+            <td>{{ e.summary }}
+              {% if e.data.get('tags') %}<div>{% for t in e.data.tags[:12] %}<span class="badge">{{ t }}</span> {% endfor %}</div>{% endif %}
+              {% if e.data.get('pulses') %}<details class="small"><summary>{{ e.data.pulses|length }} pulse(s)</summary>
+                {% for p in e.data.pulses %}<div><a href="https://otx.alienvault.com/pulse/{{ p.id }}" target="_blank" rel="noopener noreferrer">{{ p.name }}</a></div>{% endfor %}</details>{% endif %}
+              {% if e.data.get('scans') %}<details class="small"><summary>{{ e.data.scans|length }} scan(s)</summary>
+                {% for s in e.data.scans %}<div><a href="https://urlscan.io/result/{{ s.uuid }}/" target="_blank" rel="noopener noreferrer" class="mono">{{ (s.url or '')|truncate(70, True) }}</a> <span class="muted">{{ s.country or '' }}</span></div>{% endfor %}</details>{% endif %}
+            </td>
+            <td class="muted small">{{ e.fetched_at|timeago }}</td></tr>{% endfor %}
+        </tbody></table></div>
+    </div>
+    {% elif is_ioc or ent.type == 'malware' %}
+    <div class="card"><h2>Threat-intel enrichment</h2><p class="muted">Not enriched yet. It runs automatically in the background, or press “Enrich now”.</p></div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-head"><h2>Coverage</h2><span class="muted small">{{ items|length }} most recent</span></div>
+      {% for i in items %}
+      <div class="feed-item"><div><span class="badge cat-{{ i.source.category }}">{{ i.source.category }}</span></div>
+        <div><a class="title" href="/items/{{ i.id }}">{{ i.title }}</a>
+          <div class="meta"><span>{{ i.source.name }}</span><span>{{ i.published_at|timeago }}</span></div></div></div>
+      {% else %}<div class="empty">Only known through enrichment (no direct mentions).</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="grid" style="align-content:start">
+    {% if by_source %}
+    <div class="card"><h2>Seen in</h2>
+      <table><tbody>{% for cat, name, n in by_source %}<tr><td><span class="badge cat-{{ cat }}">{{ name }}</span></td><td class="num">{{ n }}</td></tr>{% endfor %}</tbody></table>
+    </div>{% endif %}
+    {% if co %}
+    <div class="card"><h2>Mentioned together with</h2>
+      {% for c in co %}<a class="chip" href="/entities/{{ c.id }}"><span class="t">{{ c.type }}</span>{{ c.name }} <span class="t">{{ c.count }}</span></a>{% endfor %}
+    </div>{% endif %}
+    {% if linked %}
+    <div class="card"><h2>Linked by enrichment</h2>
+      <div style="max-height:420px;overflow:auto">
+      {% for d in linked %}
+        <div class="row" style="justify-content:space-between;margin:4px 0;flex-wrap:nowrap">
+          <a href="/entities/{{ d.entity.id }}" class="{{ 'mono' if d.entity.type not in ('malware','actor') else '' }}" style="word-break:break-all">
+            <span class="muted small">{{ d.entity.type }}</span> {{ d.entity.display|truncate(56, True) }}</a>
+          <span class="muted small" title="{{ d.relations|join(', ') }}">{{ d.providers|join(', ') }}</span>
+        </div>
+      {% endfor %}</div>
+    </div>{% endif %}
+    {% if co_iocs %}
+    <div class="card"><h2>IOCs in the same items</h2>
+      <div style="max-height:360px;overflow:auto">
+      {% for c in co_iocs %}<div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin:3px 0">
+        <a class="mono" href="/entities/{{ c.id }}" style="word-break:break-all">{{ c.name|truncate(52, True) }}</a>{{ verdict(c.verdict) }}</div>{% endfor %}
+      </div>
+    </div>{% endif %}
+    {% if ent.meta %}<div class="card"><h2>Metadata</h2><pre class="mono small">{{ ent.meta|tojson(indent=2) }}</pre></div>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if not is_ioc %}<script>document.addEventListener("DOMContentLoaded", () => JATMP.entityLine(document.getElementById("c-ent"), {{ ent.id }}, 60));</script>{% endif %}
+{% endblock %}

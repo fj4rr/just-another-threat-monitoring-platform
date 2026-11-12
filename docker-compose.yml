@@ -1,0 +1,26 @@
+services:
+  jatmp:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - jatmp-data:/data
+    env_file:
+      - path: .env
+        required: false
+    restart: unless-stopped
+    # To use Ollama running on the host: set LLM_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Optional: local LLM in a container. Start with `docker compose --profile llm up -d`,
+  # then `docker compose exec ollama ollama pull llama3.1` and use LLM_BASE_URL=http://ollama:11434
+  ollama:
+    image: ollama/ollama:0.5.7
+    profiles: ["llm"]
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  jatmp-data:
+  ollama-data:

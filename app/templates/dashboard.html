@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% from "_macros.html" import feed_item, chip %}
+{% block title %}Dashboard{% endblock %}
+{% block reveal %}{% endblock %}
+{% block content %}
+<div class="ambient">
+<div class="page-head reveal" style="--i:0">
+  <div><h1>Threat landscape</h1>
+    <p class="muted">Last {{ ov.days }} days across news, social and threat-intel sources ·
+      <span class="live"><span class="dot"></span><span data-live-stamp>live</span></span></p></div>
+  {% if user.role in ('admin','analyst') %}
+  <div class="row">
+    <button class="btn" data-post="/api/sources/run_all" data-busy="Queuing…">↻ Collect now</button>
+    <button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…">⇄ Enrich now</button>
+    {% if llm_on %}<button class="btn primary" data-post="/api/insights/digest" data-target="#digest" data-busy="Writing digest…">✦ AI digest</button>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if recent %}
+<div class="ticker reveal" style="--i:1">
+  <div class="tag"><span class="dot"></span>Latest</div>
+  <div class="ticker-mask">
+    <div class="track" style="--dur:{{ [recent|length * 7, 40]|max }}s">
+      {% for _ in range(2) %}{% for i in recent %}
+      <a href="/items/{{ i.id }}" {% if _ == 1 %}aria-hidden="true" tabindex="-1"{% endif %}><span class="src">{{ i.source.name }}</span>{{ i.title|truncate(110) }}</a>
+      {% endfor %}{% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% macro icon(path) %}<span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ path|safe }}</svg></span>{% endmacro %}
+
+<div class="hero">
+  <div class="card lift radar-card reveal" style="--i:2">
+    <div>
+      <div class="card-head" style="margin-bottom:0"><h2>Threat radar</h2><a class="small" href="/malware">all families →</a></div>
+      <svg class="radar" id="radar" role="img" aria-label="Trending malware families radar"></svg>
+    </div>
+    <div class="radar-legend" id="radar-legend"></div>
+  </div>
+  <div class="tiles" data-reveal="3">
+    {% set d = ov['items'] - ov['items_prev'] %}
+    <div class="card lift tile">
+      {{ icon('<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>') }}
+      <div class="label">Items collected</div>
+      <div class="value count-up" data-count="{{ ov['items'] }}" data-kpi="items">0</div>
+      <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous {{ ov.days }} days</div>
+      <svg class="spark" data-series="items" data-color="--series-1"></svg>
+    </div>
+    <div class="card lift tile">
+      {{ icon('<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/>') }}
+      <div class="label">Active malware families</div>
+      <div class="value count-up" data-count="{{ ov.active_families }}" data-kpi="active_families">0</div>
+      <div class="delta">{{ ov.new_families }} newly seen</div>
+      <svg class="spark" data-series="families" data-color="--series-2"></svg>
+    </div>
+    <div class="card lift tile">
+      {{ icon('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>') }}
+      <div class="label">IOCs seen</div>
+      <div class="value count-up" data-count="{{ ov.iocs }}" data-kpi="iocs">0</div>
+      <div class="delta">{{ ov.malicious_iocs }} confirmed malicious by enrichment</div>
+      <svg class="spark" data-series="iocs" data-color="--series-3"></svg>
+    </div>
+    <div class="card lift tile">
+      {{ icon('<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>') }}
+      <div class="label">CVEs discussed</div>
+      <div class="value count-up" data-count="{{ ov.cves }}" data-kpi="cves">0</div>
+      <div class="delta">{{ ov.sources_ok }}/{{ ov.sources_total }} sources healthy</div>
+      <svg class="spark" data-series="cves" data-color="--series-7"></svg>
+    </div>
+  </div>
+</div>
+
+<div class="grid g-21" style="margin-top:16px" data-reveal="6">
+  <div class="card lift fill-card">
+    <div class="card-head"><h2>Collection volume by source type</h2><span class="muted small">30 days, daily</span></div>
+    <div class="chart-wrap fill"><canvas id="c-timeline" aria-label="Items per day by source type"></canvas></div>
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>Trending malware</h2><a class="small" href="/malware">all →</a></div>
+    {% if trending %}
+    {% set top = trending[0].score %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Family</th><th class="num">7d</th><th class="num">Srcs</th><th class="num">Score</th></tr></thead>
+      <tbody>
+      {% for t in trending[:9] %}
+      <tr><td><a href="/entities/{{ t.id }}">{{ t.name }}</a>
+          {% if t.is_new %}<span class="badge new">new</span>{% endif %}
+          <div class="muted small">{{ t.category }}{% if t.baseline and t.growth >= 2 %} · ×{{ t.growth }} vs baseline{% endif %}</div>
+          <div class="meter"><span class="{{ 'new' if t.is_new }}" data-w="{{ (100 * t.score / top)|round(1) }}"></span></div></td>
+        <td class="num">{{ t.recent }}</td><td class="num">{{ t.sources }}</td><td class="num">{{ t.score }}</td></tr>
+      {% endfor %}
+      </tbody></table></div>
+    {% else %}<div class="empty">No malware mentions yet.</div>{% endif %}
+  </div>
+</div>
+
+<div class="grid g-2" style="margin-top:16px" data-reveal="8">
+  <div class="card lift">
+    <div class="card-head"><h2>Top 5 trending families over time</h2><span class="muted small">mentions / day</span></div>
+    <div class="chart-wrap"><canvas id="c-trend"></canvas></div>
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>Most-mentioned families</h2><span class="muted small">7 days · click a bar</span></div>
+    <div class="chart-wrap"><canvas id="c-top"></canvas></div>
+  </div>
+</div>
+
+<div class="grid g-3" style="margin-top:16px" data-reveal="10">
+  <div class="card lift">
+    <div class="card-head"><h2>Malware by type</h2><span class="muted small">30 days</span></div>
+    <div class="chart-wrap short"><canvas id="c-cat"></canvas></div>
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>IOC verdicts</h2><span class="muted small">after enrichment</span></div>
+    <div class="chart-wrap short"><canvas id="c-ioc"></canvas></div>
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>Items per source</h2><span class="muted small">7 days</span></div>
+    <div class="chart-wrap short"><canvas id="c-src"></canvas></div>
+  </div>
+</div>
+
+<div class="grid g-21" style="margin-top:16px" data-reveal="13">
+  <div class="card">
+    <div class="card-head"><h2>Notable recent items</h2><a class="small" href="/feed?min_sev=30">feed →</a></div>
+    {% for i in recent %}{{ feed_item(i) }}{% else %}<div class="empty">Nothing yet. Collectors run automatically; use “Collect now” to start immediately.</div>{% endfor %}
+  </div>
+  <div class="grid" style="align-content:start">
+    <div class="card lift">
+      <div class="card-head"><h2>AI digest</h2>{% if digest %}<span class="muted small">{{ digest.created_at|timeago }}</span>{% endif %}</div>
+      <div id="digest" class="prose small">
+        {% if digest %}{{ digest.content|md }}{% elif llm_on %}<p class="muted">No digest yet – generated daily at 06:00 UTC, or press “AI digest”.</p>
+        {% else %}<p class="muted">Configure a local or API LLM in Settings → LLM to get AI digests, summaries and briefs.</p>{% endif %}
+      </div>
+    </div>
+    <div class="card lift">
+      <h2>Active threat actors</h2>
+      {% for a in actors %}<a class="chip" href="/entities/{{ a.id }}">{{ a.name }} <span class="t">{{ a.recent }}</span></a>{% else %}<p class="muted">None this week.</p>{% endfor %}
+      <h2 style="margin-top:14px">Hot CVEs</h2>
+      {% for c in cves %}<a class="chip" href="/entities/{{ c.id }}">{{ c.name }} <span class="t">{{ c.count }}</span></a>{% else %}<p class="muted">None this week.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const J = window.JATMP;
+  J.radar(document.getElementById("radar"), document.getElementById("radar-legend"));
+  J.tileSparks();
+  J.live(60000);
+  J.timeline(document.getElementById("c-timeline"), 30);
+  J.trendLines(document.getElementById("c-trend"), 5, 30);
+  J.hbar(document.getElementById("c-top"), "/api/stats/top?type=malware&days=7&limit=10",
+         { link: (r) => `/entities/${r.id}`, empty: "No malware mentions in 7 days." });
+  J.hbar(document.getElementById("c-cat"), "/api/stats/categories?days=30",
+         { labelKey: "category", link: (r) => `/malware?category=${r.category}`, empty: "No data." });
+  J.iocs(document.getElementById("c-ioc"), 30);
+  J.sources(document.getElementById("c-src"), 7);
+});
+</script>
+{% endblock %}
