@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import os
+import threading
+import time
 from typing import Any
 
 from .db import session_scope
@@ -38,6 +40,22 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "retention_days": (180, "", "Delete items older than N days (0 = keep forever)", "int", "general"),
 }
 
+# Integer settings are clamped so a typo in the UI cannot disable throttling or flood an API.
+INT_BOUNDS: dict[str, tuple[int, int]] = {
+    "enrichment_interval": (2, 1440),
+    "enrichment_batch": (1, 100),
+    "vt_daily_budget": (0, 100_000),
+    "vt_min_interval": (0, 3600),
+    "retention_days": (0, 3650),
+}
+
+# Small read cache: settings are consulted many times per request and by every collector
+# thread. Entries live for a few seconds; set() invalidates immediately in this process.
+_CACHE_TTL = 5.0
+_cache: dict[str, tuple[float, Any]] = {}
+_cache_lock = threading.Lock()
+_MISSING = object()
+
 
 def get(key: str, default: Any = None) -> Any:
     spec = SCHEMA.get(key)
@@ -45,22 +63,37 @@ def get(key: str, default: Any = None) -> Any:
         env = os.getenv(spec[1])
         if env not in (None, ""):
             return _coerce(env, spec[3])
-    with session_scope() as db:
-        row = db.get(Setting, key)
-        if row is not None and row.value is not None:
-            return row.value
+    now = time.monotonic()
+    with _cache_lock:
+        hit = _cache.get(key)
+        value = hit[1] if hit and hit[0] > now else _MISSING
+    if value is _MISSING:
+        with session_scope() as db:
+            row = db.get(Setting, key)
+            value = row.value if row is not None else None
+        with _cache_lock:
+            _cache[key] = (now + _CACHE_TTL, value)
+    if value is not None:
+        return value
     if default is not None:
         return default
     return spec[0] if spec else None
 
 
-def set(key: str, value: Any) -> None:  # noqa: A001
+def set(key: str, value: Any) -> None:
     with session_scope() as db:
         row = db.get(Setting, key)
         if row is None:
             db.add(Setting(key=key, value=value))
         else:
             row.value = value
+    with _cache_lock:
+        _cache.pop(key, None)
+
+
+def invalidate_cache() -> None:
+    with _cache_lock:
+        _cache.clear()
 
 
 def env_locked(key: str) -> bool:
@@ -78,24 +111,33 @@ def _coerce(raw: Any, kind: str) -> Any:
             return int(raw)
         except (TypeError, ValueError):
             return 0
-    return raw
+    return raw.strip() if isinstance(raw, str) else raw
 
 
 def coerce_form_value(key: str, raw: Any) -> Any:
-    return _coerce(raw, SCHEMA[key][3])
+    kind = SCHEMA[key][3]
+    val = _coerce(raw, kind)
+    if key in INT_BOUNDS:
+        lo, hi = INT_BOUNDS[key]
+        val = min(max(int(val), lo), hi)
+    if kind.startswith("select:") and val not in kind.split(":", 1)[1].split(","):
+        val = SCHEMA[key][0]
+    return val
 
 
 def all_for_ui() -> list[dict]:
     out = []
-    for key, (default, env, label, kind, group) in SCHEMA.items():
+    for key, (_default, env, label, kind, group) in SCHEMA.items():
         val = get(key)
+        secret = kind == "secret"
         out.append(
             {
                 "key": key,
                 "label": label,
                 "kind": kind,
                 "group": group,
-                "value": val,
+                # secret values never reach the template, only whether one is configured
+                "value": "" if secret else val,
                 "is_set": bool(val),
                 "env_locked": env_locked(key),
                 "env": env,

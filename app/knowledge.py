@@ -240,6 +240,7 @@ def _extra() -> dict:
         return {}
 
 
+@lru_cache(maxsize=1)
 def malware_table() -> dict[str, tuple[str, list[str]]]:
     table = dict(MALWARE)
     for name, spec in (_extra().get("malware") or {}).items():
@@ -247,6 +248,7 @@ def malware_table() -> dict[str, tuple[str, list[str]]]:
     return table
 
 
+@lru_cache(maxsize=1)
 def actor_table() -> dict[str, list[str]]:
     table = dict(ACTORS)
     for name, spec in (_extra().get("actors") or {}).items():
@@ -290,12 +292,20 @@ def category_for(name: str) -> str:
     return spec[0] if spec else "other"
 
 
+@lru_cache(maxsize=1)
+def _alias_index() -> dict[str, tuple[str, str]]:
+    """lower-cased name / alias / squashed name -> (canonical, category). Built once."""
+    idx: dict[str, tuple[str, str]] = {}
+    for canon, (cat, aliases) in malware_table().items():
+        for key in (canon.lower(), canon.lower().replace(" ", ""), *aliases):
+            idx.setdefault(key, (canon, cat))
+    return idx
+
+
 def canonical_malware(name: str) -> tuple[str, str] | None:
     """Map a free-text family label (from VT/OTX/ANY.RUN/LLM) to (canonical, category)."""
-    low = name.strip().lower()
+    low = (name or "").strip().lower()
     if not low:
         return None
-    for canon, (cat, aliases) in malware_table().items():
-        if low == canon.lower() or low in aliases or low.replace(" ", "") == canon.lower().replace(" ", ""):
-            return canon, cat
-    return None
+    idx = _alias_index()
+    return idx.get(low) or idx.get(low.replace(" ", ""))

@@ -8,8 +8,7 @@ from datetime import date
 
 import httpx
 
-from .. import settings
-from .. import __version__
+from .. import __version__, settings
 from . import LookupResult, NotConfigured, make_ioc
 
 USER_AGENT = f"JATMP/{__version__} (+threat-monitoring; self-hosted)"
@@ -39,16 +38,22 @@ class _Throttle:
 throttle = _Throttle()
 
 
+_budget_lock = threading.Lock()
+
+
 def _budget_ok(provider: str, limit: int) -> bool:
+    """Per-day call counter persisted in settings (survives restarts). Read-modify-write is
+    serialised because the scheduler and manual "Enrich now" clicks can overlap."""
     key = f"_budget_{provider}"
     today = date.today().isoformat()
-    state = settings.get(key) or {}
-    if not isinstance(state, dict) or state.get("day") != today:
-        state = {"day": today, "count": 0}
-    if limit and state["count"] >= limit:
-        return False
-    state["count"] += 1
-    settings.set(key, state)
+    with _budget_lock:
+        state = settings.get(key) or {}
+        if not isinstance(state, dict) or state.get("day") != today:
+            state = {"day": today, "count": 0}
+        if limit and state["count"] >= limit:
+            return False
+        state["count"] += 1
+        settings.set(key, state)
     return True
 
 
