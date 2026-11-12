@@ -17,26 +17,28 @@
   <div class="card table-wrap">
     <h2>Users</h2>
     <table>
-      <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+      <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>
       {% for u in users %}
       <tr>
         <td><strong>{{ u.username }}</strong><div class="muted small">{{ u.display_name }}</div></td>
         <td><form method="post" action="/admin/users/{{ u.id }}" class="row" style="flex-wrap:nowrap"><input type="hidden" name="csrf_token" value="{{ csrf }}">
           <input type="hidden" name="action" value="role">
-          <select name="role" onchange="this.form.submit()" style="width:auto">{% for r in roles %}<option {{ 'selected' if u.role == r }}>{{ r }}</option>{% endfor %}</select></form></td>
+          <select name="role" data-autosubmit aria-label="Role of {{ u.username }}" style="width:auto">{% for r in roles %}<option {{ 'selected' if u.role == r }}>{{ r }}</option>{% endfor %}</select></form></td>
         <td>{% if u.is_active %}<span class="badge good">active</span>{% else %}<span class="badge">disabled</span>{% endif %}</td>
-        <td class="muted small">{{ u.last_login|timeago }}</td>
-        <td style="white-space:nowrap">
+        <td class="muted small" title="{{ u.last_login or '' }}">{{ u.last_login|timeago }}</td>
+        <td class="actions">
           <form method="post" action="/admin/users/{{ u.id }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf }}">
             <button class="btn sm" name="action" value="toggle">{{ 'Disable' if u.is_active else 'Enable' }}</button></form>
-          <details style="display:inline-block"><summary class="btn sm">Reset password</summary>
-            <form method="post" action="/admin/users/{{ u.id }}" class="card" style="position:absolute;z-index:10;width:300px;right:28px">
+          <details class="pop"><summary class="btn sm">Reset password</summary>
+            <form method="post" action="/admin/users/{{ u.id }}" class="card pop-card">
+              <div class="card-head"><h2>Reset password for {{ u.username }}</h2><button type="button" class="btn sm" data-pop-close aria-label="Close">✕</button></div>
               <input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="action" value="password">
-              <div class="field"><label>New password</label><input type="password" name="password" autocomplete="new-password"></div>
+              <div class="field"><label for="pw-{{ u.id }}">New password</label><input id="pw-{{ u.id }}" type="password" name="password" autocomplete="new-password" minlength="10" required></div>
+              <p class="muted small">Minimum 10 characters, mixed case and at least one digit.</p>
               <button class="btn sm primary">Set password</button></form></details>
           {% if u.id != user.id %}
-          <form method="post" action="/admin/users/{{ u.id }}" style="display:inline" onsubmit="return confirm('Delete user {{ u.username }}?')">
+          <form method="post" action="/admin/users/{{ u.id }}" style="display:inline" data-confirm="Delete user {{ u.username }}? This cannot be undone.">
             <input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn sm danger" name="action" value="delete">Delete</button></form>{% endif %}
         </td>
       </tr>{% endfor %}
@@ -47,10 +49,10 @@
     <h2>Add user</h2>
     <form method="post" action="/admin/users">
       <input type="hidden" name="csrf_token" value="{{ csrf }}">
-      <div class="field"><label>Username</label><input type="text" name="username" required autocomplete="off"></div>
-      <div class="field"><label>Display name</label><input type="text" name="display_name"></div>
-      <div class="field"><label>Password</label><input type="password" name="password" required autocomplete="new-password"></div>
-      <div class="field"><label>Role</label><select name="role">
+      <div class="field"><label for="nu-name">Username</label><input id="nu-name" type="text" name="username" required autocomplete="off" maxlength="60"></div>
+      <div class="field"><label for="nu-display">Display name</label><input id="nu-display" type="text" name="display_name" maxlength="120"></div>
+      <div class="field"><label for="nu-pw">Password</label><input id="nu-pw" type="password" name="password" required autocomplete="new-password" minlength="10"></div>
+      <div class="field"><label for="nu-role">Role</label><select id="nu-role" name="role">
         <option value="viewer">viewer – read only</option><option value="analyst" selected>analyst – run collectors, enrichment, AI</option>
         <option value="admin">admin – settings, sources, users</option></select></div>
       <button class="btn primary">Create user</button>
@@ -67,7 +69,7 @@
       <tr><td>{{ src_names.get(r.source_id, r.job) if r.source_id else r.job }}</td>
         <td><span class="status-dot {{ r.status }}"></span>{{ r.status }}</td>
         <td class="num">{{ r.new_items }}</td>
-        <td class="muted small">{{ r.started_at|timeago }}</td>
+        <td class="muted small" title="{{ r.started_at }}">{{ r.started_at|timeago }}</td>
         <td class="small"><details><summary class="muted">{{ (r.message or '')|truncate(50) }}</summary><pre class="mono small" style="white-space:pre-wrap">{{ r.message }}</pre></details></td></tr>
       {% else %}<tr><td colspan="5" class="empty">No runs yet.</td></tr>{% endfor %}</tbody></table>
     </div>
@@ -78,8 +80,8 @@
     <table><thead><tr><th>When</th><th>User</th><th>Action</th><th>Detail</th><th>IP</th></tr></thead>
       <tbody>{% for l in logs %}
       <tr><td class="muted small" title="{{ l.created_at }}">{{ l.created_at|timeago }}</td><td>{{ l.username or '–' }}</td>
-        <td><span class="badge {{ 'crit' if 'failed' in l.action else '' }}">{{ l.action }}</span></td>
-        <td class="small">{{ l.detail|truncate(60) }}</td><td class="muted small mono">{{ l.ip }}</td></tr>
+        <td><span class="badge {{ 'crit' if 'failed' in l.action }}">{{ l.action }}</span></td>
+        <td class="small" title="{{ l.detail }}">{{ l.detail|truncate(60) }}</td><td class="muted small mono">{{ l.ip }}</td></tr>
       {% else %}<tr><td colspan="5" class="empty">No events.</td></tr>{% endfor %}</tbody></table>
     </div>
   </div>

@@ -5,12 +5,13 @@
 <div class="page-head"><div><h1>Indicators of compromise</h1><p class="muted">{{ total }} indicator(s) extracted from items or pulled in by enrichment</p></div>
   {% if user.role in ('admin','analyst') %}<button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…">⇄ Run enrichment batch</button>{% endif %}</div>
 <form class="filters" method="get">
-  <input type="search" name="q" value="{{ f.q }}" placeholder="Search value">
-  <select name="type"><option value="">All types</option>{% for t in types %}<option value="{{ t }}" {{ 'selected' if f.type == t }}>{{ t }}</option>{% endfor %}</select>
-  <select name="verdict"><option value="">Any verdict</option>
+  <input type="search" name="q" value="{{ f.q }}" placeholder="Search value" aria-label="Search IOC value" maxlength="200">
+  <select name="type" aria-label="IOC type"><option value="">All types</option>{% for t in types %}<option value="{{ t }}" {{ 'selected' if f.type == t }}>{{ t }}</option>{% endfor %}</select>
+  <select name="verdict" aria-label="Verdict"><option value="">Any verdict</option>
     {% for v in ['malicious','suspicious','clean','unknown','pending'] %}<option value="{{ v }}" {{ 'selected' if f.verdict == v }}>{{ v }}</option>{% endfor %}</select>
   <button class="btn">Filter</button>
-  <a class="btn" href="#" onclick="navigator.clipboard.writeText([...document.querySelectorAll('td.ioc a')].map(a=>a.textContent.trim()).join('\n'));JATMP.toast('Copied visible IOCs');return false;">Copy visible</a>
+  {% if f.q or f.type or f.verdict %}<a class="btn" href="/iocs">Reset</a>{% endif %}
+  <button type="button" class="btn" data-copy-selector="td.ioc a" data-copy-label="IOC" title="Copy the indicators on this page, one per line">Copy visible</button>
 </form>
 <div class="card table-wrap">
   <table>
@@ -22,8 +23,8 @@
       <td>{{ verdict(e.verdict if e.enriched_at else '') }}</td>
       <td>{% for fid, name in fam.get(e.id, {}).items() %}<a class="chip" href="/entities/{{ fid }}">{{ name }}</a>{% endfor %}</td>
       <td class="num">{{ e.mention_count }}</td>
-      <td class="muted small">{{ e.last_seen|timeago }}</td></tr>
-    {% else %}<tr><td colspan="6" class="empty">No indicators.</td></tr>{% endfor %}
+      <td class="muted small" title="{{ e.last_seen }}">{{ e.last_seen|timeago }}</td></tr>
+    {% else %}<tr><td colspan="6" class="empty">No indicators match.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>

@@ -112,7 +112,9 @@
         let h = 7;
         for (const ch of r.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
         let deg = h % 360;
-        const rad = R * (0.16 + 0.76 * (1 - r.score / max) + (i % 3) * 0.02);
+        // radius blends score (hotter = closer) with rank so tied scores still fan out
+        const rank = rows.length > 1 ? i / (rows.length - 1) : 0;
+        const rad = R * (0.14 + 0.78 * (0.55 * (1 - r.score / max) + 0.45 * rank));
         // nudge apart blips that would overlap
         for (let k = 0; k < 12 && placed.some((p) => Math.abs(p.deg - deg) < 14 && Math.abs(p.rad - rad) < 22); k++) deg = (deg + 17) % 360;
         placed.push({ deg, rad });
