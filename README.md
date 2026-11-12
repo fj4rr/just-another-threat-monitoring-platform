@@ -1,6 +1,6 @@
 # JATMP — Just Another Threat Monitoring Platform
 
-A self-hosted platform for tracking new and emerging malware campaigns that the community is talking about.
+A self-hosted platform for tracking new and emerging malware campaigns.
 It combines **cybersecurity news**, **social media** (X, Bluesky, Mastodon) and **threat-intel platforms**
 (VirusTotal, AlienVault OTX, urlscan.io, ANY.RUN, ThreatFox), cross-enriches the data between them, and shows
 the result on a trend dashboard. Optionally, a local or API-hosted LLM adds extra insight.
