@@ -1,28 +1,28 @@
 # JATMP — Just Another Threat Monitoring Platform
 
-Platform self-hosted untuk memantau kampanye malware baru / yang sedang ramai dibicarakan komunitas,
-dengan menggabungkan **berita keamanan siber**, **media sosial** (X, Bluesky) dan **platform threat intel**
-(VirusTotal, AlienVault OTX, urlscan.io, ANY.RUN, ThreatFox), lalu saling memperkaya datanya dan
-menampilkannya dalam dashboard tren. Opsional: LLM lokal atau API untuk insight tambahan.
+A self-hosted platform for tracking new and emerging malware campaigns that the community is talking about.
+It combines **cybersecurity news**, **social media** (X, Bluesky, Mastodon) and **threat-intel platforms**
+(VirusTotal, AlienVault OTX, urlscan.io, ANY.RUN, ThreatFox), cross-enriches the data between them, and shows
+the result on a trend dashboard. Optionally, a local or API-hosted LLM adds extra insight.
 
-## Fitur
+## Features
 
-| Area | Isi |
+| Area | What you get |
 |---|---|
-| **Sumber berita** | The Hacker News, Cyber Security News, BleepingComputer, SecurityWeek, The Record, Dark Reading, The DFIR Report, Unit 42, Malwarebytes Labs, SANS ISC, Krebs on Security, Cisco Talos, Securelist, Microsoft Security — tambah RSS lain lewat UI |
-| **Bluesky** (API publik, tanpa key) | vx-underground, Marcus Hutchins, MalwareHunterTeam, Kevin Beaumont, Catalin Cimpanu, Will Thomas (BushidoToken), Zack Whittaker, Lorenzo Franceschi-Bicchierai, Dan Goodin, Karsten Hahn, hasherezade, Silas Cutler, Shadowserver, The DFIR Report, ESET Research, Cisco Talos, SentinelLABS, GreyNoise, Huntress, Ransomware.live |
-| **Mastodon** (API publik, tanpa key) | Marcus Hutchins, Brian Krebs, Brad Duncan (malware-traffic), SANS ISC, Proofpoint Threat Insight, Thomas Roccia, ffforward, Matt Taggart, Kevin Beaumont |
-| **X / Twitter** (API v2 bearer token **atau** RSS bridge) | Aktif: vxunderground, MalwareTechBlog, malwrhunterteam. Tersedia tapi **nonaktif** secara default (aktifkan di Settings agar kuota API tidak boros): GossiTheDog, cyb3rops, 1ZRR4H, BushidoToken, TheDFIRReport, Unit42_Intel, abuse_ch, malware_traffic, ESETresearch, MsftSecIntel, executemalware, pr0xylife, g0njxa, Max_Mal_, RedDrip7, fr0gger_, StopMalvertisin, ViriBack, Fox_threatintel, FalconFeedsio, H4ckManac, anyrun_app, ffforward |
-| **Threat intel (collector)** | OTX subscribed pulses / search, urlscan.io search, ANY.RUN TI Lookup query, ThreatFox IOC terbaru |
-| **Ekstraksi entitas** | Malware family (±150 family + alias), threat actor (±45), CVE, teknik ATT&CK, IOC (IP, domain, URL, MD5/SHA1/SHA256 — termasuk yang di-*defang* `hxxp`, `[.]`). Deteksi family **baru** yang belum ada di knowledge base (pola “`PipeMagic backdoor`”, “`WhiteArmor ransomware`”) |
-| **Enrichment lintas sumber** | IOC dari berita/sosmed otomatis dicek ke VirusTotal, OTX, urlscan, ANY.RUN → verdict + family yang diatribusikan (mis. hash dari post Bluesky → “Lumma Stealer” dari VT) sehingga tersambung ke artikel lain tentang family itu. Family yang sedang trending ditarik IOC-nya dari OTX & ANY.RUN |
-| **Korelasi** | Halaman item menampilkan item dari sumber lain yang berbagi entitas; halaman entitas menampilkan coverage per sumber, co-occurrence, IOC terkait, dan hasil enrichment |
-| **Dashboard** | Animasi: *threat radar* (family trending sebagai blip yang menyala saat disapu radar, makin dekat pusat makin panas), KPI count-up + sparkline, ticker headline, kartu muncul bertahap, chart beranimasi, auto-refresh 60 detik (menghormati *prefers-reduced-motion*). Isi: KPI, volume per jenis sumber, family trending (skor = laju 7 hari vs baseline 30 hari × sebaran sumber), timeline top-5 family, family terbanyak, malware per tipe, verdict IOC, item per sumber, actor & CVE terhangat |
-| **AI (opsional)** | Ringkasan + ekstraksi per item, *threat brief* per family/actor, *daily digest* otomatis 06:00 UTC, tanya-jawab atas data yang terkumpul. Provider: **Ollama** (lokal), **OpenAI-compatible** (LM Studio, vLLM, llama.cpp, OpenRouter, OpenAI, Groq…), **Anthropic Claude** (SDK resmi, default `claude-opus-5-5`). Bahasa output bisa diatur (mis. *Bahasa Indonesia*) |
-| **Mode instalasi** | **Single-user** (tanpa login) atau **multi-user** (login, role admin/analyst/viewer, dashboard admin: manajemen user, status job, audit log, statistik sistem) |
-| **Lainnya** | Watchlist per user, tema gelap/terang, CSRF protection, proteksi brute-force login, retensi data, Docker |
+| **News sources** | The Hacker News, Cyber Security News, BleepingComputer, SecurityWeek, The Record, Dark Reading, The DFIR Report, Unit 42, Malwarebytes Labs, SANS ISC, Krebs on Security, Cisco Talos, Securelist, Microsoft Security — add any other RSS feed from the UI |
+| **Bluesky** (public API, no key) | vx-underground, Marcus Hutchins, MalwareHunterTeam, Kevin Beaumont, Catalin Cimpanu, Will Thomas (BushidoToken), Zack Whittaker, Lorenzo Franceschi-Bicchierai, Dan Goodin, Karsten Hahn, hasherezade, Silas Cutler, Shadowserver, The DFIR Report, ESET Research, Cisco Talos, SentinelLABS, GreyNoise, Huntress, Ransomware.live |
+| **Mastodon** (public API, no key) | Marcus Hutchins, Brian Krebs, Brad Duncan (malware-traffic), SANS ISC, Proofpoint Threat Insight, Thomas Roccia, ffforward, Matt Taggart, Kevin Beaumont |
+| **X / Twitter** (API v2 bearer token **or** an RSS bridge) | Enabled: vxunderground, MalwareTechBlog, malwrhunterteam. Available but **disabled** by default (enable them in Settings so the API quota isn't burned unintentionally): GossiTheDog, cyb3rops, 1ZRR4H, BushidoToken, TheDFIRReport, Unit42_Intel, abuse_ch, malware_traffic, ESETresearch, MsftSecIntel, executemalware, pr0xylife, g0njxa, Max_Mal_, RedDrip7, fr0gger_, StopMalvertisin, ViriBack, Fox_threatintel, FalconFeedsio, H4ckManac, anyrun_app, ffforward |
+| **Threat-intel collectors** | OTX subscribed pulses / search, urlscan.io search, ANY.RUN TI Lookup query, latest ThreatFox IOCs |
+| **Entity extraction** | Malware families (~150 families + aliases), threat actors (~45), CVEs, ATT&CK techniques, IOCs (IP, domain, URL, MD5/SHA1/SHA256 — including *defanged* ones such as `hxxp` and `[.]`). Detects **new** families that are not in the knowledge base yet (patterns like “`PipeMagic backdoor`”, “`WhiteArmor ransomware`”) |
+| **Cross-source enrichment** | IOCs found in news and social posts are checked against VirusTotal, OTX, urlscan and ANY.RUN → verdict plus attributed family (e.g. a hash from a Bluesky post → “Lumma Stealer” from VT), which links it to other articles about that family. IOCs for trending families are pulled from OTX & ANY.RUN |
+| **Correlation** | Item pages list items from other sources that share entities; entity pages show per-source coverage, co-occurrence, related IOCs and enrichment results |
+| **Dashboard** | Animated: a *threat radar* (trending families as blips that light up as the sweep passes; closer to the centre = hotter), count-up KPIs with sparklines, a headline ticker, staggered card entrance, animated charts, 60-second auto-refresh (respects *prefers-reduced-motion*). Content: KPIs, volume per source type, trending families (score = 7-day rate vs 30-day baseline × source spread), top-5 family timeline, most-mentioned families, malware by type, IOC verdicts, items per source, hottest actors & CVEs |
+| **AI (optional)** | Per-item summary + extraction, *threat brief* per family/actor, automatic *daily digest* at 06:00 UTC, Q&A over the collected data. Providers: **Ollama** (local), **OpenAI-compatible** (LM Studio, vLLM, llama.cpp, OpenRouter, OpenAI, Groq…), **Anthropic Claude** (official SDK, default `claude-opus-5-5`). Output language is configurable (e.g. *Bahasa Indonesia*) |
+| **Install modes** | **Single-user** (no login) or **multi-user** (login, admin/analyst/viewer roles, admin dashboard: user management, job status, audit log, system stats) |
+| **Other** | Per-user watchlist, dark/light theme, CSRF protection, login brute-force protection, data retention, Docker |
 
-## Instalasi cepat (lokal)
+## Quick start (local)
 
 ```bash
 python -m venv .venv
@@ -34,17 +34,17 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 ```bash
-python install.py             # interaktif: pilih single / multi user, API key, LLM
+python install.py             # interactive: choose single / multi user, API keys, LLM
 ```
 ```bash
-python run.py                 # buka http://127.0.0.1:8000
+python run.py                 # open http://127.0.0.1:8000
 ```
 
-Atau lewati `install.py`: saat pertama kali dibuka, web UI menampilkan **setup wizard** yang sama.
-Non-interaktif: `python install.py --mode multi --admin admin --password 'PasswordKuat123'`.
+Or skip `install.py`: on first launch the web UI shows the same **setup wizard**.
+Non-interactive: `python install.py --mode multi --admin admin --password 'StrongPassw0rd'`.
 
-> Wizard web tidak memerlukan login (belum ada user). Jalankan instalasi pertama di `127.0.0.1`
-> (default) sebelum mengekspos port ke jaringan.
+> The web wizard requires no login (no users exist yet). Run the first install on `127.0.0.1`
+> (the default) before exposing the port to a network.
 
 ### Docker
 
@@ -55,26 +55,26 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-LLM lokal di container: `docker compose --profile llm up -d`, lalu `docker compose exec ollama ollama pull llama3.1`
-dan set base URL `http://ollama:11434`.
+Local LLM in a container: `docker compose --profile llm up -d`, then `docker compose exec ollama ollama pull llama3.1`
+and set the base URL to `http://ollama:11434`.
 
-## Konfigurasi
+## Configuration
 
-Semua API key dan opsi bisa diatur di **Settings** (role admin). Variabel environment (lihat `.env.example`)
-meng-override UI dan tampil terkunci.
+All API keys and options can be set under **Settings** (admin role). Environment variables (see `.env.example`)
+override the UI and are shown as locked there.
 
-| Layanan | Key | Catatan |
+| Service | Key | Notes |
 |---|---|---|
-| VirusTotal | `VT_API_KEY` | Free tier 4 req/menit, 500/hari — sudah di-throttle (`vt_min_interval`, `vt_daily_budget`) |
-| AlienVault OTX | `OTX_API_KEY` | Gratis. Subscribe ke pulse/user di OTX supaya feed “subscribed” terisi |
-| urlscan.io | `URLSCAN_API_KEY` | Search API sekarang butuh key |
-| ANY.RUN | `ANYRUN_API_KEY` | Butuh paket dengan **TI Lookup**. Base URL bisa diubah di Settings |
-| abuse.ch ThreatFox | `ABUSECH_AUTH_KEY` | Gratis (Auth-Key dari auth.abuse.ch) |
-| X / Twitter | `X_BEARER_TOKEN` | API v2 berbayar; alternatif isi `rss_bridge` per sumber X |
+| VirusTotal | `VT_API_KEY` | Free tier is 4 req/min, 500/day — already throttled (`vt_min_interval`, `vt_daily_budget`) |
+| AlienVault OTX | `OTX_API_KEY` | Free. Subscribe to pulses/users on OTX so the “subscribed” feed has content |
+| urlscan.io | `URLSCAN_API_KEY` | The Search API now requires a key |
+| ANY.RUN | `ANYRUN_API_KEY` | Requires a plan with **TI Lookup**. The base URL can be changed in Settings |
+| abuse.ch ThreatFox | `ABUSECH_AUTH_KEY` | Free (Auth-Key from auth.abuse.ch) |
+| X / Twitter | `X_BEARER_TOKEN` | API v2 is paid; alternatively set `rss_bridge` on each X source |
 
-### Menambah malware family / actor tanpa ubah kode
+### Adding malware families / actors without code changes
 
-Buat `data/knowledge_extra.json`:
+Create `data/knowledge_extra.json`:
 
 ```json
 {
@@ -83,41 +83,41 @@ Buat `data/knowledge_extra.json`:
 }
 ```
 
-Restart, lalu jalankan `python manage.py reextract` untuk memproses ulang item lama.
+Restart, then run `python manage.py reextract` to reprocess existing items.
 
-## Perintah maintenance
+## Maintenance commands
 
 ```bash
-python manage.py collect          # jalankan semua collector sekarang (atau: collect 1 5 7)
-python manage.py enrich           # satu batch enrichment
-python manage.py digest           # buat AI digest sekarang
-python manage.py reextract        # ekstraksi ulang entitas di semua item
-python manage.py seed-sources     # tambahkan sumber bawaan baru ke instalasi lama (juga ada tombolnya di Settings)
-python manage.py create-user budi analyst
+python manage.py collect          # run every collector now (or: collect 1 5 7)
+python manage.py enrich           # run one enrichment batch
+python manage.py digest           # generate the AI digest now
+python manage.py reextract        # re-extract entities on every item
+python manage.py seed-sources     # add new built-in sources to an existing install (also a button in Settings)
+python manage.py create-user alice analyst
 ```
 
-## Arsitektur
+## Architecture
 
 ```
 app/
   collectors/   rss, bluesky, mastodon, x_twitter, intel (OTX, urlscan, ANY.RUN, ThreatFox)  → RawItem
-  processing/   pipeline (dedupe, simpan, link entitas) · extractor (IOC/CVE/family/actor)
-                enrichment (lintas sumber) · trends (agregasi dashboard)
-  intel/        client API: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox (+ rate limit/budget)
+  processing/   pipeline (dedupe, store, link entities) · extractor (IOC/CVE/family/actor)
+                enrichment (cross-source) · trends (dashboard aggregations)
+  intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox (+ rate limits/budgets)
   llm/          client (Ollama / OpenAI-compatible / Anthropic) · insights (summary, brief, digest, Q&A)
-  routers/      pages, api (JSON + aksi), settings, admin, auth/setup
-  jobs.py       APScheduler: collector per sumber, enrichment tiap N menit, digest harian, housekeeping
-data/           config.json (mode instalasi, secret), jatmp.db (SQLite)
+  routers/      pages, api (JSON + actions), settings, admin, auth/setup
+  jobs.py       APScheduler: one job per source, enrichment every N minutes, daily digest, housekeeping
+data/           config.json (install mode, secret), jatmp.db (SQLite)
 ```
 
-Database default SQLite (WAL). Untuk deployment besar set `JATMP_DATABASE_URL` ke PostgreSQL
-(install driver `psycopg[binary]`).
+The default database is SQLite (WAL mode). For larger deployments set `JATMP_DATABASE_URL` to PostgreSQL
+(install the `psycopg[binary]` driver).
 
-## Catatan
+## Notes
 
-- Semua akun Bluesky & Mastodon di atas sudah dicek aktif pada 12 Nov 2026. Pengecualian: `vxunderground.bsky.social`
-  belum punya post, dan Marcus Hutchins / MalwareHunterTeam jarang posting di Bluesky — aktivitas utama mereka di X
-  (dan Marcus juga di Mastodon). Handle X tidak bisa diverifikasi tanpa token API.
-- Endpoint ANY.RUN TI Lookup (`/v1/intelligence/api/search`) ditulis berdasarkan dokumentasi publik dan belum diuji
-  dengan key asli; parser-nya defensif dan base URL bisa diubah.
-- Skor severity adalah heuristik (kata kunci + jenis entitas); LLM bisa menaikkannya saat analisis.
+- All Bluesky & Mastodon accounts above were verified active on 12 Nov 2026. Exceptions: `vxunderground.bsky.social`
+  has no posts yet, and Marcus Hutchins / MalwareHunterTeam rarely post on Bluesky — their main activity is on X
+  (and Marcus is also on Mastodon). X handles can't be verified without an API token.
+- The ANY.RUN TI Lookup endpoint (`/v1/intelligence/api/search`) has not been tested against a real key, and the
+  official documentation could not be checked while writing it; the parser is defensive and the base URL is configurable.
+- The severity score is a heuristic (keywords + entity types); the LLM can raise it during analysis.
