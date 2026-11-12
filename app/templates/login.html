@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_macros.html" import logo %}
 {% block title %}Sign in{% endblock %}
 {% block bare %}
 <div class="auth-wrap">
   <div class="card auth-card">
-    <div class="brand" style="padding:0 0 14px"><span class="brand-mark">◎</span>{{ app_name }}</div>
+    <div class="brand" style="padding:0 0 14px"><span class="brand-mark">{{ logo(20) }}</span>{{ app_name }}</div>
     <h1 style="margin-bottom:14px">Sign in</h1>
     {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="/login">

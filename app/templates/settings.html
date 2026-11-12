@@ -9,6 +9,39 @@
 </nav>
 
 {% if tab == 'sources' %}
+<details class="card add-src" id="add-source" style="margin-bottom:16px">
+  <summary><h2 style="display:inline">＋ Add source</h2> <span class="muted small">RSS/Atom feed, Bluesky, Mastodon, X, OTX, urlscan, ANY.RUN, ThreatFox</span></summary>
+  <div style="margin-top:12px">
+  <form method="post" action="/settings/sources" id="add-src">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="grid g-4 add-src-grid">
+      <div class="field"><label for="kind">Kind</label><select name="kind" id="kind">
+        {% for k, v in kinds.items() %}<option value="{{ k }}">{{ v.label }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="src-name">Name</label><input id="src-name" type="text" name="name" placeholder="e.g. SANS ISC" maxlength="120"></div>
+      <div class="field"><label for="add-int">Interval (minutes)</label><input id="add-int" type="number" min="5" max="10080" name="interval_minutes" value="30"></div>
+      <div class="field"><label for="cat">Category</label><select name="category" id="cat"><option>news</option><option>social</option><option>intel</option></select></div>
+    </div>
+    {% for k, v in kinds.items() %}
+    <div class="kind-fields" data-kind="{{ k }}">
+      {% for name, label, ph in v.fields %}<div class="field"><label for="add-{{ k }}-{{ name }}">{{ label }}</label><input id="add-{{ k }}-{{ name }}" type="text" name="cfg_{{ name }}" placeholder="{{ ph }}" disabled></div>{% endfor %}
+    </div>{% endfor %}
+    <button class="btn primary">Add source</button>
+  </form>
+  </div>
+</details>
+<script nonce="{{ nonce }}">
+  const kinds = {{ kinds|tojson }};
+  const sel = document.getElementById("kind");
+  const sync = () => {
+    document.querySelectorAll(".kind-fields").forEach(d => {
+      const on = d.dataset.kind === sel.value;
+      d.hidden = !on;
+      d.querySelectorAll("input").forEach(i => i.disabled = !on);
+    });
+    document.getElementById("cat").value = kinds[sel.value].category;
+  };
+  sel.addEventListener("change", sync); sync();
+</script>
 <div class="card table-wrap" style="margin-bottom:16px">
   <div class="card-head"><h2>Sources ({{ sources|length }})</h2>
     <div class="row">
@@ -54,39 +87,6 @@
   </table>
 </div>
 
-<div class="card" style="max-width:720px">
-  <h2>Add source</h2>
-  <form method="post" action="/settings/sources" id="add-src">
-    <input type="hidden" name="csrf_token" value="{{ csrf }}">
-    <div class="grid g-2">
-      <div class="field"><label for="kind">Kind</label><select name="kind" id="kind">
-        {% for k, v in kinds.items() %}<option value="{{ k }}">{{ v.label }}</option>{% endfor %}</select></div>
-      <div class="field"><label for="src-name">Name</label><input id="src-name" type="text" name="name" placeholder="e.g. SANS ISC" maxlength="120"></div>
-    </div>
-    {% for k, v in kinds.items() %}
-    <div class="kind-fields" data-kind="{{ k }}">
-      {% for name, label, ph in v.fields %}<div class="field"><label for="add-{{ k }}-{{ name }}">{{ label }}</label><input id="add-{{ k }}-{{ name }}" type="text" name="cfg_{{ name }}" placeholder="{{ ph }}" disabled></div>{% endfor %}
-    </div>{% endfor %}
-    <div class="grid g-2">
-      <div class="field"><label for="add-int">Interval (minutes)</label><input id="add-int" type="number" min="5" max="10080" name="interval_minutes" value="30"></div>
-      <div class="field"><label for="cat">Category</label><select name="category" id="cat"><option>news</option><option>social</option><option>intel</option></select></div>
-    </div>
-    <button class="btn primary">Add source</button>
-  </form>
-</div>
-<script nonce="{{ nonce }}">
-  const kinds = {{ kinds|tojson }};
-  const sel = document.getElementById("kind");
-  const sync = () => {
-    document.querySelectorAll(".kind-fields").forEach(d => {
-      const on = d.dataset.kind === sel.value;
-      d.hidden = !on;
-      d.querySelectorAll("input").forEach(i => i.disabled = !on);
-    });
-    document.getElementById("cat").value = kinds[sel.value].category;
-  };
-  sel.addEventListener("change", sync); sync();
-</script>
 
 {% else %}
 <div class="card" style="max-width:760px">

@@ -32,6 +32,29 @@
     </div>
     {% endif %}
 
+    {% if not is_ioc %}
+    <div class="card" id="indicators">
+      <div class="card-head"><h2>Indicators</h2>
+        <div class="row">
+          {% if indicators %}<button type="button" class="btn sm" data-copy-selector="#ind-list .ioc-val" data-copy-label="IOC" title="Copy the indicators listed here">Copy</button>{% endif %}
+          <a class="btn sm" href="/iocs?entity={{ ent.id }}">All {{ ioc_total }} IOC(s) →</a>
+        </div></div>
+      {% if indicators %}
+      <div class="table-wrap" style="max-height:420px;overflow:auto"><table id="ind-list">
+        <thead><tr><th>Type</th><th>Indicator</th><th>Verdict</th><th>Via</th></tr></thead>
+        <tbody>{% for r in indicators %}
+          <tr><td><span class="badge">{{ r.type }}</span></td>
+            <td style="word-break:break-all"><a class="mono ioc-val" href="/entities/{{ r.id }}">{{ r.name }}</a></td>
+            <td>{{ verdict(r.verdict if r.enriched else '') }}</td>
+            <td class="muted small">{{ r.via }}</td></tr>{% endfor %}
+        </tbody></table></div>
+      <p class="muted small" style="margin:8px 0 0">IOCs extracted from items that mention this {{ ent.type }} and IOCs attributed to it by VirusTotal / OTX / ANY.RUN. Verdicts come from enrichment.</p>
+      {% else %}
+      <p class="muted">No indicators yet. They appear when items mentioning this {{ ent.type }} contain IOCs (defanged URLs, hashes, IPs) or when enrichment pulls indicators from OTX / ANY.RUN{% if user.role in ('admin','analyst') and ent.type == 'malware' %} – press “Enrich now” to try{% endif %}.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% if enrichments %}
     <div class="card">
       <h2>Threat-intel enrichment</h2>
@@ -67,7 +90,7 @@
   <div class="grid" style="align-content:start">
     {% if by_source %}
     <div class="card"><h2>Seen in</h2>
-      <table><tbody>{% for cat, name, n in by_source %}<tr><td><span class="badge cat-{{ cat }}">{{ name }}</span></td><td class="num">{{ n }}</td></tr>{% endfor %}</tbody></table>
+      <table><tbody>{% for cat, name, sid, n in by_source %}<tr><td><a href="/feed?entity={{ ent.id }}&source={{ sid }}&days=0" title="Items from {{ name }} mentioning {{ ent.display }}"><span class="badge cat-{{ cat }}">{{ name }}</span></a></td><td class="num">{{ n }}</td></tr>{% endfor %}</tbody></table>
     </div>{% endif %}
     {% if co %}
     <div class="card"><h2>Mentioned together with</h2>
@@ -83,13 +106,6 @@
           <span class="muted small" title="{{ d.relations|join(', ') }}">{{ d.providers|join(', ') }}</span>
         </div>
       {% endfor %}</div>
-    </div>{% endif %}
-    {% if co_iocs %}
-    <div class="card"><h2>IOCs in the same items</h2>
-      <div style="max-height:360px;overflow:auto">
-      {% for c in co_iocs %}<div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin:3px 0">
-        <a class="mono" href="/entities/{{ c.id }}" style="word-break:break-all">{{ c.name|truncate(52, True) }}</a>{{ verdict(c.verdict) }}</div>{% endfor %}
-      </div>
     </div>{% endif %}
     {% if ent.meta %}<div class="card"><h2>Metadata</h2><pre class="mono small">{{ ent.meta|tojson(indent=2) }}</pre></div>{% endif %}
   </div>

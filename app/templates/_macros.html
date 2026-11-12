@@ -1,5 +1,5 @@
 {% macro sev(n) -%}
-<span class="sev {{ 's-high' if n >= 60 else 's-med' if n >= 35 else '' }}" title="Severity score">{{ n }}</span>
+<span class="sev {{ 's-high' if n >= 60 else 's-med' if n >= 35 else '' }}" title="Severity score {{ n }} / 100">{{ n }}</span>
 {%- endmacro %}
 
 {% macro verdict(v) -%}
@@ -10,16 +10,35 @@
 <a class="chip" href="/entities/{{ e.id }}"><span class="t">{{ e.type }}</span>{{ e.display|truncate(48, True) }}</a>
 {%- endmacro %}
 
+{# Sortable table header. f must carry sort, dir and qs (filters without sort/dir/page). #}
+{% macro th(label, key, f, cls='', default='desc') -%}
+{% set active = f.sort == key %}
+{% set next = ('asc' if f.dir == 'desc' else 'desc') if active else default %}
+<th class="sortable {{ cls }} {{ 'active' if active }}" {% if active %}aria-sort="{{ 'ascending' if f.dir == 'asc' else 'descending' }}"{% endif %}>
+  <a href="?{{ f.qs }}{{ '&' if f.qs }}sort={{ key }}&dir={{ next }}" title="Sort by {{ label|lower }}">{{ label }}<span class="arrow" aria-hidden="true">{% if active %}{{ '▲' if f.dir == 'asc' else '▼' }}{% else %}↕{% endif %}</span></a>
+</th>
+{%- endmacro %}
+
+{% macro logo(size=28) -%}
+<svg class="logo" viewBox="0 0 32 32" width="{{ size }}" height="{{ size }}" aria-hidden="true" focusable="false">
+  <circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="2"/>
+  <circle cx="16" cy="16" r="7.5" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/>
+  <path d="M3 16h26M16 3v26" stroke="currentColor" stroke-width="1" opacity=".35"/>
+  <path d="M16 16 L16 3.5 A12.5 12.5 0 0 1 26.8 9.7 Z" fill="currentColor" opacity=".5"/>
+  <circle cx="21.5" cy="10.5" r="2.6" fill="currentColor"/>
+  <circle cx="10" cy="20" r="1.7" fill="currentColor" opacity=".8"/>
+</svg>
+{%- endmacro %}
+
 {% macro feed_item(i, show_snippet=True) -%}
 <div class="feed-item">
-  <div>{{ sev(i.severity) }}</div>
+  <div class="feed-side">{{ sev(i.severity) }}<time class="muted small" datetime="{{ i.published_at.isoformat() }}Z" title="{{ i.published_at }} UTC">{{ i.published_at|timeago }}</time></div>
   <div style="min-width:0">
     <a class="title" href="/items/{{ i.id }}">{{ i.title or '(untitled)' }}</a>
     <div class="meta">
       <span class="badge cat-{{ i.source.category }}">{{ i.source.name }}</span>
       <span>{{ i.kind }}</span>
       {% if i.author %}<span>{{ i.author|truncate(40) }}</span>{% endif %}
-      <time datetime="{{ i.published_at.isoformat() }}Z" title="{{ i.published_at }} UTC">{{ i.published_at|timeago }}</time>
       {% if i.llm_summary %}<span class="badge new">AI summary</span>{% endif %}
     </div>
     {% if show_snippet and i.content %}<div class="snippet">{{ i.content|truncate(260) }}</div>{% endif %}

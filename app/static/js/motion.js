@@ -96,6 +96,12 @@
       </defs><circle cx="${C}" cy="${C}" r="${R}" fill="url(#rg-bg)"/>`;
       [1, 0.75, 0.5, 0.25].forEach((f) => (html += `<circle class="ring" cx="${C}" cy="${C}" r="${R * f}"/>`));
       html += `<line class="axis" x1="${C - R}" y1="${C}" x2="${C + R}" y2="${C}"/><line class="axis" x1="${C}" y1="${C - R}" x2="${C}" y2="${C + R}"/>`;
+      // axis key: distance from the centre is the trend score (hot inside, cooling outside)
+      html += `<text class="axis-lbl" x="${C + 6}" y="${C + R - 6}" text-anchor="start">cooling</text>` +
+        `<text class="axis-lbl" x="${C + 6}" y="${C + R * 0.5 + 4}" text-anchor="start">warm</text>` +
+        `<text class="axis-lbl" x="${C + 6}" y="${C + 14}" text-anchor="start">hot</text>` +
+        `<path class="axis-arrow" d="M ${C + R - 10} ${C + 20} L ${C + R - 10} ${C + 4} M ${C + R - 14} ${C + 9} L ${C + R - 10} ${C + 4} L ${C + R - 6} ${C + 9}"/>` +
+        `<text class="axis-lbl" x="${C + R - 4}" y="${C + 32}" text-anchor="end">trend score</text>`;
       // 40° wedge trailing the leading edge, which starts pointing up and turns clockwise
       const a0 = -Math.PI / 2, a1 = a0 - (40 * Math.PI) / 180;
       html += `<g class="sweep"><path d="M ${C} ${C} L ${C + R * Math.cos(a1)} ${C + R * Math.sin(a1)} A ${R} ${R} 0 0 1 ${C + R * Math.cos(a0)} ${C + R * Math.sin(a0)} Z" fill="url(#rg-sweep)"/>` +
@@ -145,7 +151,8 @@
         legend.innerHTML =
           `<div class="small"><span class="sw" style="background:${accent}"></span>trending` +
           `<span class="sw" style="background:${hot};margin-left:12px"></span>new this week</div>` +
-          `<div class="muted small" style="margin-top:4px">Closer to centre = hotter · size = mentions</div>` +
+          `<div class="size-key small muted"><span class="dot" style="width:7px;height:7px"></span>few mentions ` +
+          `<span class="dot" style="width:13px;height:13px;margin-left:6px"></span>many mentions</div>` +
           `<ol>${rows.slice(0, 8).map((r) => `<li><a href="/entities/${r.id}">${esc(r.name)}</a> <span class="muted small">${r.score}</span></li>`).join("")}</ol>`;
       }
     };

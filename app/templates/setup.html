@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_macros.html" import logo %}
 {% block title %}Setup{% endblock %}
 {% block bare %}
 <div class="auth-wrap">
   <div class="card setup-card">
-    <div class="brand" style="padding:0 0 10px"><span class="brand-mark" aria-hidden="true">◎</span>Install {{ app_name }}</div>
+    <div class="brand" style="padding:0 0 10px"><span class="brand-mark">{{ logo(20) }}</span>Install {{ app_name }}</div>
     <p class="muted">First-run setup. Everything except the usage mode can be changed later in Settings.</p>
     {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="/setup">

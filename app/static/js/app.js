@@ -38,6 +38,14 @@
     if (e.target.closest(".side .nav a")) setNav(false);
   });
 
+  // ---------- back button (falls back to the dashboard when there is no history)
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-back]")) return;
+    e.preventDefault();
+    if (history.length > 1 && document.referrer && new URL(document.referrer).origin === location.origin) history.back();
+    else location.href = "/";
+  });
+
   // ---------- keyboard: "/" focuses search, Esc closes overlays
   document.addEventListener("keydown", (e) => {
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") ||
@@ -288,10 +296,21 @@
       });
     }),
 
-    sources: guard(async (el, days = 7) => {
-      const rows = await getJSON(`/api/stats/sources?days=${days}`);
-      if (!rows.length) return emptyNote(el, "No items in this period.");
+    sources: guard(async (el, days = 7, top = 12) => {
+      const all = await getJSON(`/api/stats/sources?days=${days}`);
+      if (!all.length) return emptyNote(el, "No items in this period.");
+      const rows = all.slice(0, top);
+      const rest = all.slice(top).reduce((a, r) => a + r.count, 0);
+      // one row per source: give the canvas room instead of squeezing 50 labels into 200px
+      el.parentElement.style.height = Math.max(200, rows.length * 26 + 70) + "px";
       const cats = ["news", "social", "intel"], names = { news: "News", social: "Social", intel: "Threat intel" };
+      const short = (s) => (s.length > 26 ? s.slice(0, 24) + "…" : s);
+      if (rest) {
+        const note = document.createElement("div");
+        note.className = "muted small"; note.style.marginTop = "6px";
+        note.textContent = `${all.length - top} more source(s) with ${rest} item(s) not shown`;
+        el.parentElement.after(note);
+      }
       make(el, () => {
         const S = SERIES();
         const base = baseOptions();
@@ -299,12 +318,14 @@
           type: "bar",
           data: { labels: rows.map((r) => r.name), datasets: cats.map((c, i) => ({
             label: names[c], data: rows.map((r) => (r.category === c ? r.count : null)), backgroundColor: S[i],
-            borderRadius: 4, borderSkipped: "start", maxBarThickness: 14, grouped: false })) },
+            borderRadius: 4, borderSkipped: "start", maxBarThickness: 16, grouped: false })) },
           options: baseOptions({
             indexAxis: "y", interaction: { mode: "nearest", axis: "y", intersect: false },
             plugins: { ...base.plugins, tooltip: { ...base.plugins.tooltip, filter: (i) => i.raw !== null } },
             scales: { x: { ...base.scales.x, beginAtZero: true },
-                      y: { ...base.scales.y, grid: { display: false }, ticks: { color: css("--text-secondary"), autoSkip: false } } },
+                      y: { ...base.scales.y, grid: { display: false },
+                           ticks: { color: css("--text-secondary"), autoSkip: false, font: { size: 11 },
+                                    callback: (_v, i) => short(rows[i].name) } } },
           }),
         };
       });

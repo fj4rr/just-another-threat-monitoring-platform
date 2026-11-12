@@ -1,4 +1,5 @@
 <!doctype html>
+{% from "_macros.html" import logo %}
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -6,7 +7,7 @@
   <meta name="csrf-token" content="{{ csrf }}">
   <meta name="color-scheme" content="dark light">
   <title>{% block title %}{{ app_name }}{% endblock %} · {{ app_name }}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%233987e5'/><path d='M9 17l4 4 10-10' stroke='white' stroke-width='3' fill='none'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg?v={{ version }}">
   <link rel="stylesheet" href="/static/css/app.css?v={{ version }}">
   <script nonce="{{ nonce }}">document.documentElement.classList.add("js");try{var t=localStorage.getItem("jatmp-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
   <script src="/static/js/vendor/chart.umd.min.js?v=4.4.1" defer></script>
@@ -19,8 +20,10 @@
 <div class="shell">
   <div class="nav-backdrop" data-nav-close hidden></div>
   <aside class="side" id="sidenav" aria-label="Main navigation">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">◎</span>{{ app_name }}
-      <button class="btn sm side-close" data-nav-close aria-label="Close menu">✕</button></div>
+    <div class="brand-row">
+      <a class="brand" href="/" title="Back to the dashboard"><span class="brand-mark">{{ logo(20) }}</span>{{ app_name }}</a>
+      <button class="btn sm side-close" data-nav-close aria-label="Close menu">✕</button>
+    </div>
     <nav class="nav">
       {% macro nav(href, label, icon) -%}
       <a href="{{ href }}" class="{{ 'active' if (path == href or (href != '/' and path.startswith(href))) else '' }}" {% if path == href %}aria-current="page"{% endif %}>
@@ -41,11 +44,14 @@
       {% if multi_user %}{{ nav('/admin', 'Admin', '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>') }}{% endif %}
       {% endif %}
     </nav>
-    <p class="muted small side-foot">v{{ version }} · {{ 'multi-user' if multi_user else 'single-user' }}</p>
+    <p class="muted small side-foot">v{{ version }} · {{ 'multi-user' if multi_user else 'single-user' }}<br>
+      Built by <a href="https://github.com/fj4rr" target="_blank" rel="noopener noreferrer">fj4rr</a> ·
+      <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" target="_blank" rel="noopener noreferrer">Source</a></p>
   </aside>
   <div class="main">
     <header class="topbar">
       <button class="btn sm menu-btn" data-menu aria-label="Open menu" aria-controls="sidenav" aria-expanded="false">☰</button>
+      {% if path != '/' %}<button class="btn sm back-btn" data-back aria-label="Go back" title="Back">←</button>{% endif %}
       <form class="search" action="/feed" method="get" role="search">
         <input type="search" name="q" id="global-search" placeholder="Search items, malware, CVE, IOC…  ( / )" aria-label="Search" value="{{ request.query_params.get('q','') }}" maxlength="200">
       </form>

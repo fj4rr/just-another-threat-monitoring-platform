@@ -30,44 +30,44 @@
 </div>
 {% endif %}
 
-{% macro icon(path) %}<span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ path|safe }}</svg></span>{% endmacro %}
+{% macro icon(path, href, label) %}<a class="icon" href="{{ href }}" title="{{ label }}" aria-label="{{ label }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ path|safe }}</svg></a>{% endmacro %}
 
 <div class="hero">
   <div class="card lift radar-card reveal" style="--i:2">
-    <div>
-      <div class="card-head" style="margin-bottom:0"><h2>Threat radar</h2><a class="small" href="/malware">all families →</a></div>
+    <div class="card-head"><h2>Threat radar</h2><a class="btn sm" href="/malware">All families →</a></div>
+    <div class="radar-body">
       <svg class="radar" id="radar" role="img" aria-label="Trending malware families radar"></svg>
+      <div class="radar-legend" id="radar-legend"></div>
     </div>
-    <div class="radar-legend" id="radar-legend"></div>
   </div>
   <div class="tiles" data-reveal="3">
     {% set d = ov['items'] - ov['items_prev'] %}
     <div class="card lift tile">
-      {{ icon('<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>') }}
+      {{ icon('<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>', '/feed?days=7', 'Open the feed') }}
       <div class="label">Items collected</div>
       <div class="value count-up" data-count="{{ ov['items'] }}" data-kpi="items">0</div>
-      <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous {{ ov.days }} days</div>
+      <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous {{ ov.days }} days · <a href="/feed?days=7">feed →</a></div>
       <svg class="spark" data-series="items" data-color="--series-1"></svg>
     </div>
     <div class="card lift tile">
-      {{ icon('<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/>') }}
+      {{ icon('<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/>', '/malware?days=7', 'Open malware families') }}
       <div class="label">Active malware families</div>
       <div class="value count-up" data-count="{{ ov.active_families }}" data-kpi="active_families">0</div>
-      <div class="delta">{{ ov.new_families }} newly seen</div>
+      <div class="delta">{{ ov.new_families }} newly seen · <a href="/malware?days=7">families →</a></div>
       <svg class="spark" data-series="families" data-color="--series-2"></svg>
     </div>
     <div class="card lift tile">
-      {{ icon('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>') }}
+      {{ icon('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>', '/iocs', 'Open indicators of compromise') }}
       <div class="label">IOCs seen</div>
       <div class="value count-up" data-count="{{ ov.iocs }}" data-kpi="iocs">0</div>
-      <div class="delta">{{ ov.malicious_iocs }} confirmed malicious by enrichment</div>
+      <div class="delta">{{ ov.malicious_iocs }} confirmed malicious · <a href="/iocs">IOCs →</a></div>
       <svg class="spark" data-series="iocs" data-color="--series-3"></svg>
     </div>
     <div class="card lift tile">
-      {{ icon('<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>') }}
+      {{ icon('<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>', '/cves?days=7', 'Open CVE list') }}
       <div class="label">CVEs discussed</div>
       <div class="value count-up" data-count="{{ ov.cves }}" data-kpi="cves">0</div>
-      <div class="delta">{{ ov.sources_ok }}/{{ ov.sources_total }} sources healthy</div>
+      <div class="delta">{{ ov.sources_ok }}/{{ ov.sources_total }} sources healthy · <a href="/cves?days=7">CVEs →</a></div>
       <svg class="spark" data-series="cves" data-color="--series-7"></svg>
     </div>
   </div>
@@ -118,7 +118,7 @@
     <div class="chart-wrap short"><canvas id="c-ioc"></canvas></div>
   </div>
   <div class="card lift">
-    <div class="card-head"><h2>Items per source</h2><span class="muted small">7 days</span></div>
+    <div class="card-head"><h2>Items per source</h2><span class="muted small">7 days · top 12</span></div>
     <div class="chart-wrap short"><canvas id="c-src"></canvas></div>
   </div>
 </div>
