@@ -38,12 +38,11 @@ def main(argv: list[str]) -> int:
     elif cmd == "digest":
         print(jobs.run_digest(force=True))
     elif cmd == "reextract":
-        from app.processing.extractor import extract_all, severity_score
-        from app.processing.pipeline import link_entities
-
         from sqlalchemy import delete, func, update
 
         from app.models import Entity, EntityLink, ItemEntity
+        from app.processing.extractor import extract_all, severity_score
+        from app.processing.pipeline import link_entities
 
         db = SessionLocal()
         # drop links the extractor produced (keep feed-supplied and LLM-found ones), then rebuild

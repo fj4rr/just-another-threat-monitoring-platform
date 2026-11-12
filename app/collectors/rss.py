@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import datetime
+from datetime import UTC, datetime
 
 import feedparser
 
@@ -19,18 +19,24 @@ class RSSCollector(Collector):
         url = self.cfg.get("url")
         if not url:
             raise SkipCollector("no feed URL configured")
+        if not str(url).lower().startswith(("http://", "https://")):
+            raise SkipCollector("feed URL must start with http:// or https://")
         with self.client(Accept="application/rss+xml, application/atom+xml, application/xml, */*") as c:
             resp = c.get(url)
             resp.raise_for_status()
+            if len(resp.content) > 10 * 1024 * 1024:
+                raise RuntimeError("feed larger than 10 MB, refusing to parse")
         feed = feedparser.parse(resp.content)
         if feed.bozo and not feed.entries:
-            raise RuntimeError(f"could not parse feed: {feed.bozo_exception}")
+            head = " ".join(resp.content[:80].decode("utf-8", "replace").split())
+            raise RuntimeError(f"could not parse feed ({resp.headers.get('content-type', '?')}): "
+                               f"{feed.bozo_exception}; body starts with: {head!r}")
         out = []
         for e in feed.entries[:100]:
             published = None
             for key in ("published_parsed", "updated_parsed"):
                 if e.get(key):
-                    published = datetime.utcfromtimestamp(calendar.timegm(e[key]))
+                    published = datetime.fromtimestamp(calendar.timegm(e[key]), tz=UTC).replace(tzinfo=None)
                     break
             content = ""
             if e.get("content"):

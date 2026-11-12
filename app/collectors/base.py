@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -39,13 +39,13 @@ def parse_dt(value) -> datetime | None:
     if not value:
         return None
     if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(value, tz=timezone.utc).replace(tzinfo=None)
+        return datetime.fromtimestamp(value, tz=UTC).replace(tzinfo=None)
     s = str(value).strip().replace("Z", "+00:00")
     for fmt in (None, "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d"):
         try:
             dt = datetime.fromisoformat(s) if fmt is None else datetime.strptime(s[:26], fmt)
             if dt.tzinfo:
-                dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                dt = dt.astimezone(UTC).replace(tzinfo=None)
             return dt
         except ValueError:
             continue

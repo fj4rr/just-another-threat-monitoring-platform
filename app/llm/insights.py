@@ -11,9 +11,9 @@ from sqlalchemy.orm import Session
 from .. import settings
 from ..knowledge import CATEGORIES, canonical_malware
 from ..models import Enrichment, Entity, EntityLink, Insight, Item, ItemEntity, utcnow
+from ..processing import trends
 from ..processing.extractor import Extracted
 from ..processing.pipeline import link_entities
-from ..processing import trends
 from . import client
 
 SYSTEM = (
@@ -44,7 +44,7 @@ def _json_from(text: str) -> dict:
 
 
 def summarize_item(db: Session, item: Item) -> str:
-    ents = ", ".join(sorted({f"{l.entity.type}:{l.entity.display}" for l in item.entity_links})[:40])
+    ents = ", ".join(sorted({f"{link.entity.type}:{link.entity.display}" for link in item.entity_links})[:40])
     prompt = f"""Analyse this {item.kind} from "{item.source.name}" ({item.source.category}).
 
 TITLE: {item.title}

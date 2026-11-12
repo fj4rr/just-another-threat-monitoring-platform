@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
@@ -8,11 +8,11 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
-    Index,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,7 +20,7 @@ from .db import Base
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class User(Base):
@@ -83,7 +83,7 @@ class Item(Base):
     llm_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     source: Mapped[Source] = relationship(lazy="joined")
-    entity_links: Mapped[list["ItemEntity"]] = relationship(
+    entity_links: Mapped[list[ItemEntity]] = relationship(
         back_populates="item", cascade="all, delete-orphan"
     )
 

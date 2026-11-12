@@ -3,15 +3,15 @@ from __future__ import annotations
 
 import logging
 import traceback
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select, update
 
 from . import settings
 from .collectors import REGISTRY, SkipCollector
 from .db import SessionLocal
-from .models import CollectorRun, Insight, Item, Source, utcnow
+from .models import CollectorRun, Entity, EntityLink, Insight, Item, ItemEntity, Source, utcnow
 
 log = logging.getLogger(__name__)
 scheduler = BackgroundScheduler(timezone="UTC", job_defaults={"coalesce": True, "max_instances": 1,
@@ -85,7 +85,7 @@ def _maybe_auto_summarize(item_ids: list[int]) -> None:
                 try:
                     summarize_item(db, item)
                     db.commit()
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     db.rollback()
                     log.warning("auto-summarize failed: %s", e)
                     break
@@ -146,6 +146,14 @@ def run_housekeeping() -> str:
         if days > 0:
             res = db.execute(delete(Item).where(Item.published_at < utcnow() - timedelta(days=days)))
             n = res.rowcount or 0
+            # item_entities rows cascade away; keep mention counters truthful and drop IOCs that
+            # nothing references any more (families/actors/CVEs are kept as history)
+            counts = select(ItemEntity.entity_id, func.count().label("n")).group_by(ItemEntity.entity_id).subquery()
+            db.execute(update(Entity).values(mention_count=0))
+            db.execute(update(Entity).where(Entity.id == counts.c.entity_id).values(mention_count=counts.c.n))
+            linked = select(EntityLink.src_id).union(select(EntityLink.dst_id))
+            db.execute(delete(Entity).where(Entity.mention_count == 0, Entity.id.not_in(linked),
+                                            Entity.type.in_(("md5", "sha1", "sha256", "ip", "domain", "url"))))
         db.execute(delete(Insight).where(Insight.kind == "answer", Insight.created_at < utcnow() - timedelta(days=90)))
         db.commit()
         return f"removed {n} old item(s)"
@@ -160,7 +168,7 @@ def schedule_source(src: Source) -> None:
         scheduler.remove_job(job_id)
     if src.enabled:
         scheduler.add_job(run_source, "interval", minutes=max(5, src.interval_minutes or 30),
-                          id=job_id, args=[src.id], next_run_time=datetime.utcnow() + timedelta(seconds=5 + src.id * 3))
+                          id=job_id, args=[src.id], next_run_time=_now() + timedelta(seconds=5 + src.id * 3))
 
 
 def unschedule_source(source_id: int) -> None:
@@ -168,8 +176,12 @@ def unschedule_source(source_id: int) -> None:
         scheduler.remove_job(f"source:{source_id}")
 
 
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
 def run_now(func, *args) -> None:
-    scheduler.add_job(func, "date", args=list(args), run_date=datetime.utcnow() + timedelta(seconds=1),
+    scheduler.add_job(func, "date", args=list(args), run_date=_now() + timedelta(seconds=1),
                       id=None, max_instances=3)
 
 
@@ -183,7 +195,7 @@ def start() -> None:
     finally:
         db.close()
     scheduler.add_job(run_enrichment, "interval", minutes=max(2, int(settings.get("enrichment_interval") or 10)),
-                      id="enrichment", next_run_time=datetime.utcnow() + timedelta(minutes=2), replace_existing=True)
+                      id="enrichment", next_run_time=_now() + timedelta(minutes=2), replace_existing=True)
     scheduler.add_job(run_digest, "cron", hour=6, minute=0, id="digest", replace_existing=True)
     scheduler.add_job(run_housekeeping, "cron", hour=3, minute=30, id="housekeeping", replace_existing=True)
     scheduler.start()

@@ -21,7 +21,7 @@ class OTXCollector(Collector):
         try:
             otx = OTX()
         except NotConfigured as e:
-            raise SkipCollector(str(e))
+            raise SkipCollector(str(e)) from e
         if self.cfg.get("mode") == "search" and self.cfg.get("query"):
             pulses = otx.search_pulses(self.cfg["query"], limit=30)
         else:
@@ -67,7 +67,7 @@ class URLScanCollector(Collector):
         try:
             client = URLScan(require_key=True)
         except NotConfigured as e:
-            raise SkipCollector(str(e))
+            raise SkipCollector(str(e)) from e
         results = client.search(query, size=100)
         out = []
         for r in results:
@@ -106,7 +106,7 @@ class AnyRunCollector(Collector):
         try:
             ar = AnyRun()
         except NotConfigured as e:
-            raise SkipCollector(str(e))
+            raise SkipCollector(str(e)) from e
         query = self.cfg.get("query")
         if not query:
             raise SkipCollector("no query configured")
@@ -140,7 +140,7 @@ class ThreatFoxCollector(Collector):
         try:
             tf = ThreatFox()
         except NotConfigured as e:
-            raise SkipCollector(str(e))
+            raise SkipCollector(str(e)) from e
         rows = tf.recent(days=1)
         # group IOCs by malware family into one item per family per day
         groups: dict[str, list[dict]] = {}

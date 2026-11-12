@@ -7,6 +7,8 @@ from .mastodon import MastodonCollector
 from .rss import RSSCollector
 from .x_twitter import XCollector
 
+__all__ = ["DEFAULT_SOURCES", "REGISTRY", "Collector", "SkipCollector", "source_key"]
+
 REGISTRY: dict[str, type[Collector]] = {
     c.kind: c
     for c in (RSSCollector, BlueskyCollector, MastodonCollector, XCollector, OTXCollector,

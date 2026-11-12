@@ -168,7 +168,7 @@ GENERIC_WORDS = {
     "github", "chrome", "telegram", "discord", "iot", "ransom", "uefi", "firmware", "fileless", "kernel",
     "office", "excel", "word", "pdf", "zip", "lnk", "html", "svg", "the new", "as", "of", "and", "or", "with",
     "deploy", "deploys", "deliver", "delivers", "drop", "drops", "spread", "spreads", "push", "pushes",
-    "use", "uses", "using", "via", "from", "new", "latest", "fresh", "updated", "free", "first", "second",
+    "use", "uses", "using", "via", "from", "latest", "fresh", "updated", "free", "first", "second",
     "hackers", "attackers", "operators", "threat", "cyber", "state", "nation", "apt", "group", "gang",
     "agentic", "llm", "gpt", "chatgpt", "vibe-coded", "rogue", "russia", "china", "iran", "israel", "ukraine",
 }

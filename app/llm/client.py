@@ -62,9 +62,12 @@ def _ollama(system: str, prompt: str, max_tokens: int) -> str:
     try:
         r = httpx.post(f"{base}/api/chat", json=body, timeout=600)
         r.raise_for_status()
+        data = r.json()
     except httpx.HTTPError as e:
         raise LLMError(f"Ollama request failed: {e}") from e
-    return (r.json().get("message") or {}).get("content", "").strip()
+    except ValueError as e:
+        raise LLMError("Ollama returned a non-JSON response") from e
+    return (data.get("message") or {}).get("content", "").strip()
 
 
 def _openai_compatible(system: str, prompt: str, max_tokens: int) -> str:
@@ -79,10 +82,13 @@ def _openai_compatible(system: str, prompt: str, max_tokens: int) -> str:
     try:
         r = httpx.post(f"{base}/chat/completions", json=body, headers=headers, timeout=600)
         r.raise_for_status()
+        data = r.json()
     except httpx.HTTPError as e:
         detail = getattr(e, "response", None)
         raise LLMError(f"LLM request failed: {e} {detail.text[:300] if detail is not None else ''}") from e
-    choices = r.json().get("choices") or []
+    except ValueError as e:
+        raise LLMError("LLM server returned a non-JSON response") from e
+    choices = data.get("choices") or []
     if not choices:
         raise LLMError("LLM returned no choices")
     return (choices[0].get("message") or {}).get("content", "").strip()
@@ -116,6 +122,8 @@ def _anthropic(system: str, prompt: str, max_tokens: int) -> str:
                 resp = stream.get_final_message()
     except anthropic.AuthenticationError as e:
         raise LLMError("Anthropic API key rejected") from e
+    except anthropic.NotFoundError as e:
+        raise LLMError(f"Anthropic model '{model}' not found") from e
     except anthropic.RateLimitError as e:
         raise LLMError("Anthropic rate limit reached, try again later") from e
     except anthropic.APIStatusError as e:

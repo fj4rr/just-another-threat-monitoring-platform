@@ -1,6 +1,7 @@
 """Ingest raw collected items: dedupe, store, extract & link entities."""
 from __future__ import annotations
 
+import html
 import logging
 import re
 from dataclasses import dataclass, field
@@ -30,16 +31,27 @@ class RawItem:
     indicators: list[Extracted] = field(default_factory=list)
 
 
-def strip_html(html: str) -> str:
-    text = re.sub(r"(?is)<(script|style).*?</\1>", " ", html or "")
-    text = re.sub(r"(?s)<[^>]+>", " ", text)
-    text = re.sub(r"&nbsp;", " ", text)
-    text = re.sub(r"&amp;", "&", text)
-    text = re.sub(r"&lt;", "<", text)
-    text = re.sub(r"&gt;", ">", text)
-    text = re.sub(r"&#8217;|&rsquo;", "'", text)
-    text = re.sub(r"&#\d+;", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
+_TAG_RE = re.compile(r"(?s)<[^>]+>")
+_SCRIPT_RE = re.compile(r"(?is)<(script|style).*?</\1>")
+_WS_RE = re.compile(r"\s+")
+
+
+def strip_html(text: str) -> str:
+    text = _SCRIPT_RE.sub(" ", text or "")
+    text = _TAG_RE.sub(" ", text)
+    text = html.unescape(text)
+    return _WS_RE.sub(" ", text).strip()
+
+
+def safe_url(url: str | None) -> str:
+    """Feeds are untrusted: keep only http(s) links so a crafted `javascript:` URL from an
+    RSS entry can never end up in an <a href>."""
+    u = (url or "").strip()
+    if not u.lower().startswith(("http://", "https://")):
+        return ""
+    if any(c in u for c in "\n\r\t"):
+        return ""
+    return u[:2000]
 
 
 def get_or_create_entity(db: Session, ex: Extracted, seen_at: datetime | None = None) -> Entity:
@@ -80,35 +92,48 @@ def link_entities(db: Session, item: Item, extracted: list[Extracted]) -> int:
     return added
 
 
+def _external_id(r: RawItem) -> str:
+    return (r.external_id or r.url or r.title or "").strip()[:500]
+
+
 def ingest(db: Session, source: Source, raws: list[RawItem]) -> list[int]:
     """Store new items. Returns IDs of newly created items."""
+    from ..knowledge import canonical_malware
+
     new_ids: list[int] = []
     strict = source.category != "intel"
+    wanted = {ext for ext in (_external_id(r) for r in raws) if ext}
+    if not wanted:
+        return new_ids
+    # one query for the whole batch instead of one per entry
+    known = {
+        ext for (ext,) in db.execute(
+            select(Item.external_id).where(Item.source_id == source.id, Item.external_id.in_(wanted))
+        )
+    }
     for r in raws:
-        ext = (r.external_id or r.url or r.title)[:500]
-        if not ext:
+        ext = _external_id(r)
+        if not ext or ext in known:
             continue
-        exists = db.execute(
-            select(Item.id).where(Item.source_id == source.id, Item.external_id == ext)
-        ).scalar_one_or_none()
-        if exists:
-            continue
+        known.add(ext)  # a feed may repeat an entry inside the same batch
         content = r.content if r.kind != "article" else strip_html(r.content)
+        now = utcnow()
+        published = r.published_at or now
+        if published > now:  # clocks drift and some feeds post-date entries; never show "in 3h"
+            published = now
         item = Item(
             source_id=source.id, kind=r.kind, external_id=ext, title=(r.title or "")[:1000],
-            url=(r.url or "")[:2000], author=(r.author or "")[:250], content=content[:50000],
-            tags=r.tags[:50], published_at=r.published_at or utcnow(), raw=r.raw or {},
+            url=safe_url(r.url), author=(r.author or "")[:250], content=content[:50000],
+            tags=[str(t)[:80] for t in r.tags[:50]], published_at=published, raw=r.raw or {},
         )
         db.add(item)
         db.flush()
-        text = f"{item.title}\n{content}\n{' '.join(r.tags)}"
+        text = f"{item.title}\n{content}\n{' '.join(item.tags)}"
         extracted = extract_all(text, strict=strict)
         for ind in r.indicators:
             extracted.append(Extracted(ind.type, ind.value, ind.display, ind.category, "feed"))
         # tags on intel feeds (e.g. OTX malware_families) often name families directly
-        from ..knowledge import canonical_malware
-
-        for tag in r.tags:
+        for tag in item.tags:
             hit = canonical_malware(tag)
             if hit:
                 extracted.append(Extracted("malware", hit[0].lower(), hit[0], hit[1], "feed"))

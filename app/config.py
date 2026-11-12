@@ -8,9 +8,20 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import threading
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load a local .env (same keys as .env.example) before any env lookup. Real environment
+# variables always win; python-dotenv is optional so a minimal install still works.
+try:  # pragma: no cover - import guard
+    from dotenv import load_dotenv
+
+    load_dotenv(BASE_DIR / ".env", override=False)
+except ImportError:  # pragma: no cover
+    pass
+
 DATA_DIR = Path(os.getenv("JATMP_DATA_DIR", BASE_DIR / "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 CONFIG_PATH = DATA_DIR / "config.json"
@@ -24,29 +35,45 @@ DEFAULT_CONFIG = {
 }
 
 _cache: dict | None = None
+_lock = threading.Lock()
 
 
 def load_config() -> dict:
     global _cache
     if _cache is not None:
         return _cache
-    cfg = dict(DEFAULT_CONFIG)
-    if CONFIG_PATH.exists():
-        try:
-            cfg.update(json.loads(CONFIG_PATH.read_text(encoding="utf-8")))
-        except (OSError, json.JSONDecodeError):
-            pass
-    if not cfg.get("secret_key"):
-        cfg["secret_key"] = secrets.token_urlsafe(48)
-        save_config(cfg)
-    _cache = cfg
+    with _lock:
+        if _cache is not None:
+            return _cache
+        cfg = dict(DEFAULT_CONFIG)
+        if CONFIG_PATH.exists():
+            try:
+                cfg.update(json.loads(CONFIG_PATH.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                pass
+        if not cfg.get("secret_key"):
+            cfg["secret_key"] = secrets.token_urlsafe(48)
+            _write(cfg)
+        _cache = cfg
     return cfg
+
+
+def _write(cfg: dict) -> None:
+    """Atomic write; the file holds the session secret so keep it owner-readable."""
+    tmp = CONFIG_PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    try:
+        os.chmod(tmp, 0o600)
+    except OSError:  # pragma: no cover - Windows / exotic FS
+        pass
+    os.replace(tmp, CONFIG_PATH)
 
 
 def save_config(cfg: dict) -> None:
     global _cache
-    CONFIG_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
-    _cache = cfg
+    with _lock:
+        _write(cfg)
+        _cache = cfg
 
 
 def database_url() -> str:
@@ -65,3 +92,10 @@ def is_installed() -> bool:
 
 def is_multi_user() -> bool:
     return load_config().get("mode") == "multi"
+
+
+def env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")

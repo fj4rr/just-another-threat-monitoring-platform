@@ -13,7 +13,7 @@ from .. import jobs
 from ..auth import LOCAL_USER, ROLES, audit, hash_password, password_problems, require, verify_csrf
 from ..config import DATA_DIR, is_multi_user
 from ..db import get_db
-from ..models import AuditLog, CollectorRun, Entity, Enrichment, Insight, Item, Source, User
+from ..models import AuditLog, CollectorRun, Enrichment, Entity, Insight, Item, Source, User
 from ..web import render
 
 router = APIRouter(prefix="/admin")
@@ -92,6 +92,8 @@ def update_user(user_id: int, request: Request, action: str = Form(...), role: s
         if last_admin or target.id == user.id:
             return RedirectResponse("/admin?error=Cannot+delete+yourself+or+the+last+admin", status_code=303)
         db.delete(target)
+    else:
+        return RedirectResponse("/admin?error=Unknown+action", status_code=303)
     audit(db, user, f"user_{action}", target.username, request)
     db.commit()
     return RedirectResponse("/admin?msg=Updated", status_code=303)

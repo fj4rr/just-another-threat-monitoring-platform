@@ -63,6 +63,7 @@ def main() -> int:
         print("\nOptional API keys (press Enter to skip – you can add them later in Settings):")
         for k, label in (("virustotal_api_key", "VirusTotal"), ("otx_api_key", "AlienVault OTX"),
                          ("urlscan_api_key", "urlscan.io"), ("anyrun_api_key", "ANY.RUN"),
+                         ("threatfox_auth_key", "abuse.ch ThreatFox Auth-Key"),
                          ("x_bearer_token", "X API bearer token")):
             v = getpass.getpass(f"  {label}: ").strip()
             if v:

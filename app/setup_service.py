@@ -47,7 +47,7 @@ def perform_install(
                 db.add(Source(**s))
     for k, v in (api_keys or {}).items():
         if v and k in settings.SCHEMA:
-            settings.set(k, v)
+            settings.set(k, str(v).strip())
     for k, v in (llm or {}).items():
         if k in settings.SCHEMA and v not in (None, ""):
             settings.set(k, settings.coerce_form_value(k, v))
