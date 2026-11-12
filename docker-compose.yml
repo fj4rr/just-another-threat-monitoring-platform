@@ -8,6 +8,11 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      # Set to "1" once the app sits behind a TLS-terminating reverse proxy.
+      JATMP_SECURE_COOKIES: ${JATMP_SECURE_COOKIES:-0}
+      # IPs allowed to set X-Forwarded-* headers (your proxy); "*" trusts everyone.
+      JATMP_FORWARDED_ALLOW_IPS: ${JATMP_FORWARDED_ALLOW_IPS:-127.0.0.1}
     restart: unless-stopped
     # To use Ollama running on the host: set LLM_BASE_URL=http://host.docker.internal:11434
     extra_hosts:

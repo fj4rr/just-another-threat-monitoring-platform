@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 data/
 .env
+.claude/
+.pytest_cache/
+.ruff_cache/

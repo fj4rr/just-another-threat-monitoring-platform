@@ -1,0 +1,43 @@
+[project]
+name = "jatmp"
+version = "0.2.0"
+description = "Just Another Threat Monitoring Platform – self-hosted malware campaign tracking"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["app/static", ".venv", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "N", "C4", "SIM", "RUF"]
+ignore = [
+  "E501",   # long lines in prompts / knowledge tables
+  "S101",   # asserts in tests
+  "S311",   # random used for jitter only
+  "B008",   # FastAPI Depends() in defaults
+  "RUF001", "RUF002", "RUF003",  # typographic punctuation in UI strings
+  "RUF012", "RUF005", "SIM105", "SIM108", "UP007", "N818", "C408", "C416",
+  "S704",   # Markup() wraps markdown-it output rendered with html=False
+
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B", "E402"]
+"manage.py" = ["S"]
+"install.py" = ["S"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
