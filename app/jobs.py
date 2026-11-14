@@ -175,6 +175,7 @@ def run_source(source_id: int, batch_id: str = "") -> str:
             src.last_status, src.last_error = "ok", ""
             src.last_run = utcnow()
             db.commit()
+            _after_ingest(db, new_ids)
             _finish(db, run, "ok", f"fetched {len(raws)}, new {len(new_ids)}", len(new_ids))
             _maybe_auto_summarize(new_ids)
             return f"{src.name}: {len(new_ids)} new / {len(raws)} fetched"
@@ -201,6 +202,22 @@ def run_source(source_id: int, batch_id: str = "") -> str:
             return f"{src.name}: error {e}"
     finally:
         db.close()
+
+
+def _after_ingest(db, new_ids: list[int]) -> None:
+    """Outbound side effects of new items: webhook events and MISP auto-push. Never fails the run."""
+    if not new_ids:
+        return
+    try:
+        from . import webhooks
+
+        if webhooks.on_new_items(db, new_ids):
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        log.warning("webhook events failed: %s", e)
+    if int(settings.get("misp_autopush_min_severity") or 0) > 0:
+        run_now(run_misp_autopush, list(new_ids))
 
 
 def _maybe_auto_summarize(item_ids: list[int]) -> None:
@@ -359,6 +376,33 @@ def run_rescore() -> str:
         db.close()
 
 
+def run_webhooks() -> str:
+    from . import webhooks
+
+    db = SessionLocal()
+    try:
+        return webhooks.deliver_pending(db)
+    finally:
+        db.close()
+
+
+def run_misp_autopush(item_ids: list[int]) -> str:
+    from .intel import misp
+
+    db = SessionLocal()
+    try:
+        return misp.autopush(db, item_ids)
+    except Exception as e:
+        db.rollback()
+        log.warning("MISP auto-push failed: %s", e)
+        notify.notify(db, "error", "MISP auto-push failed", str(e)[:300], "/settings?tab=misp",
+                      key=f"mispfail:{date.today().isoformat()}")
+        db.commit()
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
 def run_housekeeping() -> str:
     days = int(settings.get("retention_days") or 0)
     db = SessionLocal()
@@ -366,6 +410,9 @@ def run_housekeeping() -> str:
         cutoff = utcnow() - timedelta(days=30)
         db.execute(delete(CollectorRun).where(CollectorRun.started_at < cutoff))
         notify.prune(db, 30)
+        from .models import WebhookDelivery
+
+        db.execute(delete(WebhookDelivery).where(WebhookDelivery.created_at < cutoff))
         n = 0
         if days > 0:
             res = db.execute(delete(Item).where(Item.published_at < utcnow() - timedelta(days=days)))
@@ -509,6 +556,7 @@ def start() -> None:
                       id="enrichment", next_run_time=_now() + timedelta(minutes=2), replace_existing=True)
     scheduler.add_job(run_cve_intel, "interval", hours=6, id="cve_intel",
                       next_run_time=_now() + timedelta(minutes=3), replace_existing=True)
+    scheduler.add_job(run_webhooks, "interval", seconds=30, id="webhooks", replace_existing=True)
     scheduler.add_job(run_digest, "cron", hour=6, minute=0, id="digest", replace_existing=True)
     scheduler.add_job(run_housekeeping, "cron", hour=3, minute=30, id="housekeeping", replace_existing=True)
     scheduler.start()

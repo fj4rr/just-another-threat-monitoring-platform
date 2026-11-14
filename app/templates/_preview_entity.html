@@ -34,6 +34,8 @@
   <div class="pv-sec"><h3>AI threat brief</h3><div class="prose small pv-snippet" style="white-space:normal">{{ ent.llm_brief|md }}</div></div>
   {% endif %}
 
+  {% set gn = m.get('greynoise') %}{% if gn and (gn.riot or gn.noise) %}
+  <p class="small" style="margin:10px 0 0">{% if gn.riot %}<span class="badge good">benign service</span> GreyNoise knows this as a legitimate business service.{% else %}<span class="badge warn">mass scanner</span> GreyNoise sees this IP scanning the whole internet: opportunistic, not targeted.{% endif %}</p>{% endif %}
   {% if enrichments %}
   <div class="pv-sec"><h3>Threat-intel providers</h3>
     <ul class="pv-list">{% for e in enrichments %}

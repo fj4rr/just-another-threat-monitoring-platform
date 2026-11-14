@@ -9,11 +9,11 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .. import jobs
+from .. import apikeys, jobs
 from ..auth import LOCAL_USER, ROLES, audit, hash_password, password_problems, require, verify_csrf
 from ..config import DATA_DIR, is_multi_user
 from ..db import get_db
-from ..models import AuditLog, CollectorRun, Enrichment, Entity, Insight, Item, Source, User
+from ..models import ApiKey, AuditLog, CollectorRun, Enrichment, Entity, Insight, Item, Source, User
 from ..web import render
 
 router = APIRouter(prefix="/admin")
@@ -45,7 +45,10 @@ def admin_home(request: Request, msg: str = "", error: str = "", user: User = De
     by_role = {r: sum(1 for u in users if u.role == r) for r in ROLES}
     return render(request, "admin.html", {"user": user, "users": users, "runs": runs, "logs": logs,
                                           "stats": stats, "roles": ROLES, "src_names": src_names,
-                                          "by_role": by_role, "msg": msg, "error": error})
+                                          "by_role": by_role, "msg": msg, "error": error,
+                                          "api_keys": db.execute(select(ApiKey).order_by(ApiKey.created_at.desc())
+                                                                 .limit(200)).scalars().all(),
+                                          "key_status": apikeys.status})
 
 
 @router.post("/users", dependencies=[Depends(_multi_only), Depends(verify_csrf)])

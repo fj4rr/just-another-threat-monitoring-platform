@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from .base import Collector, SkipCollector
 from .bluesky import BlueskyCollector
-from .intel import AnyRunCollector, OTXCollector, ThreatFoxCollector, URLScanCollector
+from .intel import AnyRunCollector, OTXCollector, RansomwareLiveCollector, ThreatFoxCollector, URLScanCollector
 from .mastodon import MastodonCollector
+from .misp import MISPCollector
 from .rss import RSSCollector
 from .x_twitter import XCollector
 
@@ -12,7 +13,7 @@ __all__ = ["DEFAULT_SOURCES", "REGISTRY", "Collector", "SkipCollector", "source_
 REGISTRY: dict[str, type[Collector]] = {
     c.kind: c
     for c in (RSSCollector, BlueskyCollector, MastodonCollector, XCollector, OTXCollector,
-              URLScanCollector, AnyRunCollector, ThreatFoxCollector)
+              URLScanCollector, AnyRunCollector, ThreatFoxCollector, RansomwareLiveCollector, MISPCollector)
 }
 
 
@@ -113,6 +114,12 @@ DEFAULT_SOURCES: list[dict] = [
      "config": {"query": 'threatName:"lumma"', "depth": "7"}},
     {"name": "ThreatFox recent IOCs", "kind": "threatfox", "category": "intel", "interval_minutes": 180,
      "config": {}},
+    # Disabled by default: the keyless ransomware.live API is for personal use only. Add a free PRO key
+    # (Settings -> Threat-intel APIs) before enabling it in an organisation.
+    {"name": "ransomware.live recent victims", "kind": "ransomwarelive", "category": "intel", "interval_minutes": 60,
+     "enabled": False, "config": {"mode": "recent"}},
+    {"name": "ransomware.live victims in Indonesia", "kind": "ransomwarelive", "category": "intel",
+     "interval_minutes": 180, "enabled": False, "config": {"country": "ID"}},
 ]
 
 

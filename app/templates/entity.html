@@ -6,6 +6,7 @@
   <div style="min-width:0">
     <div class="row small muted"><span class="badge">{{ ent.type }}</span>{% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
       {% if is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
+      {% set gn = (ent.meta or {}).get('greynoise') %}{% if gn and gn.riot %}<span class="badge good" title="GreyNoise RIOT: known benign business service">benign service</span>{% elif gn and gn.noise %}<span class="badge warn" title="GreyNoise: seen mass-scanning the internet (opportunistic, not targeted)">mass scanner</span>{% endif %}
       first seen {{ ent.first_seen.strftime('%Y-%m-%d') }} · last seen {{ ent.last_seen|timeago }} · {{ ent.mention_count }} mention(s)</div>
     <h1 class="{{ 'mono' if is_ioc else '' }}" style="margin-top:6px;word-break:break-all">{{ ent.display }}</h1>
   </div>
@@ -13,6 +14,12 @@
     <button class="btn" data-post="/api/watch/{{ ent.id }}" data-watching="{{ 'true' if watching else 'false' }}" aria-pressed="{{ 'true' if watching else 'false' }}">{{ '★ Watching' if watching else '☆ Watch' }}</button>
     {% if user.role in ('admin','analyst') and (is_ioc or ent.type == 'malware') %}
     <button class="btn" data-post="/api/entities/{{ ent.id }}/enrich" data-busy="Enriching…" data-reload>⇄ Enrich now</button>{% endif %}
+    {% if user.role in ('admin','analyst') and (ent.type == 'actor' or (ent.type == 'malware' and ent.category in ('ransomware', '')) or ent.type == 'domain') %}
+    <button class="btn" data-post="/api/entities/{{ ent.id }}/deepdive" data-busy="Looking up…" data-reload
+      title="{{ 'Infostealer exposure of this domain (Hudson Rock)' if ent.type == 'domain' else 'Leak-site victims, countries and exploited CVEs (ransomware.live)' }}">🔎 Deep dive</button>{% endif %}
+    {% if misp_configured() and user.role in ('admin','analyst') and ent.type in ('malware','actor') %}
+    {% set mp = (ent.meta or {}).get('misp_pushed') %}
+    <button class="btn" data-post="/api/misp/push/entity/{{ ent.id }}" data-busy="Sending…" title="{{ 'Already sent as MISP event #' ~ mp.id if mp else 'Create a MISP event with the shareable indicators' }}">⇪ {{ 'In MISP #' ~ mp.id if mp else 'Send to MISP' }}</button>{% endif %}
     <a class="btn" href="/feed?entity={{ ent.id }}&days=0">All items →</a>
   </div>
 </div>
@@ -55,12 +62,13 @@
     </div>
     {% endif %}
 
+    {% include "_darkweb_cards.html" %}
     {% if enrichments %}
     <div class="card">
       <h2>Threat-intel enrichment</h2>
       <div class="table-wrap"><table>
         <thead><tr><th>Provider</th><th>Verdict</th><th>Summary</th><th>Checked</th></tr></thead>
-        <tbody>{% for e in enrichments %}
+        <tbody>{% for e in enrichments if e.provider not in ('ransomware.live', 'hudsonrock') %}
           <tr><td>{% if e.permalink %}<a href="{{ e.permalink|safe_href }}" target="_blank" rel="noopener noreferrer">{{ e.provider }} ↗</a>{% else %}{{ e.provider }}{% endif %}</td>
             <td>{{ verdict(e.verdict) }}</td>
             <td>{{ e.summary }}

@@ -10,17 +10,32 @@ from ..auth import audit, require, verify_csrf
 from ..collectors import REGISTRY
 from ..db import get_db
 from ..models import Source, User
+from ..sharing import norm_tlp
 from ..web import render
 
 router = APIRouter(prefix="/settings")
 
 
-@router.get("")
-def settings_page(request: Request, tab: str = "sources", msg: str = "", user: User = Depends(require("admin")),
-                  db: Session = Depends(get_db)):
+def settings_ctx(db: Session, user: User, tab: str, msg: str = "") -> dict:
     sources = db.execute(select(Source).order_by(Source.category, Source.kind, Source.name)).scalars().all()
     kinds = {k: {"label": c.label, "category": c.category, "fields": c.fields} for k, c in REGISTRY.items()}
     ctx = {"user": user, "tab": tab, "msg": msg, "sources": sources, "kinds": kinds, "settings": settings.all_for_ui()}
+    if tab == "intel":
+        from ..processing.enrichment import PROVIDER_CLASSES, available_providers
+
+        configured = {p.name for p in available_providers()}
+        ctx["providers"] = [(c.name, c.name in configured) for c in PROVIDER_CLASSES]
+    if tab == "webhooks":
+        from .webhooks_routes import webhooks_ctx
+
+        ctx.update(webhooks_ctx(db))
+    return ctx
+
+
+@router.get("")
+def settings_page(request: Request, tab: str = "sources", msg: str = "", user: User = Depends(require("admin")),
+                  db: Session = Depends(get_db)):
+    ctx = settings_ctx(db, user, tab, msg)
     if tab == "llm":
         from ..llm import presets
 
@@ -155,6 +170,10 @@ async def update_source(source_id: int, request: Request, user: User = Depends(r
         new_cfg = _source_config_from_form(src.kind, form)
         keep = {k: v for k, v in (src.config or {}).items() if k not in dict.fromkeys(n for n, _, _ in REGISTRY[src.kind].fields)}
         src.config = {**keep, **new_cfg}
+        if "tlp" in form:
+            src.tlp = norm_tlp(form.get("tlp"))
+        if "redistribute" in form:
+            src.redistribute = {"1": True, "0": False}.get(str(form.get("redistribute")))
     audit(db, user, "source_updated", f"{src.name} ({action})", request)
     db.commit()
     jobs.schedule_source(src)

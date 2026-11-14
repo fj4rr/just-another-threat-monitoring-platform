@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from .. import settings
 from ..intel import LookupResult, NotConfigured
-from ..intel.clients import OTX, AnyRun, URLScan, VirusTotal
+from ..intel.clients import OTX, AbuseIPDB, AnyRun, GreyNoise, MalwareBazaar, URLhaus, URLScan, VirusTotal
 from ..knowledge import AMBIGUOUS, canonical_malware
 from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, utcnow
 from .extractor import Extracted
@@ -35,9 +35,15 @@ RECHECK_ERROR_AFTER = timedelta(hours=6)
 RECHECK_MAX_AGE = timedelta(days=21)
 
 
+PROVIDER_CLASSES = (VirusTotal, OTX, URLScan, AnyRun, MalwareBazaar, URLhaus, GreyNoise, AbuseIPDB)
+# Providers whose verdicts alone are weak evidence: a GreyNoise "benign service" / "benign scanner"
+# answer overrides them (OTX pulses and AbuseIPDB reports often include scanners and CDNs).
+NOISY_PROVIDERS = {"otx", "abuseipdb", "urlscan"}
+
+
 def available_providers() -> list:
     out = []
-    for cls in (VirusTotal, OTX, URLScan, AnyRun):
+    for cls in PROVIDER_CLASSES:
         try:
             out.append(cls())
         except NotConfigured:
@@ -93,12 +99,21 @@ def _consensus(entity: Entity, results: list[LookupResult]) -> str:
     verdict, except that a lone OTX pulse mention is only *suspicious* unless pulses attribute
     a family (OTX pulses include plenty of benign infrastructure)."""
     best = entity.verdict or ""
+    gn = next((r for r in results if r.provider == "greynoise"), None)
+    benign = bool(gn and gn.verdict == "clean")
     for res in results:
         v = res.verdict
         if res.provider == "otx" and v == "malicious" and not res.malware and (res.data.get("pulse_count") or 0) < 5:
             v = "suspicious"
+        # GreyNoise says this IP is a known benign service / scanner: weak signals don't count
+        if benign and res.provider in NOISY_PROVIDERS and v in ("malicious", "suspicious"):
+            continue
         if VERDICT_RANK.get(v, 0) > VERDICT_RANK.get(best, 0):
             best = v
+    if benign and best in ("", "unknown", "suspicious") and not any(
+            r.verdict in ("malicious", "suspicious") and r.provider not in NOISY_PROVIDERS | {"greynoise"}
+            for r in results):
+        best = "clean"
     return best
 
 
@@ -139,6 +154,9 @@ def enrich_entity(db: Session, entity: Entity, providers: list | None = None) ->
             continue
         results.append(res)
         _upsert(db, entity, res)
+        if res.provider == "greynoise":  # badges on IOC pages / previews ("mass scanner", "benign service")
+            entity.meta = {**(entity.meta or {}), "greynoise": {k: res.data.get(k) for k in
+                                                               ("noise", "riot", "classification", "name")}}
         for label in res.malware[:5]:
             fam = resolve_family(label)
             if fam:
@@ -152,6 +170,11 @@ def enrich_entity(db: Session, entity: Entity, providers: list | None = None) ->
     if results:
         new = _consensus(entity, results) or "unknown"
         entity.verdict = new
+        if new == "malicious" and old != "malicious":
+            from .. import webhooks
+
+            db.flush()
+            webhooks.on_ioc_malicious(db, entity)
         n = _bump_items(db, entity, old, new)
         if n:
             msgs.append(f"severity raised on {n} item(s)")

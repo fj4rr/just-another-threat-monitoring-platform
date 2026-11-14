@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import Entity, Item, ItemEntity, Source, utcnow
+from ..sharing import norm_tlp
 from .extractor import Extracted, extract_all
 from .severity import reasons_to_json, score_item
 
@@ -129,6 +130,7 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None) -> l
             source_id=source.id, kind=r.kind, external_id=ext, title=(r.title or "")[:1000],
             url=safe_url(r.url), author=(r.author or "")[:250], content=content[:50000],
             tags=[str(t)[:80] for t in r.tags[:50]], published_at=published, raw=r.raw or {},
+            tlp=norm_tlp((r.raw or {}).get("tlp")),
         )
         db.add(item)
         db.flush()

@@ -17,7 +17,14 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "urlscan_api_key": ("", "URLSCAN_API_KEY", "urlscan.io API key", "secret", "intel"),
     "anyrun_api_key": ("", "ANYRUN_API_KEY", "ANY.RUN API key (TI Lookup)", "secret", "intel"),
     "anyrun_api_base": ("https://api.any.run/v1", "ANYRUN_API_BASE", "ANY.RUN API base URL", "text", "intel"),
-    "threatfox_auth_key": ("", "ABUSECH_AUTH_KEY", "abuse.ch Auth-Key (ThreatFox, optional)", "secret", "intel"),
+    "threatfox_auth_key": ("", "ABUSECH_AUTH_KEY", "abuse.ch Auth-Key (ThreatFox, MalwareBazaar, URLhaus; free)",
+                           "secret", "intel"),
+    "greynoise_api_key": ("", "GREYNOISE_API_KEY", "GreyNoise Community API key (free)", "secret", "intel"),
+    "abuseipdb_api_key": ("", "ABUSEIPDB_API_KEY", "AbuseIPDB API key (free)", "secret", "intel"),
+    "ransomwarelive_api_key": ("", "RANSOMWARELIVE_API_KEY",
+                               "ransomware.live PRO API key (free; required for organisational use)", "secret", "intel"),
+    "hudsonrock_api_key": ("", "HUDSONROCK_API_KEY", "Hudson Rock Cavalier API key (free; infostealer statistics)",
+                           "secret", "intel"),
     "nvd_api_key": ("", "NVD_API_KEY", "NVD API key (optional, faster CVSS lookups)", "secret", "intel"),
     # Social
     "x_bearer_token": ("", "X_BEARER_TOKEN", "X (Twitter) API v2 bearer token", "secret", "social"),
@@ -27,6 +34,8 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "enrichment_batch": (8, "", "Entities enriched per run", "int", "enrichment"),
     "vt_daily_budget": (400, "", "VirusTotal lookups per day (free tier = 500)", "int", "enrichment"),
     "vt_min_interval": (16, "", "Seconds between VirusTotal calls (free tier = 4/min)", "int", "enrichment"),
+    "greynoise_daily_budget": (40, "", "GreyNoise lookups per day (community tier is small)", "int", "enrichment"),
+    "abuseipdb_daily_budget": (900, "", "AbuseIPDB lookups per day (free tier = 1000)", "int", "enrichment"),
     "enrich_families": (True, "", "Pull IOCs for trending malware families from OTX / ANY.RUN", "bool", "enrichment"),
     "cve_intel_enabled": (True, "", "CVE context every 6 h: CISA KEV, FIRST EPSS and NVD CVSS (free, no key)", "bool",
                           "enrichment"),
@@ -41,6 +50,26 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "llm_auto_extract": (True, "", "Let the LLM discover malware families not in the knowledge base", "bool", "llm"),
     "llm_daily_digest": (True, "", "Generate a daily AI digest", "bool", "llm"),
     "llm_language": ("English", "", "Language for AI output (e.g. English, Bahasa Indonesia)", "text", "llm"),
+    # Sharing: what may leave JATMP through the REST API, exports, webhooks and MISP
+    "api_max_tlp": ("GREEN", "", "Highest TLP shared through the API, exports, webhooks and MISP",
+                    "select:CLEAR,GREEN,AMBER,RED", "sharing"),
+    "api_share_provider_details": (False, "", "Include third-party provider verdicts in API output (check their terms)",
+                                   "bool", "sharing"),
+    "api_rate_limit": (120, "", "API requests per minute per key", "int", "sharing"),
+    "public_base_url": ("", "JATMP_PUBLIC_URL", "Public base URL used in webhook / MISP links (e.g. https://jatmp.example.org)",
+                        "text", "sharing"),
+    "webhook_min_severity": (70, "", "Webhooks: minimum severity for the new-item event", "int", "sharing"),
+    "webhooks_allow_private": (False, "", "Webhooks: allow private / loopback target addresses (SSRF risk)", "bool",
+                               "sharing"),
+    # MISP
+    "misp_url": ("", "MISP_URL", "MISP base URL", "text", "misp"),
+    "misp_api_key": ("", "MISP_API_KEY", "MISP automation key", "secret", "misp"),
+    "misp_verify_tls": (True, "", "Verify the MISP TLS certificate", "bool", "misp"),
+    "misp_distribution": ("0", "", "Distribution of pushed events (0 = your organisation only, 1 = this community, "
+                          "2 = connected communities, 3 = all, 4 = sharing group)", "select:0,1,2,3,4", "misp"),
+    "misp_sharing_group_id": (0, "", "Sharing group id (distribution 4 only)", "int", "misp"),
+    "misp_autopush_min_severity": (0, "", "Push new items to MISP automatically at or above this severity (0 = off)",
+                                   "int", "misp"),
     # Housekeeping
     "retention_days": (180, "", "Delete items older than N days (0 = keep forever)", "int", "general"),
 }
@@ -52,6 +81,12 @@ INT_BOUNDS: dict[str, tuple[int, int]] = {
     "vt_daily_budget": (0, 100_000),
     "vt_min_interval": (0, 3600),
     "retention_days": (0, 3650),
+    "greynoise_daily_budget": (0, 100_000),
+    "abuseipdb_daily_budget": (0, 100_000),
+    "api_rate_limit": (1, 100_000),
+    "webhook_min_severity": (0, 100),
+    "misp_sharing_group_id": (0, 1_000_000),
+    "misp_autopush_min_severity": (0, 100),
 }
 
 # Small read cache: settings are consulted many times per request and by every collector

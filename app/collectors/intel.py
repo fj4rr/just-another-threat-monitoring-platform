@@ -171,3 +171,49 @@ class ThreatFoxCollector(Collector):
                 indicators=inds,
             ))
         return out
+
+
+class RansomwareLiveCollector(Collector):
+    """Leak-site victim posts via ransomware.live (an aggregator; JATMP never visits leak sites)."""
+
+    kind = "ransomwarelive"
+    category = "intel"
+    label = "ransomware.live leak-site victims"
+    fields = [("country", "Only victims in this country (ISO-2 code, optional)", "ID"),
+              ("group", "Only this group (optional)", "akira")]
+
+    def fetch(self) -> list[RawItem]:
+        from ..intel.darkweb import RansomwareLive
+
+        rl = RansomwareLive()
+        if self.cfg.get("country"):
+            victims = rl.country_victims(str(self.cfg["country"]))
+        elif self.cfg.get("group"):
+            victims = rl.group_victims(str(self.cfg["group"]).lower())
+        else:
+            victims = rl.recent_victims()
+        cutoff = (self.source.last_run or utcnow() - timedelta(days=14)) - timedelta(days=2)
+        out = []
+        for v in victims:
+            if not v["victim"] or not v["group"]:
+                continue
+            when = parse_dt(v["discovered"] or v["attackdate"])
+            if when and when < cutoff and (self.cfg.get("country") or self.cfg.get("group")):
+                continue  # country / group lists return the full history; only keep fresh posts
+            # the victim's website is deliberately kept out of the text: it is the victim, not an indicator
+            body = "\n".join(filter(None, [
+                f"Ransomware group {v['group']} listed {v['victim']} on its leak site.",
+                f"Country: {v['country']}" if v["country"] else "",
+                f"Sector: {v['sector']}" if v["sector"] else "",
+                f"Attack date (claimed): {v['attackdate'][:10]}" if v["attackdate"] else "",
+            ]))
+            out.append(RawItem(
+                external_id=v["id"] or f"{v['group']}:{v['victim']}"[:500],
+                title=f"{v['group']} claims {v['victim']}",
+                url=v["permalink"] or f"https://www.ransomware.live/group/{v['group']}",
+                author="ransomware.live", content=body, published_at=when, kind="post",
+                tags=[v["group"], "leak-site"] + ([f"country:{v['country']}"] if v["country"] else []),
+                raw={"victim": v["victim"], "group": v["group"], "country": v["country"], "sector": v["sector"],
+                     "website": v["website"], "api": "pro" if rl.pro else "free"},
+            ))
+        return out

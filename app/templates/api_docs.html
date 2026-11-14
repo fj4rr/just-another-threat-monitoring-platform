@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}API reference{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>REST API v1</h1>
+  <p class="muted">Read-only, versioned API for SIEMs, firewalls, TIPs and scripts · <a href="/api/v1/openapi.json">OpenAPI JSON</a></p></div>
+  <a class="btn" href="/profile#api-keys">Manage API keys →</a></div>
+
+<div class="grid g-2" style="margin-bottom:16px">
+  <div class="card prose small">
+    <h2>Authentication</h2>
+    <p>Create a key under <a href="/profile#api-keys">Profile → API keys</a> and send it with every request:</p>
+    <pre class="mono small">curl -H "Authorization: Bearer jatmp_xxxxxxxx_…" \
+     "{{ base }}/api/v1/items?min_severity=60&amp;limit=50"</pre>
+    <p>Scopes: <code>read</code> for the endpoints below, <code>export</code> for the IOC feeds. Each key is limited to a number of requests per minute (HTTP 429 with <code>Retry-After</code> above it). Browser sessions work too.</p>
+  </div>
+  <div class="card prose small">
+    <h2>Polling and sharing rules</h2>
+    <p>List endpoints return <code>next_cursor</code>; pass it back as <code>cursor</code> for the next page. To fetch only new data, poll with <code>since=&lt;ISO-8601 UTC&gt;</code> (items: collection time; entities and IOCs: last seen).</p>
+    <p>Only data allowed by the sharing rules leaves JATMP: items up to the configured maximum TLP, never items from sources marked “not shared” (e.g. ANY.RUN), and third-party provider details only when an admin enabled them. Verdicts are JATMP's own consensus.</p>
+    <p>Blocklist for a firewall or proxy (one value per line):</p>
+    <pre class="mono small">{{ base }}/api/v1/feeds/iocs.txt?type=domain,url&amp;verdict=malicious&amp;since_days=30</pre>
+  </div>
+</div>
+
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Endpoint</th><th>Parameters</th></tr></thead>
+    <tbody>
+    {% for e in endpoints %}
+    <tr><td style="min-width:280px"><span class="badge">{{ e.method }}</span> <code class="mono">{{ e.path }}</code><div class="small muted" style="margin-top:4px">{{ e.summary }}</div></td>
+      <td class="small">{% for p in e.params %}<div><code>{{ p.name }}</code>{% if p.required %} <span class="badge warn">required</span>{% endif %} <span class="muted">{{ p.type }}{% if p.description %} · {{ p.description }}{% endif %}</span></div>{% else %}<span class="muted">–</span>{% endfor %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

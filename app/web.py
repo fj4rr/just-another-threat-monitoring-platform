@@ -46,6 +46,14 @@ templates.env.filters["timeago"] = timeago
 templates.env.filters["safe_href"] = safe_href
 templates.env.globals["version"] = __version__
 
+def _misp_configured() -> bool:
+    from . import settings
+
+    return bool(settings.get("misp_url") and settings.get("misp_api_key"))
+
+
+templates.env.globals["misp_configured"] = _misp_configured
+
 VERDICT_CLASS = {"malicious": "crit", "suspicious": "warn", "clean": "good", "unknown": "muted", "": "muted"}
 templates.env.globals["verdict_class"] = lambda v: VERDICT_CLASS.get(v or "", "muted")
 

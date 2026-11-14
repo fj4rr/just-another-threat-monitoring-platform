@@ -60,6 +60,20 @@
   </div>
 </div>
 
+<div class="card table-wrap" id="api-keys" style="margin-top:16px">
+  <div class="card-head"><h2>API keys</h2><a class="small" href="/api/v1/docs">API reference →</a></div>
+  <table class="small">
+    <thead><tr><th>User</th><th>Name</th><th>Key</th><th>Scopes</th><th>Last used</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for k in api_keys %}{% set st = key_status(k) %}
+      <tr class="{{ 'is-disabled' if st != 'active' }}"><td>{{ k.user.username if k.user else '#' ~ k.user_id }}</td><td>{{ k.name }}</td>
+        <td class="mono">jatmp_{{ k.prefix }}_…</td><td>{{ k.scopes|join(', ') }}</td>
+        <td class="muted">{{ k.last_used_at|timeago if k.last_used_at else 'never' }} {{ k.last_used_ip }}</td><td>{{ st }}</td>
+        <td class="actions">{% if st == 'active' %}<form method="post" action="/profile/api-keys/{{ k.id }}/revoke" data-confirm="Revoke {{ k.name }} of {{ k.user.username if k.user else 'this user' }}?">
+          <input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn sm danger">Revoke</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="7" class="empty">No API keys.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+
 <div class="grid g-2" style="margin-top:16px">
   <div class="card table-wrap">
     <div class="card-head"><h2>Job runs</h2><span class="muted small">latest 60</span></div>

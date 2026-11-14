@@ -118,6 +118,14 @@ class VirusTotal:
             res.summary += f" · family: {', '.join(res.malware[:3])}"
         return res
 
+    def test(self) -> str:
+        with _client({"x-apikey": self.key}) as c:
+            r = c.get(f"{self.BASE}/users/{self.key}/overall_quotas")
+        if r.status_code in (401, 403):
+            raise RuntimeError(f"VirusTotal rejected the key ({r.status_code})")
+        r.raise_for_status()
+        return "VirusTotal reachable, key accepted (no lookup quota used)"
+
 
 # --------------------------------------------------------------------------- AlienVault OTX
 class OTX:
@@ -139,6 +147,10 @@ class OTX:
             r = c.get(f"{self.BASE}/{path}", params=params)
         r.raise_for_status()
         return r.json()
+
+    def test(self) -> str:
+        me = self._get("user/me")
+        return f"OTX reachable, key accepted ({me.get('username') or 'user'})"
 
     def subscribed(self, since_iso: str | None = None, limit: int = 50) -> list[dict]:
         params = {"limit": limit}
@@ -229,6 +241,10 @@ class URLScan:
         r.raise_for_status()
         return r.json().get("results", [])
 
+    def test(self) -> str:
+        self.search("domain:example.com", size=1)
+        return "urlscan.io reachable, key accepted"
+
     def lookup(self, etype: str, value: str) -> LookupResult | None:
         q = {"domain": f"page.domain:{value}", "ip": f"page.ip:\"{value}\"",
              "url": f"page.url:\"{value}\"", "sha256": f"hash:{value}"}.get(etype)
@@ -292,6 +308,14 @@ class AnyRun:
             raise RuntimeError(f"ANY.RUN rejected the key ({r.status_code}); TI Lookup plan required")
         r.raise_for_status()
         return r.json()
+
+    def test(self) -> str:
+        with _client({"Authorization": f"API-Key {self.key}"}) as c:
+            r = c.get(f"{self.base}/user")
+        if r.status_code in (401, 403):
+            raise RuntimeError(f"ANY.RUN rejected the key ({r.status_code})")
+        r.raise_for_status()
+        return "ANY.RUN reachable, key accepted"
 
     @staticmethod
     def _related_iocs(data: dict, limit: int = 100):
@@ -373,3 +397,253 @@ class ThreatFox:
         if data.get("query_status") != "ok":
             return []
         return data.get("data") or []
+
+    def search_ioc(self, term: str) -> list[dict]:
+        with _client({"Auth-Key": self.key}) as c:
+            r = c.post(self.BASE, json={"query": "search_ioc", "search_term": term})
+        r.raise_for_status()
+        data = r.json()
+        return data.get("data") if isinstance(data.get("data"), list) else []
+
+    def test(self) -> str:
+        self.search_ioc("example.com")
+        return "ThreatFox reachable, Auth-Key accepted"
+
+
+# --------------------------------------------------------------------------- MalwareBazaar (abuse.ch)
+class MalwareBazaar:
+    """Hash -> family / tags. Everything MalwareBazaar holds is malware, so a hit is *malicious*."""
+
+    name = "malwarebazaar"
+    BASE = "https://mb-api.abuse.ch/api/v1/"
+    supports = {"md5", "sha1", "sha256"}
+
+    def __init__(self):
+        self.key = settings.get("threatfox_auth_key")
+        if not self.key:
+            raise NotConfigured("abuse.ch Auth-Key not set")
+
+    def _post(self, data: dict) -> dict:
+        throttle.wait(self.name, 1)
+        with _client({"Auth-Key": self.key}) as c:
+            r = c.post(self.BASE, data=data)
+        if r.status_code in (401, 403):
+            raise RuntimeError(f"abuse.ch rejected the Auth-Key ({r.status_code})")
+        r.raise_for_status()
+        return r.json()
+
+    def lookup(self, etype: str, value: str) -> LookupResult | None:
+        if etype not in self.supports:
+            return None
+        data = self._post({"query": "get_info", "hash": value})
+        if data.get("query_status") != "ok" or not data.get("data"):
+            return LookupResult(self.name, "unknown", 0, "Not in MalwareBazaar",
+                                f"https://bazaar.abuse.ch/browse.php?search={value}")
+        s = data["data"][0]
+        sig = s.get("signature") or ""
+        parts = ["Sample in MalwareBazaar"]
+        if sig:
+            parts.append(f"family: {sig}")
+        if s.get("file_type"):
+            parts.append(str(s["file_type"]))
+        res = LookupResult(self.name, "malicious", 100, " · ".join(parts),
+                           f"https://bazaar.abuse.ch/sample/{s.get('sha256_hash') or value}/")
+        if sig:
+            res.malware.append(sig)
+        res.tags = [str(t) for t in (s.get("tags") or [])][:20]
+        res.data = {k: s.get(k) for k in ("file_name", "file_type", "file_size", "first_seen", "last_seen",
+                                          "delivery_method", "reporter", "origin_country", "sha256_hash")}
+        for h in ("sha256_hash", "sha1_hash", "md5_hash"):
+            kind = h.split("_")[0]
+            if s.get(h) and kind != etype:
+                ex = make_ioc(s[h], kind)
+                if ex:
+                    res.related.append(ex)
+        return res
+
+    def test(self) -> str:
+        self._post({"query": "get_recent", "selector": "time"})
+        return "MalwareBazaar reachable, Auth-Key accepted"
+
+
+# --------------------------------------------------------------------------- URLhaus (abuse.ch)
+class URLhaus:
+    name = "urlhaus"
+    BASE = "https://urlhaus-api.abuse.ch/v1/"
+    supports = {"url", "domain", "ip", "md5", "sha256"}
+
+    def __init__(self):
+        self.key = settings.get("threatfox_auth_key")
+        if not self.key:
+            raise NotConfigured("abuse.ch Auth-Key not set")
+
+    def _post(self, path: str, data: dict) -> dict:
+        throttle.wait(self.name, 1)
+        with _client({"Auth-Key": self.key}) as c:
+            r = c.post(self.BASE + path, data=data)
+        if r.status_code in (401, 403):
+            raise RuntimeError(f"abuse.ch rejected the Auth-Key ({r.status_code})")
+        r.raise_for_status()
+        return r.json()
+
+    def lookup(self, etype: str, value: str) -> LookupResult | None:
+        if etype not in self.supports:
+            return None
+        if etype == "url":
+            d = self._post("url/", {"url": value})
+        elif etype in ("domain", "ip"):
+            d = self._post("host/", {"host": value})
+        else:
+            d = self._post("payload/", {f"{etype}_hash": value})
+        if d.get("query_status") != "ok":
+            return LookupResult(self.name, "unknown", 0, "Not listed on URLhaus", "https://urlhaus.abuse.ch/browse/")
+        ref = d.get("urlhaus_reference") or "https://urlhaus.abuse.ch/browse/"
+        if etype == "url":
+            online = d.get("url_status") == "online"
+            res = LookupResult(self.name, "malicious", 90 if online else 70,
+                               f"Malware URL ({d.get('url_status') or '?'}) · threat: {d.get('threat') or 'n/a'}", ref)
+            res.tags = [str(t) for t in (d.get("tags") or [])][:20]
+            res.malware = sorted({p.get("signature") for p in d.get("payloads") or [] if p.get("signature")})[:5]
+            res.data = {"status": d.get("url_status"), "threat": d.get("threat"), "date_added": d.get("date_added"),
+                        "host": d.get("host"), "payloads": len(d.get("payloads") or [])}
+            for p in (d.get("payloads") or [])[:5]:
+                ex = make_ioc(p.get("response_sha256") or "", "sha256")
+                if ex:
+                    res.related.append(ex)
+            return res
+        if etype in ("domain", "ip"):
+            urls = d.get("urls") or []
+            online = [u for u in urls if u.get("url_status") == "online"]
+            verdict = "malicious" if online else "suspicious" if urls else "unknown"
+            res = LookupResult(self.name, verdict, 90 if online else 50 if urls else 0,
+                               f"{d.get('url_count') or len(urls)} malware URL(s) on this host, {len(online)} online",
+                               ref)
+            res.tags = sorted({t for u in urls for t in (u.get("tags") or [])})[:20]
+            res.data = {"url_count": d.get("url_count"), "blacklists": d.get("blacklists"),
+                        "firstseen": d.get("firstseen"),
+                        "urls": [{"url": u.get("url"), "status": u.get("url_status"), "threat": u.get("threat")}
+                                 for u in urls[:10]]}
+            return res
+        sig = d.get("signature") or ""
+        summary = f"Payload served by {d.get('url_count') or 0} malware URL(s)"
+        if sig:
+            summary += f" · family: {sig}"
+        res = LookupResult(self.name, "malicious", 100, summary, ref)
+        if sig:
+            res.malware.append(sig)
+        res.data = {"file_type": d.get("file_type"), "firstseen": d.get("firstseen"), "url_count": d.get("url_count")}
+        return res
+
+    def test(self) -> str:
+        self._post("host/", {"host": "example.com"})
+        return "URLhaus reachable, Auth-Key accepted"
+
+
+# --------------------------------------------------------------------------- GreyNoise Community
+class GreyNoise:
+    """Is an IP internet background noise (mass scanner) or a known benign service (RIOT)?
+    Used by the consensus as a false-positive filter rather than as a malicious signal."""
+
+    name = "greynoise"
+    BASE = "https://api.greynoise.io/v3/community/"
+    supports = {"ip"}
+
+    def __init__(self):
+        self.key = settings.get("greynoise_api_key")
+        if not self.key:
+            raise NotConfigured("GreyNoise API key not set")
+
+    def _get(self, ip: str) -> httpx.Response:
+        throttle.wait(self.name, 2)
+        with _client({"key": self.key}) as c:
+            r = c.get(self.BASE + ip)
+        if r.status_code in (401, 403):
+            raise RuntimeError(f"GreyNoise rejected the key ({r.status_code})")
+        if r.status_code == 429:
+            raise RuntimeError("GreyNoise rate limit (429)")
+        return r
+
+    def lookup(self, etype: str, value: str) -> LookupResult | None:
+        if etype != "ip":
+            return None
+        if not _budget_ok(self.name, int(settings.get("greynoise_daily_budget") or 0)):
+            raise RuntimeError("GreyNoise daily budget exhausted")
+        r = self._get(value)
+        link = f"https://viz.greynoise.io/ip/{value}"
+        if r.status_code == 404:
+            return LookupResult(self.name, "unknown", 0, "Not seen scanning the internet (not noise)", link,
+                                data={"noise": False, "riot": False})
+        r.raise_for_status()
+        d = r.json()
+        noise, riot, cls = bool(d.get("noise")), bool(d.get("riot")), str(d.get("classification") or "").lower()
+        if riot:
+            verdict, summary = "clean", f"Known benign service ({d.get('name') or 'RIOT'})"
+        elif noise and cls == "benign":
+            verdict, summary = "clean", f"Benign internet scanner ({d.get('name') or 'unknown'})"
+        elif noise and cls == "malicious":
+            verdict, summary = "suspicious", "Mass scanner classified malicious (opportunistic, not targeted)"
+        elif noise:
+            verdict, summary = "unknown", "Internet background noise (mass scanning)"
+        else:
+            verdict, summary = "unknown", "Not seen scanning the internet"
+        res = LookupResult(self.name, verdict, 50 if verdict == "suspicious" else 0, summary, d.get("link") or link)
+        res.data = {"noise": noise, "riot": riot, "classification": cls, "name": d.get("name"),
+                    "last_seen": d.get("last_seen")}
+        res.tags = [t for t, on in (("mass-scanner", noise), ("benign-service", riot)) if on]
+        return res
+
+    def test(self) -> str:
+        r = self._get("8.8.8.8")
+        if r.status_code != 404:
+            r.raise_for_status()
+        return "GreyNoise reachable, key accepted"
+
+
+# --------------------------------------------------------------------------- AbuseIPDB
+class AbuseIPDB:
+    name = "abuseipdb"
+    BASE = "https://api.abuseipdb.com/api/v2/"
+    supports = {"ip"}
+
+    def __init__(self):
+        self.key = settings.get("abuseipdb_api_key")
+        if not self.key:
+            raise NotConfigured("AbuseIPDB API key not set")
+
+    def _check(self, ip: str) -> dict:
+        throttle.wait(self.name, 1)
+        with _client({"Key": self.key}) as c:
+            r = c.get(self.BASE + "check", params={"ipAddress": ip, "maxAgeInDays": 90})
+        if r.status_code in (401, 403):
+            raise RuntimeError(f"AbuseIPDB rejected the key ({r.status_code})")
+        if r.status_code == 429:
+            raise RuntimeError("AbuseIPDB daily limit reached (429)")
+        r.raise_for_status()
+        return r.json().get("data") or {}
+
+    def lookup(self, etype: str, value: str) -> LookupResult | None:
+        if etype != "ip":
+            return None
+        if not _budget_ok(self.name, int(settings.get("abuseipdb_daily_budget") or 0)):
+            raise RuntimeError("AbuseIPDB daily budget exhausted")
+        d = self._check(value)
+        score, reports = int(d.get("abuseConfidenceScore") or 0), int(d.get("totalReports") or 0)
+        if d.get("isWhitelisted"):
+            verdict = "clean"
+        elif score >= 75:
+            verdict = "malicious"
+        elif score >= 25:
+            verdict = "suspicious"
+        else:
+            verdict = "unknown"
+        summary = f"Abuse confidence {score}% · {reports} report(s) in 90 days"
+        if d.get("isp"):
+            summary += f" · {d['isp']}"
+        res = LookupResult(self.name, verdict, score, summary, f"https://www.abuseipdb.com/check/{value}")
+        res.data = {k: d.get(k) for k in ("countryCode", "isp", "domain", "usageType", "isTor", "isWhitelisted",
+                                          "lastReportedAt", "totalReports", "abuseConfidenceScore")}
+        return res
+
+    def test(self) -> str:
+        self._check("127.0.0.1")
+        return "AbuseIPDB reachable, key accepted"

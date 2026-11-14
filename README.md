@@ -4,10 +4,12 @@
 
 JATMP is a self-hosted platform for keeping track of new and emerging malware campaigns. It pulls together
 **security news**, **social media** (X, Bluesky, Mastodon) and **threat-intelligence platforms** (VirusTotal,
-AlienVault OTX, urlscan.io, ANY.RUN, ThreatFox), extracts the malware families, actors, CVEs and indicators
-mentioned in each item, cross-checks indicators against the intel providers, correlates everything across
-sources and presents the result on a trend dashboard. CVEs get exploitation context from CISA KEV, FIRST EPSS
-and NVD. A local or cloud LLM can optionally add summaries, briefs and a daily digest.
+AlienVault OTX, urlscan.io, ANY.RUN, abuse.ch, GreyNoise, AbuseIPDB, MISP, ransomware.live), extracts the
+malware families, actors, CVEs and indicators mentioned in each item, cross-checks indicators against the intel
+providers, correlates everything across sources and presents the result on a trend dashboard. CVEs get
+exploitation context from CISA KEV, FIRST EPSS and NVD. Other tools read the data back out through a REST API,
+IOC blocklist feeds, signed webhooks and MISP. A local or cloud LLM can optionally add summaries, briefs and a
+daily digest.
 
 It runs as a single process with SQLite by default. There is no JavaScript build step and nothing is loaded
 from a CDN at runtime, so it works on an isolated network.
@@ -45,7 +47,7 @@ trending families.
 | **Bluesky** (public API, no key) | vx-underground, Marcus Hutchins, MalwareHunterTeam, Kevin Beaumont, Catalin Cimpanu, Will Thomas (BushidoToken), Zack Whittaker, Lorenzo Franceschi-Bicchierai, Dan Goodin, Karsten Hahn, hasherezade, Silas Cutler, Shadowserver, The DFIR Report, ESET Research, Cisco Talos, SentinelLABS, GreyNoise, Huntress, Ransomware.live |
 | **Mastodon** (public API, no key) | Marcus Hutchins, Brian Krebs, Brad Duncan (malware-traffic), SANS ISC, Proofpoint Threat Insight, Thomas Roccia, ffforward, Matt Taggart, Kevin Beaumont |
 | **X / Twitter** (API v2 bearer token or an RSS bridge) | Enabled: vxunderground, MalwareTechBlog, malwrhunterteam. Available but disabled by default so the API quota is not spent unintentionally: GossiTheDog, cyb3rops, 1ZRR4H, BushidoToken, TheDFIRReport, Unit42_Intel, abuse_ch, malware_traffic, ESETresearch, MsftSecIntel, executemalware, pr0xylife, g0njxa, Max_Mal_, RedDrip7, fr0gger_, StopMalvertisin, ViriBack, Fox_threatintel, FalconFeedsio, H4ckManac, anyrun_app, ffforward |
-| **Threat-intel collectors** | OTX subscribed pulses and searches, urlscan.io searches, ANY.RUN TI Lookup queries, the latest ThreatFox IOCs |
+| **Threat-intel collectors** | OTX subscribed pulses and searches, urlscan.io searches, ANY.RUN TI Lookup queries, the latest ThreatFox IOCs, MISP events, ransomware.live leak-site victims (recent, per group or per country; disabled by default, see below) |
 
 ### Analysis
 
@@ -65,9 +67,12 @@ later confirmed malicious raises the score of the items that mention it. The ite
 breakdown.
 
 **Cross-source enrichment.** Indicators found in news and social posts are looked up on VirusTotal, OTX,
-urlscan and ANY.RUN. The verdicts are combined into a consensus: any provider reporting *malicious* wins,
+urlscan, ANY.RUN, MalwareBazaar (hashes), URLhaus (URLs, hosts, payloads), GreyNoise and AbuseIPDB (IPs),
+whichever have keys. The verdicts are combined into a consensus: any provider reporting *malicious* wins,
 infrastructure that OTX whitelists is marked clean, and a lone OTX pulse mention is treated as suspicious rather
-than malicious. Lookups that failed are retried after six hours, *unknown* results are re-checked after three
+than malicious. GreyNoise works as a false-positive filter: an IP it knows as a benign business service or
+benign scanner is marked clean unless a strong provider (VirusTotal, abuse.ch, ANY.RUN) says otherwise, and
+mass scanners get a "mass scanner" badge (opportunistic, not targeted). Lookups that failed are retried after six hours, *unknown* results are re-checked after three
 days, and families attributed by a provider (a hash on Bluesky identified as Lumma Stealer, for example) are
 linked back so the indicator connects to the articles about that family. Indicators for trending families are
 pulled from OTX and ANY.RUN, accepting only pulses that actually name the family.
@@ -87,6 +92,42 @@ Exploited Vulnerabilities catalog, FIRST EPSS and the NVD (CVSS score, vector an
 needs a key; an optional NVD key only makes the CVSS lookups faster. Trending CVEs are ranked by exploitation
 risk as well as chatter (trend score × 2 when in KEV × (1 + EPSS) × (0.5 + CVSS/10)), and the CVE list can be
 sorted by CVSS or EPSS.
+
+### Sharing and integrations
+
+**REST API v1** (`/api/v1/…`, reference at `/api/v1/docs`, served offline). Read-only endpoints for items,
+entities, indicators and trends with cursor pagination and `since` filters, so SIEMs, TIPs and scripts can poll
+incrementally. Authentication is a personal API key (`Authorization: Bearer jatmp_…`) created under **Profile →
+API keys** with scopes (`read`, `export`), an expiry, a per-key rate limit and revocation; only a hash of the key
+is stored. Browser sessions work too.
+
+**IOC export feeds.** `/api/v1/feeds/iocs.csv`, `.json` and `.txt`, filtered by type, verdict (default
+*malicious*), family, age and a 0–100 confidence that grows with the number of providers agreeing. The `.txt`
+feed has one value per line and works as a firewall or proxy blocklist (for example a Palo Alto EDL or a
+FortiGate threat feed).
+
+**Webhooks** (Settings → Webhooks): new high-severity item, watched entity mentioned, indicator turned malicious,
+job failed. Generic receivers get signed JSON (`X-JATMP-Signature: sha256=HMAC(secret, "<timestamp>.<body>")`);
+Slack, Discord and Teams get ready-made messages. Deliveries retry with back-off and are listed with their status.
+
+**MISP, both ways.** A *MISP events* source pulls events (attributes become indicators, galaxy clusters become
+actors and families, the event TLP is kept). *Send to MISP* on item and family / actor pages creates an event with
+TLP and family tags and the indicators as attributes, and new items above a severity threshold can be pushed
+automatically. Events that came from MISP are never pushed back.
+
+**Sharing rules.** Everything above goes through one set of rules: items carry a TLP (their own, from OTX or
+MISP, or their source's), and only items up to the configured maximum (default TLP:GREEN) leave JATMP. Sources
+can be marked "not shared" (ANY.RUN and ransomware.live are by default, because of their terms), and
+third-party provider details stay in-house unless an admin enables them; JATMP's own verdict is always shared.
+
+### Dark web (tier 1)
+
+Clearnet aggregators only: JATMP never visits leak sites or forums, logs in anywhere, solves CAPTCHAs or
+downloads leaked data. **Deep dive** on a ransomware family or actor page asks ransomware.live for the group's
+leak-site victims (count, countries, sectors, recent victims, CVEs it exploits, tools) and links the CVEs. On a
+domain page it asks Hudson Rock how many employees and users of that domain were infected by infostealers
+(counts only, never credentials). ransomware.live's keyless API is for personal use only, so organisations
+should add the free PRO key; the ransomware.live sources are seeded disabled for that reason.
 
 ### Reporting
 
@@ -179,6 +220,12 @@ and are shown there as locked.
 | ANY.RUN | `ANYRUN_API_KEY` | Requires a plan with TI Lookup; the base URL can be changed in Settings |
 | abuse.ch ThreatFox | `ABUSECH_AUTH_KEY` | Free (Auth-Key from auth.abuse.ch) |
 | NVD | `NVD_API_KEY` | Optional. CISA KEV, FIRST EPSS and NVD work without a key; with one, CVSS lookups are faster (50 per run instead of 10). The whole CVE lookup can be turned off under Settings → Enrichment |
+| abuse.ch MalwareBazaar, URLhaus | `ABUSECH_AUTH_KEY` | Same free Auth-Key as ThreatFox |
+| GreyNoise Community | `GREYNOISE_API_KEY` | Free; small daily quota (`greynoise_daily_budget`, default 40) |
+| AbuseIPDB | `ABUSEIPDB_API_KEY` | Free tier allows 1,000 checks/day (`abuseipdb_daily_budget`, default 900) |
+| ransomware.live | `RANSOMWARELIVE_API_KEY` | Free PRO key; required for organisational use. Without it the personal-use API (one request per minute per endpoint) is used |
+| Hudson Rock Cavalier | `HUDSONROCK_API_KEY` | Free key for the infostealer deep dive |
+| MISP | `MISP_URL`, `MISP_API_KEY` | Automation key of a MISP user; distribution, sharing group, TLS verification and auto-push under Settings → MISP |
 | X / Twitter | `X_BEARER_TOKEN` | API v2 is a paid service; alternatively set `rss_bridge` on each X source |
 | LLM | `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | Optional. `LLM_PROVIDER` is `none`, `ollama`, `openai_compatible` or `anthropic`; the Settings page reflects whatever these resolve to |
 
@@ -191,6 +238,7 @@ Runtime and deployment variables:
 | `JATMP_DATABASE_URL` | SQLite | For example `postgresql+psycopg://jatmp:secret@db:5432/jatmp` (install `psycopg[binary]`) |
 | `JATMP_SECURE_COOKIES` | `0` | Set to `1` behind HTTPS: `Secure` session cookie and HSTS |
 | `JATMP_FORWARDED_ALLOW_IPS` | `127.0.0.1` | Proxies allowed to set `X-Forwarded-*` (client IP in the audit log) |
+| `JATMP_PUBLIC_URL` | empty | Public base URL used for links in API output, webhooks and MISP events |
 
 ### Extending the knowledge base
 
@@ -204,6 +252,14 @@ Malware families and actors can be added without touching code. Create `data/kno
 ```
 
 Restart, then run `python manage.py reextract` to reprocess existing items.
+
+### Upgrading to 0.5
+
+Automatic on start-up: new tables (`api_keys`, `webhooks`, `webhook_deliveries`) and columns (`sources.tlp`,
+`sources.redistribute`, `items.tlp`). Run **Add new built-in sources** under Settings → Sources to get the two
+ransomware.live sources (disabled). Existing items have no TLP of their own and count as their source's TLP
+(CLEAR unless you set one). In single-user mode the API, like the rest of the app, needs no login; keep such an
+install on localhost or use multi-user mode before exposing it.
 
 ### Upgrading to 0.4
 
@@ -236,6 +292,15 @@ packages, so run `pip install -r requirements.txt` again.
 - **Settings hygiene.** Secret values are never sent back to the browser (only "configured" or "not set"),
   numeric settings are clamped so the VirusTotal throttle cannot be disabled by accident, and source URLs must
   be `http(s)`.
+- **Outbound API.** API keys are 256-bit random secrets of which only a SHA-256 is stored; they carry scopes,
+  expire, can be revoked by their owner or an admin, and are rate limited per key. Key creation, revocation and
+  feed downloads are written to the audit log. Bearer requests need no CSRF token; every cookie-authenticated
+  POST still does.
+- **Webhooks.** Targets must resolve to public addresses (checked when saved and again before each delivery;
+  redirects are not followed) unless an admin allows private ones. Signing secrets are derived from the session
+  secret and a per-hook salt, so the database holds nothing that could forge a signature.
+- **Sharing.** TLP and per-source redistribution flags gate the API, exports, webhooks and MISP pushes (see
+  *Sharing and integrations*).
 - API keys entered in the UI are stored in the local database. On shared hosts prefer environment variables,
   which lock the corresponding fields. `data/config.json` holds the session secret and is written with mode
   `0600`.
@@ -278,16 +343,23 @@ image.
 
 ```
 app/
-  collectors/   rss, bluesky, mastodon, x_twitter, intel (OTX, urlscan, ANY.RUN, ThreatFox)  → RawItem
+  collectors/   rss, bluesky, mastodon, x_twitter, intel (OTX, urlscan, ANY.RUN, ThreatFox, ransomware.live),
+                misp  → RawItem
   processing/   pipeline (dedupe, sanitise, store, link entities) · extractor (IOC/CVE/family/actor)
                 severity (explainable 0–100 score) · enrichment (cross-source, consensus, re-checks)
                 trends (dashboard aggregations, weighted correlation)
-  intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox (rate limits and budgets)
+  intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox, MalwareBazaar, URLhaus, GreyNoise,
+                AbuseIPDB (rate limits, budgets, connection tests) · darkweb (ransomware.live, Hudson Rock)
+                misp (pull mapping, push, auto-push)
                 cve (CISA KEV, FIRST EPSS, NVD CVSS → Entity.meta; risk-weighted CVE priority)
   llm/          client (Ollama / OpenAI-compatible / Anthropic, live model list) · presets (local and cloud vendors)
                 insights (summary, brief, digest, Q&A)
   reports.py    Threat Intel Findings: gather() plus PDF / Word / Markdown / CSV exporters
-  routers/      pages, api (JSON and actions), settings, reports, admin, auth and setup
+  routers/      pages, api (JSON and actions), api_v1 (REST API + IOC feeds + offline docs), apikeys, webhooks,
+                settings, reports, admin, auth and setup
+  sharing.py    TLP and redistribution rules for everything that leaves JATMP
+  apikeys.py    API key creation, verification, scopes and rate limiting
+  webhooks.py   events, Slack / Discord / Teams formats, HMAC signing, SSRF guard, retries
   jobs.py       APScheduler: one job per source, enrichment every N minutes, CVE intel every 6 h, daily digest,
                 housekeeping; manual runs as batches with live progress (status() feeds /api/jobs/status)
   notify.py     notification center (de-duplicated by key, per-user read watermark, 30-day retention)
@@ -303,6 +375,30 @@ Run a single web worker, because the scheduler lives in the process; scale colle
 intervals instead.
 
 ## Changelog
+
+### 0.5.0
+
+- **New providers.** MalwareBazaar (hash → family, tags), URLhaus (URL / host / payload status), GreyNoise
+  Community (mass scanner vs benign service, used to cut false positives in the consensus) and AbuseIPDB
+  (confidence score). MalwareBazaar and URLhaus use the existing abuse.ch Auth-Key. Every provider has a
+  *Test connection* button under Settings → Threat-intel APIs, using account or status endpoints where
+  available so no lookup quota is spent.
+- **REST API v1 and API keys.** `/api/v1/items`, `/entities`, `/iocs`, `/trending` with cursor pagination and
+  `since`; API keys with scopes, expiry, revocation, per-key rate limit and audit entries (Profile → API keys,
+  admin overview on the admin page); offline reference at `/api/v1/docs` and `/api/v1/openapi.json`.
+- **IOC export feeds** in CSV, JSON and plain text (blocklists), filtered by type, verdict, family, age and
+  confidence.
+- **Webhooks** with HMAC-signed generic JSON or Slack / Discord / Teams formats, four events, test button,
+  secret rotation, retry with back-off, delivery log and an SSRF guard.
+- **Sharing rules.** TLP per item (from OTX / MISP) and per source, a maximum TLP for everything outbound,
+  per-source "share outside JATMP" (ANY.RUN and ransomware.live off by default) and provider details kept
+  in-house unless enabled.
+- **Dark web tier 1.** ransomware.live collector (recent, per group, per country; PRO key or the personal-use
+  API) and a *Deep dive* button: leak-site victims, countries, sectors, exploited CVEs and tools for ransomware
+  families and actors, Hudson Rock infostealer statistics for domains.
+- **MISP pull and push**: events as a source, *Send to MISP* for items and families / actors, optional auto-push
+  above a severity threshold, no echo of MISP-sourced items, duplicate pushes link to the existing event.
+- Fix: API error responses now keep `WWW-Authenticate` and `Retry-After` headers.
 
 ### 0.4.0
 

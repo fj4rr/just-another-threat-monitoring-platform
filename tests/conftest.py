@@ -10,7 +10,8 @@ os.environ["JATMP_DATA_DIR"] = _TMP
 os.environ.pop("JATMP_DATABASE_URL", None)
 # make sure a developer's .env / shell cannot leak real providers into the test run
 for var in ("LLM_PROVIDER", "VT_API_KEY", "OTX_API_KEY", "URLSCAN_API_KEY", "ANYRUN_API_KEY",
-            "ABUSECH_AUTH_KEY", "NVD_API_KEY", "X_BEARER_TOKEN", "LLM_API_KEY", "ANTHROPIC_API_KEY", "JATMP_SECURE_COOKIES"):
+            "ABUSECH_AUTH_KEY", "NVD_API_KEY", "GREYNOISE_API_KEY", "ABUSEIPDB_API_KEY",
+            "RANSOMWARELIVE_API_KEY", "HUDSONROCK_API_KEY", "MISP_URL", "MISP_API_KEY", "JATMP_PUBLIC_URL", "X_BEARER_TOKEN", "LLM_API_KEY", "ANTHROPIC_API_KEY", "JATMP_SECURE_COOKIES"):
     os.environ.pop(var, None)
 
 import pytest

@@ -4,7 +4,7 @@
 <div class="page-head"><div><h1>Settings</h1><p class="muted">Sources, API keys, enrichment and LLM. Values set through environment variables are locked here.</p></div></div>
 {% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
 <nav class="tabs" aria-label="Settings sections">
-  {% for t, l in [('sources','Sources'),('intel','Threat-intel APIs'),('social','Social'),('enrichment','Enrichment'),('llm','AI'),('general','General')] %}
+  {% for t, l in [('sources','Sources'),('intel','Threat-intel APIs'),('social','Social'),('enrichment','Enrichment'),('llm','AI'),('sharing','Sharing & API'),('webhooks','Webhooks'),('misp','MISP'),('general','General')] %}
   <a href="?tab={{ t }}" class="{{ 'active' if tab == t }}" {% if tab == t %}aria-current="page"{% endif %}>{{ l }}</a>{% endfor %}
 </nav>
 
@@ -55,6 +55,8 @@
     {% for s in sources %}
     <tr class="{{ 'is-disabled' if not s.enabled }}">
       <td><strong>{{ s.name }}</strong> <span class="badge cat-{{ s.category }}">{{ s.category }}</span>
+        {% if s.tlp %}<span class="badge" title="Default TLP for this source's items">TLP:{{ s.tlp }}</span>{% endif %}
+        {% if s.redistribute == false or (s.redistribute is none and s.kind in ('anyrun','ransomwarelive')) %}<span class="badge" title="Never shared through the API, exports, webhooks or MISP">not shared</span>{% endif %}
         <div class="muted small mono" style="word-break:break-all">{% for k, v in (s.config or {}).items() if k not in ('user_id','since_id','account_id') %}{{ k }}={{ v }} {% endfor %}</div></td>
       <td>{{ s.kind }}</td>
       <td>{% if not s.enabled %}<span class="muted">disabled</span>{% else %}<span class="status-dot {{ s.last_status }}"></span>{{ s.last_status }}{% endif %}
@@ -76,6 +78,13 @@
             <div class="grid g-2">
               <div class="field"><label for="int-{{ s.id }}">Interval (min)</label><input id="int-{{ s.id }}" type="number" min="5" max="10080" name="interval_minutes" value="{{ s.interval_minutes }}"></div>
               <div class="field"><label for="cat-{{ s.id }}">Category</label><select id="cat-{{ s.id }}" name="category">{% for c in ['news','social','intel'] %}<option {{ 'selected' if s.category == c }}>{{ c }}</option>{% endfor %}</select></div>
+              <div class="field"><label for="tlp-{{ s.id }}" title="Items without their own TLP get this one. The API, exports, webhooks and MISP only share up to the maximum set under Settings → Sharing.">TLP</label>
+                <select id="tlp-{{ s.id }}" name="tlp"><option value="" {{ 'selected' if not s.tlp }}>default (CLEAR)</option>{% for t in ['CLEAR','GREEN','AMBER','RED'] %}<option {{ 'selected' if s.tlp == t }}>{{ t }}</option>{% endfor %}</select></div>
+              <div class="field"><label for="redis-{{ s.id }}" title="Turn off for providers whose terms forbid passing their data on.">Share outside JATMP</label>
+                <select id="redis-{{ s.id }}" name="redistribute">
+                  <option value="" {{ 'selected' if s.redistribute is none }}>default ({{ 'no' if s.kind in ('anyrun','ransomwarelive') else 'yes' }})</option>
+                  <option value="1" {{ 'selected' if s.redistribute == true }}>yes</option>
+                  <option value="0" {{ 'selected' if s.redistribute == false }}>no</option></select></div>
             </div>
             <div class="row" style="justify-content:space-between">
               <button class="btn sm danger" name="action" value="delete" data-confirm="Delete “{{ s.name }}” and all of its items? This cannot be undone.">Delete</button>
@@ -205,6 +214,67 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 </script>
+{% elif tab == 'webhooks' %}
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if new_secret %}
+<div class="alert ok"><strong>Signing secret for “{{ new_secret_for }}”.</strong> Your receiver checks
+  <code>X-JATMP-Signature: sha256=HMAC_SHA256(secret, "&lt;X-JATMP-Timestamp&gt;.&lt;raw body&gt;")</code>.
+  <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input type="text" readonly class="mono" value="{{ new_secret }}" aria-label="Signing secret" spellcheck="false">
+    <button type="button" class="btn sm" data-copy-selector="#hook-secret" data-copy-label="secret">Copy</button></div>
+  <span id="hook-secret" hidden>{{ new_secret }}</span></div>
+{% endif %}
+<div class="card table-wrap" style="margin-bottom:16px">
+  <div class="card-head"><h2>Webhooks ({{ hooks|length }})</h2><span class="muted small">Retries: 1 min, 5 min, 30 min, 2 h, 6 h</span></div>
+  <table>
+    <thead><tr><th>Name</th><th>Target</th><th>Events</th><th>Last delivery</th><th><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+    {% for h in hooks %}
+    <tr class="{{ 'is-disabled' if not h.enabled }}">
+      <td><strong>{{ h.name }}</strong><div class="muted small">{{ hook_kinds[h.kind] }}</div></td>
+      <td class="mono small" style="word-break:break-all">{{ h.url|truncate(60, True) }}</td>
+      <td>{% for e in h.events %}<span class="badge" title="{{ hook_events.get(e, '') }}">{{ e }}</span> {% endfor %}</td>
+      <td class="small">{% if h.last_delivery_at %}<span class="status-dot {{ 'ok' if h.last_status == 'ok' else 'error' }}"></span>{{ h.last_delivery_at|timeago }}{% else %}<span class="muted">never</span>{% endif %}</td>
+      <td class="actions">
+        {% for action, label in [('test','Send test'),('toggle', 'Disable' if h.enabled else 'Enable')] + ([('rotate','New secret')] if h.kind == 'generic' else []) %}
+        <form method="post" action="/settings/webhooks/{{ h.id }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <button class="btn sm" name="action" value="{{ action }}">{{ label }}</button></form>{% endfor %}
+        <form method="post" action="/settings/webhooks/{{ h.id }}" style="display:inline" data-confirm="Delete webhook “{{ h.name }}”?"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <button class="btn sm danger" name="action" value="delete">Delete</button></form>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty">No webhooks yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="grid g-2" style="align-items:start">
+<div class="card">
+  <h2>Add webhook</h2>
+  <form method="post" action="/settings/webhooks">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="field"><label for="wh-name">Name</label><input id="wh-name" type="text" name="name" maxlength="128" placeholder="e.g. SOC Slack channel" required></div>
+    <div class="field"><label for="wh-url">URL</label><input id="wh-url" type="url" name="url" maxlength="2000" placeholder="https://hooks.slack.com/services/…" required></div>
+    <div class="field"><label for="wh-kind">Format</label><select id="wh-kind" name="kind">{% for k, l in hook_kinds.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></div>
+    <fieldset class="field" style="border:0;padding:0;margin:0 0 12px"><legend class="small muted" style="margin-bottom:4px">Events</legend>
+      {% for e, l in hook_events.items() %}<label class="check small"><input type="checkbox" name="events" value="{{ e }}" {{ 'checked' if e in ('item.high_severity','job.failed') }}> <code>{{ e }}</code> <span class="muted">{{ l }}</span></label>{% endfor %}
+    </fieldset>
+    <button class="btn primary">Save webhook</button>
+  </form>
+  <p class="muted small" style="margin:10px 0 0">Targets must resolve to public addresses unless “allow private addresses” is on under Sharing. The severity threshold and the public base URL used for links are set there too. Item events respect the sharing rules (maximum TLP, sources marked “not shared”).</p>
+</div>
+<div class="card table-wrap">
+  <h2>Recent deliveries</h2>
+  <table class="small">
+    <thead><tr><th>When</th><th>Webhook</th><th>Event</th><th>Status</th></tr></thead>
+    <tbody>{% for d in deliveries %}
+      <tr><td class="muted" title="{{ d.created_at }}">{{ d.created_at|timeago }}</td><td>{{ hook_names.get(d.webhook_id, '#' ~ d.webhook_id) }}</td><td><code>{{ d.event }}</code></td>
+        <td>{% if d.status == 'ok' %}<span class="badge good">ok{% if d.response_code %} {{ d.response_code }}{% endif %}</span>
+          {% elif d.status == 'failed' %}<span class="badge crit" title="{{ d.error }}">failed</span>
+          {% else %}<span class="badge" title="{{ d.error }}">pending{% if d.attempts %} · try {{ d.attempts + 1 }}{% endif %}</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="4" class="empty">Nothing sent yet.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+</div>
+
 {% else %}
 <div class="card" style="max-width:760px">
   <form method="post" action="/settings/values">
@@ -236,7 +306,15 @@ document.addEventListener("DOMContentLoaded", () => {
       {% if tab == 'general' %}<button type="button" class="btn" data-post="/api/items/rescore" data-busy="Queuing…" title="Recompute every item's severity with the current rules (background job, no network)">Re-score all items</button>{% endif %}</div>
   </form>
   {% if tab == 'intel' %}
+  <div style="margin-top:16px"><h3>Test connection</h3>
+    <div class="row">{% for name, ok in providers %}<button type="button" class="btn sm" data-post="/api/intel/test/{{ name }}" data-busy="Testing…" {{ 'disabled title="No key configured"' if not ok }}>{{ name }}</button>{% endfor %}</div>
+    <p class="muted small" style="margin:6px 0 0">Save keys first. Tests use account / status endpoints where the provider has one, so they don't spend lookup quota.</p></div>
   <div class="alert small" style="margin-top:16px">Keys are used both by collectors (OTX pulses, urlscan searches, ANY.RUN queries, ThreatFox) and by the cross-source enrichment that checks IOCs found in news and social posts. Keys are stored in the local database; prefer environment variables on shared hosts.</div>
+  {% elif tab == 'sharing' %}
+  <div class="alert small" style="margin-top:16px">These rules apply to everything that leaves JATMP: the <a href="/api/v1/docs">REST API</a>, IOC export feeds, webhooks and MISP pushes. Per-source TLP and “share outside JATMP” are set in each source's Edit dialog; ANY.RUN sources are not shared by default. API keys are managed under <a href="/profile#api-keys">Profile → API keys</a>.</div>
+  {% elif tab == 'misp' %}
+  <div style="margin-top:16px" class="row"><button type="button" class="btn sm" data-post="/api/misp/test" data-busy="Testing…">Test MISP connection</button></div>
+  <div class="alert small" style="margin-top:16px">Pull: add a source of kind <em>MISP events</em> under Sources (events become items, attributes become indicators, galaxies become families and actors). Push: the “Send to MISP” button on item and family pages, or the automatic push above. Items that came from MISP are never pushed back, and pushes respect the sharing rules.</div>
   {% elif tab == 'social' %}
   <div class="alert small" style="margin-top:16px">Bluesky and Mastodon accounts need no key. X requires a paid API v2 bearer token, or set an RSS-bridge URL (e.g. self-hosted RSSHub/Nitter) on each X source instead.</div>
   {% endif %}

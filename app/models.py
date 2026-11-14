@@ -58,6 +58,9 @@ class Source(Base):
     last_error: Mapped[str] = mapped_column(Text, default="")
     items_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # sharing (app/sharing.py): "" = CLEAR unless the item carries its own TLP; None = default for the kind
+    tlp: Mapped[str] = mapped_column(String(16), default="")
+    redistribute: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
 
 
 class Item(Base):
@@ -85,6 +88,7 @@ class Item(Base):
     raw: Mapped[dict] = mapped_column(JSON, default=dict)
     llm_summary: Mapped[str] = mapped_column(Text, default="")
     llm_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    tlp: Mapped[str] = mapped_column(String(16), default="")  # from the feed (OTX / MISP); "" = inherit source
 
     source: Mapped[Source] = relationship(lazy="joined")
     entity_links: Mapped[list[ItemEntity]] = relationship(
@@ -213,3 +217,53 @@ class AuditLog(Base):
     detail: Mapped[str] = mapped_column(Text, default="")
     ip: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class ApiKey(Base):
+    """Bearer token for the REST API. Only a SHA-256 of the random secret is stored."""
+
+    __tablename__ = "api_keys"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(128), default="")
+    prefix: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    secret_hash: Mapped[str] = mapped_column(String(64))
+    scopes: Mapped[list] = mapped_column(JSON, default=list)  # read | export | write
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_used_ip: Mapped[str] = mapped_column(String(64), default="")
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    user: Mapped[User] = relationship(lazy="joined")
+
+
+class Webhook(Base):
+    """Outbound webhook. The signing secret is derived from the install secret + ``salt`` (nothing
+    secret is stored in the database); see app/webhooks.py."""
+
+    __tablename__ = "webhooks"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), default="")
+    url: Mapped[str] = mapped_column(String(2048))
+    kind: Mapped[str] = mapped_column(String(16), default="generic")  # generic | slack | discord | teams
+    events: Mapped[list] = mapped_column(JSON, default=list)
+    salt: Mapped[str] = mapped_column(String(64), default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_status: Mapped[str] = mapped_column(String(16), default="")  # ok | failed
+    last_delivery_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class WebhookDelivery(Base):
+    __tablename__ = "webhook_deliveries"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    webhook_id: Mapped[int] = mapped_column(ForeignKey("webhooks.id", ondelete="CASCADE"), index=True)
+    event: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)  # pending | ok | failed
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    response_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

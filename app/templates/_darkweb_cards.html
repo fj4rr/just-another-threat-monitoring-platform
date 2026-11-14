@@ -1,0 +1,36 @@
+{# Deep-dive results stored as Enrichment rows (app/intel/darkweb.py). Expects `enrichments`. #}
+{% for e in enrichments if e.provider == 'ransomware.live' %}{% set d = e.data %}
+<div class="card">
+  <div class="card-head"><h2>Leak sites <span class="muted small">via ransomware.live</span></h2><span class="muted small">checked {{ e.fetched_at|timeago }}</span></div>
+  {% if d.get('victims_total') %}
+  <dl class="kv small">
+    <dt>Group</dt><dd><a href="{{ e.permalink|safe_href }}" target="_blank" rel="noopener noreferrer">{{ d.group }} ↗</a></dd>
+    <dt>Victims listed</dt><dd>{{ d.victims_total }}{% if d.get('first_seen') %} · first {{ d.first_seen }}{% endif %}{% if d.get('last_seen') %} · latest {{ d.last_seen }}{% endif %}</dd>
+    {% if d.get('countries') %}<dt>Countries</dt><dd>{% for cc, n in d.countries %}<a class="chip" href="/feed?q={{ ('Country: ' ~ cc)|urlencode }}&days=0" title="{{ n }} victim(s); click for collected leak-site posts">{{ cc }} <span class="t">{{ n }}</span></a>{% endfor %}</dd>{% endif %}
+    {% if d.get('sectors') %}<dt>Sectors</dt><dd>{% for s, n in d.sectors %}<span class="badge">{{ s }} · {{ n }}</span> {% endfor %}</dd>{% endif %}
+    {% if d.get('cves') %}<dt>Exploits</dt><dd>{% for c in d.cves %}<span class="badge mono">{{ c }}</span> {% endfor %}</dd>{% endif %}
+    {% if d.get('tools') %}<dt>Tools</dt><dd>{{ d.tools|join(', ') }}</dd>{% endif %}
+  </dl>
+  {% if d.get('description') %}<p class="small" style="color:var(--text-secondary);margin:10px 0">{{ d.description|truncate(600) }}</p>{% endif %}
+  {% if d.get('recent') %}
+  <div class="table-wrap"><table class="small">
+    <thead><tr><th>Recent victim</th><th>Country</th><th>Sector</th><th>Listed</th></tr></thead>
+    <tbody>{% for v in d.recent %}<tr>
+      <td>{% if v.permalink %}<a href="{{ v.permalink|safe_href }}" target="_blank" rel="noopener noreferrer">{{ v.victim|truncate(48) }}</a>{% else %}{{ v.victim|truncate(48) }}{% endif %}</td>
+      <td>{{ v.country or '–' }}</td><td class="muted">{{ v.sector or '–' }}</td><td class="muted">{{ (v.discovered or '')[:10] }}</td></tr>{% endfor %}</tbody>
+  </table></div>{% endif %}
+  {% else %}<p class="muted small">{{ e.summary }}</p>{% endif %}
+  <p class="muted small" style="margin:8px 0 0">Metadata from a clearnet aggregator; JATMP never visits leak sites{% if d.get('api') == 'free' %}. Looked up with the free API (personal use only){% endif %}.</p>
+</div>
+{% endfor %}
+{% for e in enrichments if e.provider == 'hudsonrock' %}{% set d = e.data %}
+<div class="card">
+  <div class="card-head"><h2>Infostealer exposure <span class="muted small">via Hudson Rock</span></h2><span class="muted small">checked {{ e.fetched_at|timeago }}</span></div>
+  <dl class="kv small">
+    <dt>Infected employees</dt><dd>{{ d.get('compromised_employees') or 0 }}{% if d.get('last_employee_compromised') %} · latest {{ d.last_employee_compromised[:10] }}{% endif %}</dd>
+    <dt>Infected users</dt><dd>{{ d.get('compromised_users') or 0 }}{% if d.get('last_user_compromised') %} · latest {{ d.last_user_compromised[:10] }}{% endif %}</dd>
+    {% if d.get('sensitive_applications') %}<dt>Sensitive apps</dt><dd>{% for a in d.sensitive_applications[:15] %}<span class="badge">{{ a }}</span> {% endfor %}</dd>{% endif %}
+  </dl>
+  <p class="muted small" style="margin:8px 0 0">Counts only: JATMP never fetches the credentials themselves.</p>
+</div>
+{% endfor %}

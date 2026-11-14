@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -263,6 +264,90 @@ def llm_models(payload: dict = Body(default={}), _: User = Depends(require("admi
     except LLMError as e:
         raise HTTPException(400, str(e)) from e
     return {"ok": True, "models": models, "message": f"{len(models)} model(s) found"}
+
+
+@router.post("/intel/test/{provider}", dependencies=[Depends(verify_csrf)])
+def intel_test(provider: str, _: User = Depends(require("admin"))):
+    from ..intel import NotConfigured
+    from ..processing.enrichment import PROVIDER_CLASSES
+
+    cls = next((c for c in PROVIDER_CLASSES if c.name == provider), None)
+    if cls is None:
+        raise HTTPException(404, "unknown provider")
+    try:
+        return {"ok": True, "message": cls().test()}
+    except NotConfigured as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        raise HTTPException(400, f"{provider}: {type(e).__name__}: {e}"[:300]) from e
+
+
+# --------------------------------------------------------------------------- dark web tier 1 (deep dive)
+@router.post("/entities/{entity_id}/deepdive", dependencies=[Depends(verify_csrf)])
+def entity_deepdive(entity_id: int, request: Request, user: User = Depends(require("analyst")),
+                    db: Session = Depends(get_db)):
+    from ..intel import NotConfigured, darkweb
+    from ..processing.enrichment import _link
+    from ..processing.extractor import Extracted
+    from ..processing.pipeline import get_or_create_entity
+
+    ent = db.get(Entity, entity_id)
+    if not ent:
+        raise HTTPException(404, "entity not found")
+    try:
+        if ent.type in ("malware", "actor"):
+            res = darkweb.ransomware_deep_dive(ent)
+            for cve in res.data.get("cves", []):
+                _link(db, ent, get_or_create_entity(db, Extracted("cve", cve, cve)), "exploits", "ransomware.live")
+        elif ent.type == "domain":
+            res = darkweb.infostealer_exposure(ent.value)
+        else:
+            raise HTTPException(400, "deep dive works on malware families, threat actors and domains")
+    except NotConfigured as e:
+        raise HTTPException(400, str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(400, str(e)) from e
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"{type(e).__name__}: {e}"[:300]) from e
+    darkweb.save(db, ent, res)
+    audit(db, user, "deep_dive", f"{ent.type}:{ent.value} via {res.provider}", request)
+    db.commit()
+    return {"ok": True, "message": f"{res.provider}: {res.summary}"}
+
+
+# --------------------------------------------------------------------------- MISP
+@router.post("/misp/test", dependencies=[Depends(verify_csrf)])
+def misp_test(_: User = Depends(require("admin"))):
+    from ..intel import NotConfigured
+    from ..intel.misp import MISP
+
+    try:
+        return {"ok": True, "message": MISP().test()}
+    except NotConfigured as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        raise HTTPException(400, f"{type(e).__name__}: {e}"[:300]) from e
+
+
+@router.post("/misp/push/{kind}/{obj_id}", dependencies=[Depends(verify_csrf)])
+def misp_push(kind: str, obj_id: int, request: Request, user: User = Depends(require("analyst")),
+              db: Session = Depends(get_db)):
+    from ..intel import NotConfigured
+    from ..intel.misp import PushRefused, push_entity, push_item
+
+    obj = db.get(Item, obj_id) if kind == "item" else db.get(Entity, obj_id) if kind == "entity" else None
+    if obj is None:
+        raise HTTPException(404, "not found")
+    try:
+        res = push_item(db, obj) if kind == "item" else push_entity(db, obj)
+    except (NotConfigured, PushRefused) as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        raise HTTPException(502, f"MISP: {type(e).__name__}: {e}"[:300]) from e
+    audit(db, user, "misp_push", f"{kind}:{obj_id} -> event {res.get('id')}", request)
+    db.commit()
+    verb = "Created" if res.get("created") else "Already in"
+    return {"ok": True, "message": f"{verb} MISP event #{res.get('id')}", "url": res.get("url")}
 
 
 @router.post("/watch/{entity_id}", dependencies=[Depends(verify_csrf)])

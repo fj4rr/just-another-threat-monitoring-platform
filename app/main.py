@@ -15,7 +15,17 @@ from . import __version__, jobs
 from .auth import LoginRequired
 from .config import BASE_DIR, env_flag, is_installed, load_config
 from .db import init_db
-from .routers import admin, api, auth_routes, pages, reports_routes, settings_routes
+from .routers import (
+    admin,
+    api,
+    api_v1,
+    apikeys_routes,
+    auth_routes,
+    pages,
+    reports_routes,
+    settings_routes,
+    webhooks_routes,
+)
 from .web import render
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -82,7 +92,8 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "app" / "static")), name="static")
-for r in (auth_routes.router, pages.router, api.router, settings_routes.router, reports_routes.router, admin.router):
+for r in (auth_routes.router, pages.router, api_v1.router, api.router, settings_routes.router, reports_routes.router,
+          admin.router, apikeys_routes.router, webhooks_routes.router):
     app.include_router(r)
 
 
@@ -104,6 +115,7 @@ async def _login_required(request: Request, _exc: LoginRequired):
 @app.exception_handler(StarletteHTTPException)
 async def _http_error(request: Request, exc: StarletteHTTPException):
     if request.url.path.startswith("/api/"):
-        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        # keep WWW-Authenticate / Retry-After from the exception
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=getattr(exc, "headers", None))
     return render(request, "error.html", {"code": exc.status_code, "detail": exc.detail, "user": None},
                   status_code=exc.status_code)

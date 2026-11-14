@@ -30,6 +30,10 @@ def notify(db: Session, level: str, title: str, body: str = "", link: str = "", 
                      link=_safe_link(link)[:512], key=key[:128], user_id=user_id)
     db.add(n)
     db.flush()  # the session does not autoflush: make the key visible to a second call in the same session
+    if n.level == "error":
+        from . import webhooks
+
+        webhooks.on_job_failed(db, n.title, n.body)
     return n
 
 

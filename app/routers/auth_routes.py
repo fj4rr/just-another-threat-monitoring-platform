@@ -123,8 +123,10 @@ def logout(request: Request):
 
 
 @router.get("/profile")
-def profile(request: Request, user: User = Depends(current_user)):
-    return render(request, "profile.html", {"user": user, "msg": None, "error": None})
+def profile(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from .apikeys_routes import keys_ctx
+
+    return render(request, "profile.html", {"user": user, "msg": None, "error": None, **keys_ctx(db, user)})
 
 
 @router.post("/profile", dependencies=[Depends(verify_csrf)])
@@ -150,4 +152,6 @@ def profile_save(request: Request, current: str = Form(""), new: str = Form(""),
             audit(db, user, "password_changed", "", request)
             msg = "Password changed."
     db.commit()
-    return render(request, "profile.html", {"user": user, "msg": msg, "error": error})
+    from .apikeys_routes import keys_ctx
+
+    return render(request, "profile.html", {"user": user, "msg": msg, "error": error, **keys_ctx(db, user)})
