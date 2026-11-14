@@ -47,7 +47,8 @@
     <div class="row">
       <form method="post" action="/settings/sources-seed"><input type="hidden" name="csrf_token" value="{{ csrf }}">
         <button class="btn sm" title="Add built-in sources this install doesn't have yet">＋ Add new built-in sources</button></form>
-      <button class="btn sm" data-post="/api/sources/run_all" data-busy="Queuing…">↻ Run all enabled</button></div></div>
+      <div class="job"><button class="btn sm" data-post="/api/sources/run_all" data-busy="Queuing…" data-job-button="collect">↻ Run all enabled</button>
+        <div class="job-status muted" data-job-status="collect" aria-live="polite"></div></div></div></div>
   <table>
     <thead><tr><th>Name</th><th>Kind</th><th>Status</th><th class="num">Items</th><th>Every</th><th>Last run</th><th><span class="sr-only">Actions</span></th></tr></thead>
     <tbody>

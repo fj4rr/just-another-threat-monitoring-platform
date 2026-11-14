@@ -221,7 +221,9 @@ def enrich_family(db: Session, entity: Entity) -> list[str]:
     return msgs
 
 
-def run_batch(db: Session) -> str:
+def run_batch(db: Session, progress=None) -> str:
+    """One enrichment pass. ``progress(done, total, phase)`` reports in-memory job progress."""
+    progress = progress or (lambda *_: None)
     providers = available_providers()
     if not providers:
         return "no intel providers configured"
@@ -262,12 +264,17 @@ def run_batch(db: Session) -> str:
         )
         rechecked = [e for e in db.execute(rq).scalars() if e not in iocs]
     done = 0
+    fam_slots = 2 if settings.get("enrich_families") else 0
+    total = len(iocs) + len(rechecked) + fam_slots
+    progress(0, total, "indicators")
     for ent in iocs + rechecked:
         enrich_entity(db, ent, providers)
         db.commit()
         done += 1
+        progress(done, total, "indicators")
     fam_done = 0
-    if settings.get("enrich_families"):
+    if fam_slots:
+        progress(done, total, "families")
         from .trends import trending
 
         stale = utcnow() - timedelta(hours=24)
@@ -277,6 +284,7 @@ def run_batch(db: Session) -> str:
                 enrich_family(db, ent)
                 db.commit()
                 fam_done += 1
+                progress(done + fam_done, total, "families")
                 if fam_done >= 2:
                     break
     return f"enriched {done} IOC(s) ({len(rechecked)} re-checked), {fam_done} family(ies)"

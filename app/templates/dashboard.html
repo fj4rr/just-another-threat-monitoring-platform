@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import feed_item, chip %}
+{% from "_macros.html" import feed_item, chip, dchip, cve_badges %}
 {% block title %}Dashboard{% endblock %}
 {% block reveal %}{% endblock %}
 {% block content %}
@@ -9,9 +9,15 @@
     <p class="muted">Last {{ ov.days }} days across news, social and threat-intel sources ·
       <span class="live"><span class="dot"></span><span data-live-stamp>live</span></span></p></div>
   {% if user.role in ('admin','analyst') %}
-  <div class="row">
-    <button class="btn" data-post="/api/sources/run_all" data-busy="Queuing…">↻ Collect now</button>
-    <button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…">⇄ Enrich now</button>
+  <div class="row" style="align-items:flex-start">
+    <div class="job">
+      <button class="btn" data-post="/api/sources/run_all" data-busy="Queuing…" data-job-button="collect">↻ Collect now</button>
+      <div class="job-status muted" data-job-status="collect" aria-live="polite"></div>
+    </div>
+    <div class="job">
+      <button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…" data-job-button="enrich">⇄ Enrich now</button>
+      <div class="job-status muted" data-job-status="enrich" aria-live="polite"></div>
+    </div>
     {% if llm_on %}<button class="btn primary" data-post="/api/insights/digest" data-target="#digest" data-busy="Writing digest…">✦ AI digest</button>{% endif %}
   </div>
   {% endif %}
@@ -23,7 +29,7 @@
   <div class="ticker-mask">
     <div class="track" style="--dur:{{ [recent|length * 7, 40]|max }}s">
       {% for _ in range(2) %}{% for i in recent %}
-      <a href="/items/{{ i.id }}" {% if _ == 1 %}aria-hidden="true" tabindex="-1"{% endif %}><span class="src">{{ i.source.name }}</span>{{ i.title|truncate(110) }}</a>
+      <a href="/items/{{ i.id }}" data-preview="/items/{{ i.id }}/preview" {% if _ == 1 %}aria-hidden="true" tabindex="-1"{% endif %}><span class="src">{{ i.source.name }}</span>{{ i.title|truncate(110) }}</a>
       {% endfor %}{% endfor %}
     </div>
   </div>
@@ -86,7 +92,7 @@
       <thead><tr><th>Family</th><th class="num">7d</th><th class="num">Srcs</th><th class="num">Score</th></tr></thead>
       <tbody>
       {% for t in trending[:9] %}
-      <tr><td><a href="/entities/{{ t.id }}">{{ t.name }}</a>
+      <tr><td><a href="/entities/{{ t.id }}" data-preview="/entities/{{ t.id }}/preview" data-preview-nav>{{ t.name }}</a>
           {% if t.is_new %}<span class="badge new">new</span>{% endif %}
           <div class="muted small">{{ t.category }}{% if t.baseline and t.growth >= 2 %} · ×{{ t.growth }} vs baseline{% endif %}</div>
           <div class="meter"><span class="{{ 'new' if t.is_new }}" data-w="{{ (100 * t.score / top)|round(1) }}"></span></div></td>
@@ -105,6 +111,47 @@
   <div class="card lift">
     <div class="card-head"><h2>Most-mentioned families</h2><span class="muted small">7 days · click a bar</span></div>
     <div class="chart-wrap"><canvas id="c-top"></canvas></div>
+  </div>
+</div>
+
+<div class="grid g-2" style="margin-top:16px" data-reveal="9">
+  <div class="card lift">
+    <div class="card-head"><h2>Trending CVEs</h2><a class="small" href="/cves?days=7&sort=trend">all →</a></div>
+    {% if cves %}
+    <div class="table-wrap"><table class="widget-table">
+      <thead><tr><th>CVE</th><th class="num" title="Mentions in the last 7 days">7d</th><th class="num" title="CVSS base score (NVD)">CVSS</th><th class="num" title="FIRST EPSS: probability of exploitation in the next 30 days">EPSS</th><th class="num" title="Trend score × exploitation risk (KEV ×2, EPSS, CVSS)">Priority</th></tr></thead>
+      <tbody>
+      {% for c in cves %}
+      <tr><td><a class="mono" href="/entities/{{ c.id }}" data-preview="/entities/{{ c.id }}/preview" data-preview-nav>{{ c.name }}</a>
+          <span class="badges">{% if c.kev %}<span class="badge crit" title="In the CISA Known Exploited Vulnerabilities catalog">KEV</span>{% endif %}{% if c.is_new %}<span class="badge new">new</span>{% endif %}</span>
+          {% if c.meta.get('kev') and c.meta.kev.get('product') %}<div class="muted small">{{ c.meta.kev.get('vendor', '') }} {{ c.meta.kev.product }}</div>{% endif %}
+          {% if c.related %}<div class="ent-row">{% for r in c.related %}{{ dchip(r) }}{% endfor %}</div>{% endif %}</td>
+        <td class="num">{{ c.recent }}</td>
+        <td class="num">{% if c.cvss is not none %}<span class="{{ 'sev s-high' if c.cvss >= 9 else 'sev s-med' if c.cvss >= 7 else '' }}">{{ '%.1f'|format(c.cvss) }}</span>{% else %}<span class="muted">–</span>{% endif %}</td>
+        <td class="num">{% if c.epss is not none %}{{ '%.1f'|format(c.epss * 100) }}%{% else %}<span class="muted">–</span>{% endif %}</td>
+        <td class="num">{{ c.priority }}</td></tr>
+      {% endfor %}
+      </tbody></table></div>
+    <p class="muted small" style="margin:8px 0 0">Ranked by how much they are discussed and how likely they are to be exploited. KEV, EPSS and CVSS refresh every 6 hours.</p>
+    {% else %}<div class="empty">No CVEs discussed in the last 7 days.</div>{% endif %}
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>Trending threat actors</h2><a class="small" href="/actors?days=7&sort=trend">all →</a></div>
+    {% if actors %}
+    {% set topa = actors[0].score %}
+    <div class="table-wrap"><table class="widget-table">
+      <thead><tr><th>Actor</th><th class="num">7d</th><th class="num">Srcs</th><th class="num">Score</th></tr></thead>
+      <tbody>
+      {% for a in actors %}
+      <tr><td><a href="/entities/{{ a.id }}" data-preview="/entities/{{ a.id }}/preview" data-preview-nav>{{ a.name }}</a>
+          {% if a.is_new %}<span class="badge new">new</span>{% endif %}
+          {% if a.baseline and a.growth >= 2 %}<span class="muted small"> ×{{ a.growth }} vs baseline</span>{% endif %}
+          {% if a.related %}<div class="ent-row">{% for r in a.related %}{{ dchip(r) }}{% endfor %}</div>{% endif %}
+          <div class="meter"><span class="{{ 'new' if a.is_new }}" data-w="{{ (100 * a.score / topa)|round(1) }}"></span></div></td>
+        <td class="num">{{ a.recent }}</td><td class="num">{{ a.sources }}</td><td class="num">{{ a.score }}</td></tr>
+      {% endfor %}
+      </tbody></table></div>
+    {% else %}<div class="empty">No threat actors mentioned in the last 7 days.</div>{% endif %}
   </div>
 </div>
 
@@ -135,12 +182,6 @@
         {% if digest %}{{ digest.content|md }}{% elif llm_on %}<p class="muted">No digest yet – generated daily at 06:00 UTC, or press “AI digest”.</p>
         {% else %}<p class="muted">Configure a local or API LLM in Settings → AI to get AI digests, summaries and briefs.</p>{% endif %}
       </div>
-    </div>
-    <div class="card lift">
-      <h2>Active threat actors</h2>
-      {% for a in actors %}<a class="chip" href="/entities/{{ a.id }}">{{ a.name }} <span class="t">{{ a.recent }}</span></a>{% else %}<p class="muted">None this week.</p>{% endfor %}
-      <h2 style="margin-top:14px">Hot CVEs</h2>
-      {% for c in cves %}<a class="chip" href="/entities/{{ c.id }}">{{ c.name }} <span class="t">{{ c.count }}</span></a>{% else %}<p class="muted">None this week.</p>{% endfor %}
     </div>
   </div>
 </div>

@@ -57,6 +57,18 @@
         <input type="search" name="q" id="global-search" placeholder="Search items, malware, CVE, IOC…  ( / )" aria-label="Search" value="{{ request.query_params.get('q','') }}" maxlength="200">
       </form>
       <div class="row">
+        <div class="notif">
+          <button class="bell" type="button" data-notif-toggle aria-haspopup="true" aria-expanded="false" aria-controls="notif-panel" aria-label="Notifications" title="Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="notif-badge" data-notif-badge hidden>0</span>
+          </button>
+          <div class="card notif-panel" id="notif-panel" role="region" aria-label="Notifications" hidden>
+            <div class="card-head"><h2>Notifications</h2>
+              <div class="row"><button type="button" class="btn sm" data-notif-readall>Mark all read</button>
+              <button type="button" class="btn sm" data-notif-close aria-label="Close notifications">✕</button></div></div>
+            <div class="notif-list" id="notif-list"><div class="empty small">Loading…</div></div>
+          </div>
+        </div>
         <button class="theme-toggle" data-theme-toggle title="Toggle light / dark theme" aria-label="Toggle light / dark theme">◐</button>
         {% if multi_user %}
         <a href="/profile" class="muted user-link">{{ user.display_name or user.username }} <span class="badge">{{ user.role }}</span></a>
@@ -69,6 +81,19 @@
     </main>
   </div>
 </div>
+<div class="drawer-backdrop" data-drawer-close hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1" hidden>
+  <div class="drawer-head">
+    <span class="muted small" id="drawer-kind">Preview</span>
+    <div class="row">
+      <button type="button" class="btn sm hide-sm" data-drawer-step="-1" aria-label="Previous row" title="Previous row (↑ / k)">↑</button>
+      <button type="button" class="btn sm hide-sm" data-drawer-step="1" aria-label="Next row" title="Next row (↓ / j)">↓</button>
+      <a class="btn sm" id="drawer-full" href="#" target="_blank" rel="noopener" title="Open the full page in a new tab">Full page ↗</a>
+      <button type="button" class="btn sm" data-drawer-close aria-label="Close preview" title="Close (Esc)">✕</button>
+    </div>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
 {% else %}
   {% block bare %}{% endblock %}
 {% endif %}

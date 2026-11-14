@@ -1,0 +1,63 @@
+{# Side-preview fragment for an entity (family, actor, CVE, technique or IOC). #}
+{% from "_macros.html" import verdict, dchip, cve_badges %}
+{% set m = ent.meta or {} %}
+<div data-preview-meta data-kind="{{ ent.type|upper if ent.type in ('cve','ip','url','md5','sha1','sha256') else ent.type|capitalize }}" data-full="/entities/{{ ent.id }}" data-title="{{ ent.display }}">
+  <div class="pv-meta">
+    <span class="badge">{{ ent.type }}</span>
+    {% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
+    {% if is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
+    {% if ent.type == 'cve' %}{{ cve_badges(m) }}{% endif %}
+    {% if trend and trend.is_new %}<span class="badge new">new</span>{% endif %}
+  </div>
+  <h2 class="pv-title {{ 'mono' if is_ioc }}" id="drawer-title">{{ ent.display }}</h2>
+  <dl class="kv small">
+    <dt>First seen</dt><dd>{{ ent.first_seen.strftime('%Y-%m-%d') }}</dd>
+    <dt>Last seen</dt><dd>{{ ent.last_seen|timeago }}</dd>
+    <dt>Mentions</dt><dd>{{ ent.mention_count }}</dd>
+    {% if trend %}<dt>Trend score</dt><dd>{{ trend.score }} · {{ trend.recent }} mention(s) in 7 days from {{ trend.sources }} source(s){% if trend.baseline and trend.growth >= 2 %} · ×{{ trend.growth }} vs baseline{% endif %}</dd>{% endif %}
+    {% if ent.type == 'cve' and m.get('kev') %}<dt>CISA KEV</dt><dd>added {{ m.kev.get('date_added', '?') }}{% if m.kev.get('due_date') %} · due {{ m.kev.due_date }}{% endif %}{% if m.kev.get('ransomware') == 'Known' %} · <strong>known ransomware use</strong>{% endif %}</dd>{% endif %}
+    {% if ent.type == 'cve' and m.get('kev') and m.kev.get('product') %}<dt>Product</dt><dd>{{ m.kev.get('vendor', '') }} {{ m.kev.product }}</dd>{% endif %}
+  </dl>
+
+  <div class="pv-actions">
+    <a class="btn sm primary" href="/entities/{{ ent.id }}" target="_blank" rel="noopener">Open full page ↗</a>
+    <button class="btn sm" data-post="/api/watch/{{ ent.id }}" data-watching="{{ 'true' if watching else 'false' }}" aria-pressed="{{ 'true' if watching else 'false' }}">{{ '★ Watching' if watching else '☆ Watch' }}</button>
+    <a class="btn sm" href="/feed?entity={{ ent.id }}&days=0">All items →</a>
+    {% if not is_ioc and ioc_total %}<a class="btn sm" href="/iocs?entity={{ ent.id }}">{{ ioc_total }} IOC(s) →</a>{% endif %}
+  </div>
+
+  {% if ent.type == 'cve' and m.get('cvss') and m.cvss.get('description') %}
+  <div class="pv-sec"><h3>Description (NVD)</h3><div class="pv-snippet">{{ m.cvss.description|truncate(700) }}</div></div>
+  {% endif %}
+
+  {% if ent.llm_brief %}
+  <div class="pv-sec"><h3>AI threat brief</h3><div class="prose small pv-snippet" style="white-space:normal">{{ ent.llm_brief|md }}</div></div>
+  {% endif %}
+
+  {% if enrichments %}
+  <div class="pv-sec"><h3>Threat-intel providers</h3>
+    <ul class="pv-list">{% for e in enrichments %}
+      <li><span style="min-width:0">{% if e.permalink %}<a href="{{ e.permalink|safe_href }}" target="_blank" rel="noopener noreferrer">{{ e.provider }} ↗</a>{% else %}{{ e.provider }}{% endif %}
+        <span class="muted small">{{ e.summary|truncate(110) }}</span></span>{{ verdict(e.verdict) }}</li>{% endfor %}
+    </ul></div>
+  {% elif is_ioc %}
+  <div class="pv-sec"><h3>Threat-intel providers</h3><p class="muted small">Not enriched yet.</p></div>
+  {% endif %}
+
+  {% if linked %}
+  <div class="pv-sec"><h3>{{ 'Attributed to' if is_ioc else 'Indicators linked by enrichment' }}</h3>
+    {% for e, provider in linked %}<a class="chip {{ 'mono' if not e.type in ('malware','actor') }}" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview" title="via {{ provider }}"><span class="t">{{ e.type }}</span>{{ e.display|truncate(40, True) }}</a>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if co %}
+  <div class="pv-sec"><h3>Mentioned together with</h3>{% for c in co %}{{ dchip(c, True, True) }}{% endfor %}</div>
+  {% endif %}
+
+  <div class="pv-sec"><h3>Recent coverage</h3>
+    {% if items %}<ul class="pv-list">{% for i in items %}
+      <li><a href="/items/{{ i.id }}" data-preview="/items/{{ i.id }}/preview">{{ i.title|truncate(90) }}</a>
+        <span class="muted small" style="white-space:nowrap">{{ i.source.name|truncate(18, True) }} · {{ i.published_at|timeago }}</span></li>{% endfor %}
+    </ul>{% else %}<p class="muted small">Only known through enrichment (no direct mentions).</p>{% endif %}
+  </div>
+</div>

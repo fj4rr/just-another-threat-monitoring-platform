@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import sev, th %}
+{% from "_macros.html" import sev, th, pager, period_select %}
 {% block title %}Feed{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Feed</h1><p class="muted">{{ total }} item(s){% if entity %} mentioning <a href="/entities/{{ entity.id }}">{{ entity.display }}</a>{% endif %} · click a column header to sort</p></div>
+  <div><h1>Feed</h1><p class="muted">{{ total }} item(s){% if entity %} mentioning <a href="/entities/{{ entity.id }}">{{ entity.display }}</a>{% endif %} · click a title to preview, a column header to sort</p></div>
 </div>
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content" aria-label="Search" maxlength="200">
@@ -15,14 +15,13 @@
     {% for s in sources %}<option value="{{ s.id }}" {{ 'selected' if f.source == s.id }}>{{ s.name }}</option>{% endfor %}</select>
   <select name="min_sev" aria-label="Minimum severity">{% for v, l in [(0,'Any severity'),(30,'Severity ≥ 30'),(50,'Severity ≥ 50'),(70,'Severity ≥ 70')] %}
     <option value="{{ v }}" {{ 'selected' if f.min_sev == v }}>{{ l }}</option>{% endfor %}</select>
-  <select name="days" aria-label="Period">{% for v, l in [(1,'24 hours'),(7,'7 days'),(30,'30 days'),(90,'90 days'),(0,'All time')] %}
-    <option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ l }}</option>{% endfor %}</select>
+  {{ period_select(f) }}
   {% if f.entity %}<input type="hidden" name="entity" value="{{ f.entity }}">{% endif %}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
   <button class="btn">Filter</button>
   {% if f.q or f.cat or f.kind or f.source or f.min_sev or f.days != 30 or f.entity %}<a class="btn" href="/feed">Reset</a>{% endif %}
 </form>
-<div class="card table-wrap feed-table">
+<div class="card table-wrap data-table">
   <table>
     <thead><tr>
       {{ th('Severity', 'severity', f, 'col-sev') }}
@@ -35,12 +34,12 @@
     <tr>
       <td class="col-sev">{{ sev(i.severity) }}</td>
       <td class="col-title">
-        <a class="title" href="/items/{{ i.id }}">{{ i.title or '(untitled)' }}</a>
+        <a class="title" href="/items/{{ i.id }}" data-preview="/items/{{ i.id }}/preview" data-preview-nav>{{ i.title or '(untitled)' }}</a>
         {% if i.content %}<div class="snippet one-line">{{ i.content|truncate(200) }}</div>{% endif %}
         {% set ents = i.entity_links|selectattr('entity.type', 'in', ['malware','actor','cve','technique'])|list %}
         {% set iocs = i.entity_links|rejectattr('entity.type', 'in', ['malware','actor','cve','technique'])|list %}
         {% if ents or iocs or i.llm_summary %}<div class="ent-row">
-          {% for l in ents[:8] %}<a class="chip" href="/entities/{{ l.entity.id }}"><span class="t">{{ l.entity.type }}</span>{{ l.entity.display|truncate(36, True) }}</a>{% endfor %}
+          {% for l in ents[:8] %}<a class="chip" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview"><span class="t">{{ l.entity.type }}</span>{{ l.entity.display|truncate(36, True) }}</a>{% endfor %}
           {% if ents|length > 8 %}<span class="chip muted">+{{ ents|length - 8 }}</span>{% endif %}
           {% if iocs %}<a class="chip" href="/items/{{ i.id }}" title="{{ iocs|length }} indicator(s) extracted"><span class="t">ioc</span>{{ iocs|length }}</a>{% endif %}
           {% if i.llm_summary %}<span class="badge new">AI</span>{% endif %}
@@ -55,12 +54,5 @@
     </tbody>
   </table>
 </div>
-{% if pages > 1 %}
-<div class="pager">
-  {% set qs = f.qs ~ ('&' if f.qs) ~ 'sort=' ~ f.sort ~ '&dir=' ~ f.dir %}
-  {% if page > 1 %}<a class="btn sm" href="?{{ qs }}&page={{ page - 1 }}">← Prev</a>{% endif %}
-  <span class="muted small">Page {{ page }} / {{ pages }}</span>
-  {% if page < pages %}<a class="btn sm" href="?{{ qs }}&page={{ page + 1 }}">Next →</a>{% endif %}
-</div>
-{% endif %}
+{{ pager(page, pages, f) }}
 {% endblock %}

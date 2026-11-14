@@ -1,42 +1,52 @@
 {% extends "base.html" %}
-{% from "_macros.html" import verdict, th %}
+{% from "_macros.html" import verdict, th, pager, period_select %}
 {% block title %}IOCs{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Indicators of compromise</h1>
-  <p class="muted">{{ total }} indicator(s){% if entity %} related to <a href="/entities/{{ entity.id }}">{{ entity.display }}</a> (seen in the same items or linked by enrichment){% else %} extracted from items or pulled in by enrichment{% endif %}</p></div>
-  {% if user.role in ('admin','analyst') %}<button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…">⇄ Run enrichment batch</button>{% endif %}</div>
+  <p class="muted">{{ total }} indicator(s){% if entity %} related to <a href="/entities/{{ entity.id }}">{{ entity.display }}</a> (seen in the same items or linked by enrichment){% else %} extracted from items or pulled in by enrichment{% endif %} · click a value to preview</p></div>
+  {% if user.role in ('admin','analyst') %}<div class="job">
+    <button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…" data-job-button="enrich">⇄ Run enrichment batch</button>
+    <div class="job-status small muted" data-job-status="enrich" aria-live="polite"></div></div>{% endif %}</div>
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search value" aria-label="Search IOC value" maxlength="200">
   <select name="type" aria-label="IOC type"><option value="">All types</option>{% for t in types %}<option value="{{ t }}" {{ 'selected' if f.type == t }}>{{ t }}</option>{% endfor %}</select>
   <select name="verdict" aria-label="Verdict"><option value="">Any verdict</option>
     {% for v in ['malicious','suspicious','clean','unknown','pending'] %}<option value="{{ v }}" {{ 'selected' if f.verdict == v }}>{{ v }}</option>{% endfor %}</select>
+  {{ period_select(f) }}
   {% if f.entity %}<input type="hidden" name="entity" value="{{ f.entity }}">{% endif %}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
   <button class="btn">Filter</button>
-  {% if f.q or f.type or f.verdict or f.entity %}<a class="btn" href="/iocs">Reset</a>{% endif %}
-  <button type="button" class="btn" data-copy-selector="td.ioc a" data-copy-label="IOC" title="Copy the indicators on this page, one per line">Copy visible</button>
+  {% if f.q or f.type or f.verdict or f.entity or f.days %}<a class="btn" href="/iocs">Reset</a>{% endif %}
+  <button type="button" class="btn" data-copy-selector="td .ioc-val" data-copy-label="IOC" title="Copy the indicators on this page, one per line">Copy visible</button>
 </form>
-<div class="card table-wrap">
+<div class="card table-wrap data-table">
   <table>
-    <thead><tr>{{ th('Type', 'type', f, default='asc') }}{{ th('Value', 'value', f, default='asc') }}{{ th('Verdict', 'verdict', f) }}<th>Attributed family</th><th>Seen in</th>{{ th('Mentions', 'mentions', f, 'num') }}{{ th('Last seen', 'last_seen', f) }}</tr></thead>
+    <thead><tr>
+      {{ th('Type', 'type', f, 'col-narrow', default='asc') }}
+      {{ th('Indicator', 'value', f, 'col-title', default='asc') }}
+      {{ th('Verdict', 'verdict', f, 'col-narrow') }}
+      {{ th('Mentions', 'mentions', f, 'num col-narrow') }}
+      {{ th('First seen', 'first_seen', f, 'col-time') }}
+      {{ th('Last seen', 'last_seen', f, 'col-time') }}
+    </tr></thead>
     <tbody>
     {% for e in rows %}
-    <tr><td><span class="badge">{{ e.type }}</span></td>
-      <td class="ioc" style="word-break:break-all"><a class="mono" href="/entities/{{ e.id }}">{{ e.display }}</a></td>
-      <td>{{ verdict(e.verdict if e.enriched_at else '') }}</td>
-      <td>{% for fid, name in fam.get(e.id, {}).items() %}<a class="chip" href="/entities/{{ fid }}">{{ name }}</a>{% else %}<span class="muted">–</span>{% endfor %}</td>
-      <td class="small">{% set ss = srcs.get(e.id, []) %}{% for name, cat in ss[:2] %}<span class="badge cat-{{ cat }}" title="{{ name }}">{{ name|truncate(26, True) }}</span> {% endfor %}{% if ss|length > 2 %}<span class="muted" title="{{ ss[2:]|map(attribute=0)|join(', ') }}">+{{ ss|length - 2 }}</span>{% elif not ss %}<span class="muted">–</span>{% endif %}</td>
-      <td class="num">{{ e.mention_count }}</td>
-      <td class="muted small" title="{{ e.last_seen }}">{{ e.last_seen|timeago }}</td></tr>
-    {% else %}<tr><td colspan="7" class="empty">No indicators match.</td></tr>{% endfor %}
+    {% set ss = srcs.get(e.id, []) %}
+    {% set fams = fam.get(e.id, {}) %}
+    <tr>
+      <td class="col-narrow"><span class="badge">{{ e.type }}</span></td>
+      <td class="col-title">
+        <a class="title mono ioc-val" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview" data-preview-nav>{{ e.display }}</a>
+        <div class="sub small">{% if ss %}<span class="muted">seen in</span> {% for name, cat in ss[:3] %}<span class="badge cat-{{ cat }}" title="{{ name }}">{{ name|truncate(26, True) }}</span> {% endfor %}{% if ss|length > 3 %}<span class="muted" title="{{ ss[3:]|map(attribute=0)|join(', ') }}">+{{ ss|length - 3 }}</span>{% endif %}{% else %}<span class="muted">no direct mentions</span>{% endif %}</div>
+        {% if fams %}<div class="ent-row">{% for fid, name in fams.items() %}<a class="chip" href="/entities/{{ fid }}" data-preview="/entities/{{ fid }}/preview"><span class="t">malware</span>{{ name }}</a>{% endfor %}</div>{% endif %}
+      </td>
+      <td class="col-narrow">{{ verdict(e.verdict if e.enriched_at else '') }}</td>
+      <td class="num col-narrow">{{ e.mention_count }}</td>
+      <td class="col-time muted small" title="{{ e.first_seen }} UTC">{{ e.first_seen.strftime('%Y-%m-%d') }}</td>
+      <td class="col-time muted small" title="{{ e.last_seen }} UTC">{{ e.last_seen|timeago }}</td></tr>
+    {% else %}<tr><td colspan="6" class="empty">No indicators match.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
-{% if pages > 1 %}
-<div class="pager">
-  {% set qs = f.qs ~ ('&' if f.qs) ~ 'sort=' ~ f.sort ~ '&dir=' ~ f.dir %}
-  {% if page > 1 %}<a class="btn sm" href="?{{ qs }}&page={{ page - 1 }}">← Prev</a>{% endif %}
-  <span class="muted small">Page {{ page }} / {{ pages }}</span>
-  {% if page < pages %}<a class="btn sm" href="?{{ qs }}&page={{ page + 1 }}">Next →</a>{% endif %}
-</div>{% endif %}
+{{ pager(page, pages, f, total) }}
 {% endblock %}

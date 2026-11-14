@@ -6,8 +6,8 @@ JATMP is a self-hosted platform for keeping track of new and emerging malware ca
 **security news**, **social media** (X, Bluesky, Mastodon) and **threat-intelligence platforms** (VirusTotal,
 AlienVault OTX, urlscan.io, ANY.RUN, ThreatFox), extracts the malware families, actors, CVEs and indicators
 mentioned in each item, cross-checks indicators against the intel providers, correlates everything across
-sources and presents the result on a trend dashboard. A local or cloud LLM can optionally add summaries,
-briefs and a daily digest.
+sources and presents the result on a trend dashboard. CVEs get exploitation context from CISA KEV, FIRST EPSS
+and NVD. A local or cloud LLM can optionally add summaries, briefs and a daily digest.
 
 It runs as a single process with SQLite by default. There is no JavaScript build step and nothing is loaded
 from a CDN at runtime, so it works on an isolated network.
@@ -78,7 +78,15 @@ from another source or source type receive a bonus. Entity pages show coverage p
 entities, related indicators and enrichment results.
 
 **Trends.** The dashboard scores each family by its recent mention rate against a 30-day baseline, weighted by
-how many sources and source types cover it, and shows the result as a radar, timelines and tables.
+how many sources and source types cover it, and shows the result as a radar, timelines and tables. The same
+score drives the *Trending CVEs* and *Trending threat actors* widgets, which also list the families, actors
+and CVEs mentioned alongside each entry.
+
+**Vulnerability context.** Every six hours, CVEs mentioned in the last 30 days are looked up in the CISA Known
+Exploited Vulnerabilities catalog, FIRST EPSS and the NVD (CVSS score, vector and description). None of these
+needs a key; an optional NVD key only makes the CVSS lookups faster. Trending CVEs are ranked by exploitation
+risk as well as chatter (trend score × 2 when in KEV × (1 + EPSS) × (0.5 + CVSS/10)), and the CVE list can be
+sorted by CVSS or EPSS.
 
 ### Reporting
 
@@ -101,9 +109,24 @@ OpenAI-compatible API. The output language is configurable.
 ### Operation
 
 JATMP installs in **single-user** mode (no login) or **multi-user** mode with admin, analyst and viewer roles,
-user management, job status and an audit log. Tables are sortable throughout, users keep a personal watchlist,
-and the interface offers a dark and a light theme, a `/` shortcut for search, a phone layout, configurable data
-retention and a Docker image with a health check.
+user management, job status and an audit log. Users keep a personal watchlist, and the interface offers a dark
+and a light theme, a `/` shortcut for search, a phone layout, configurable data retention and a Docker image
+with a health check.
+
+**Tables and preview.** The Feed, IOC, Malware, Threat actor and CVE lists share one table design: sortable
+headers that stay visible while scrolling, a bold primary column with a secondary line and a row of related
+entities, the same period filter (24 hours to 1 year, or all time), a Reset button and pagination. Clicking a
+title opens a **side preview** with the essentials (severity breakdown, AI summary, indicators and their
+verdicts, provider results, related items); ↑ / ↓ (or j / k) move to the previous or next row, Esc closes it,
+*Full page* opens the detail page in a new tab and the URL (`?preview=item:12`) can be shared. Ctrl / Cmd /
+middle-click still open the page itself.
+
+**Job status and notifications.** Under *Collect now* and *Enrich now* the dashboard shows when each job last
+ran and when it runs next, and a live progress bar while it runs ("Collecting… 12/50 sources · 8 new"); the
+button stays disabled until the run finishes. The bell in the top bar collects the results: one summary per
+manual collection ("Collected 42 new items from 50 sources, 2 errors"), sources that start failing, failed
+enrichment runs, the VirusTotal daily quota being used up and the AI digest being ready. Notifications are kept
+for 30 days.
 
 ## Quick start
 
@@ -155,6 +178,7 @@ and are shown there as locked.
 | urlscan.io | `URLSCAN_API_KEY` | The Search API requires a key |
 | ANY.RUN | `ANYRUN_API_KEY` | Requires a plan with TI Lookup; the base URL can be changed in Settings |
 | abuse.ch ThreatFox | `ABUSECH_AUTH_KEY` | Free (Auth-Key from auth.abuse.ch) |
+| NVD | `NVD_API_KEY` | Optional. CISA KEV, FIRST EPSS and NVD work without a key; with one, CVSS lookups are faster (50 per run instead of 10). The whole CVE lookup can be turned off under Settings → Enrichment |
 | X / Twitter | `X_BEARER_TOKEN` | API v2 is a paid service; alternatively set `rss_bridge` on each X source |
 | LLM | `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | Optional. `LLM_PROVIDER` is `none`, `ollama`, `openai_compatible` or `anthropic`; the Settings page reflects whatever these resolve to |
 
@@ -180,6 +204,13 @@ Malware families and actors can be added without touching code. Create `data/kno
 ```
 
 Restart, then run `python manage.py reextract` to reprocess existing items.
+
+### Upgrading to 0.4
+
+Nothing to do by hand: on start-up the new `notifications` table is created and the new columns on
+`collector_runs` and `users` are added. The first CVE lookup runs three minutes after start-up and fills in
+KEV / EPSS / CVSS for CVEs mentioned in the last 30 days; press **Refresh CVE intel** on the CVE page or run
+`python manage.py cve-intel` to start it right away.
 
 ### Upgrading to 0.3
 
@@ -216,6 +247,7 @@ packages, so run `pip install -r requirements.txt` again.
 ```bash
 python manage.py collect          # run every collector now (or a subset: collect 1 5 7)
 python manage.py enrich           # run one enrichment batch
+python manage.py cve-intel        # refresh CISA KEV / EPSS / CVSS for recently mentioned CVEs
 python manage.py digest           # generate the AI digest now
 python manage.py reextract        # re-extract entities on every item
 python manage.py rescore          # recompute severity with the current rules (also a button in Settings → General)
@@ -237,8 +269,9 @@ pytest
 
 The test suite runs against a throw-away SQLite database with no network access and no scheduler. It covers
 the extractor, severity scoring, enrichment consensus, feed sorting, the AI settings mapping, the report
-builder in all four formats, password, CSRF and redirect handling, feed sanitisation, the settings form and
-the multi-user login flow. GitHub Actions runs lint and tests on Python 3.11 and 3.12 and builds the Docker
+builder in all four formats, password, CSRF and redirect handling, feed sanitisation, the settings form, the
+multi-user login flow, list pagination and filters, the preview fragments, job batches and progress,
+notifications and the CVE lookups (against a mocked HTTP transport). GitHub Actions runs lint and tests on Python 3.11 and 3.12 and builds the Docker
 image.
 
 ## Architecture
@@ -250,12 +283,17 @@ app/
                 severity (explainable 0–100 score) · enrichment (cross-source, consensus, re-checks)
                 trends (dashboard aggregations, weighted correlation)
   intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox (rate limits and budgets)
+                cve (CISA KEV, FIRST EPSS, NVD CVSS → Entity.meta; risk-weighted CVE priority)
   llm/          client (Ollama / OpenAI-compatible / Anthropic, live model list) · presets (local and cloud vendors)
                 insights (summary, brief, digest, Q&A)
   reports.py    Threat Intel Findings: gather() plus PDF / Word / Markdown / CSV exporters
   routers/      pages, api (JSON and actions), settings, reports, admin, auth and setup
-  jobs.py       APScheduler: one job per source, enrichment every N minutes, daily digest, housekeeping
-  static/       app.css (theme tokens, dark and light) · app.js (CSP-safe behaviours, charts) · motion.js (radar, sparklines)
+  jobs.py       APScheduler: one job per source, enrichment every N minutes, CVE intel every 6 h, daily digest,
+                housekeeping; manual runs as batches with live progress (status() feeds /api/jobs/status)
+  notify.py     notification center (de-duplicated by key, per-user read watermark, 30-day retention)
+  templates/    pages, plus _preview_item.html / _preview_entity.html (partial HTML for the side preview)
+  static/       app.css (theme tokens, dark and light) · app.js (CSP-safe behaviours, preview drawer, job and
+                notification polling, charts) · motion.js (radar, sparklines)
 data/           config.json (install mode, secret), jatmp.db (SQLite)
 tests/          pytest suite
 ```
@@ -265,6 +303,33 @@ Run a single web worker, because the scheduler lives in the process; scale colle
 intervals instead.
 
 ## Changelog
+
+### 0.4.0
+
+- **Unified tables.** IOC, Malware, Threat actor and CVE lists now use the Feed's table design (generic
+  `.data-table`): bold primary column, secondary line, related-entity chips, the same period filter including
+  *1 year* and *All time*, Reset and pagination (the entity lists used to stop at 300 rows). Headers stay
+  visible while scrolling; a table wider than its card scrolls horizontally instead.
+- **Side preview.** A click on a title in the Feed, IOC, Malware, Actor or CVE tables, in the dashboard
+  widgets or on detail pages opens a slide-over preview served by `GET /items/{id}/preview` and
+  `GET /entities/{id}/preview` (partial HTML, same auth as the pages). Keyboard navigation (↑ / ↓, j / k, Esc),
+  focus trap, a shareable `?preview=` URL, *Full page* in a new tab and a full-screen sheet on phones.
+- **Job status and progress.** *Collect now* queues one run per source under a batch id and shows
+  "Collecting… 12/50 sources · 8 new" with a progress bar; *Enrich now* and the new *Refresh CVE intel* show
+  per-indicator / per-CVE progress. Each button shows "Last … · Next …" from the scheduler and stays disabled
+  (and refuses a second run server-side) while its job runs. `GET /api/jobs/status`; the page polls every
+  60 s, or every 2.5 s while something runs. Runs interrupted by a restart are marked *aborted*.
+- **Notification center.** Bell with unread count in the top bar on every page: collection batch summaries,
+  sources that start failing (on the transition, not on every failed run), failed enrichment runs, the
+  VirusTotal quota being reached, the AI digest being ready and re-scoring finished. A new notification also
+  shows as a toast. `GET /api/notifications`, `POST /api/notifications/read`; kept for 30 days.
+- **CVE and actor widgets.** *Trending CVEs* (KEV badge, CVSS, EPSS, risk-weighted priority, co-mentioned
+  families and actors) and *Trending threat actors* (growth, linked families and CVEs) replace the chip list on
+  the dashboard. CVE pages get a *Vulnerability intel* card and the CVE list gained CVSS / EPSS columns.
+- **CVE intel job** (`app/intel/cve.py`): CISA KEV (cached on disk for 12 h), FIRST EPSS and NVD CVSS every
+  6 hours; the NVD is throttled to its public rate limit and skipped for the rest of a run when it keeps
+  failing. New settings: *CVE context* (on by default) and an optional NVD API key. `manage.py cve-intel`.
+- Fix: "All time" on the Feed was lost when sorting or paging.
 
 ### 0.3.0
 

@@ -260,3 +260,31 @@ def correlated_items(db: Session, item: Item, limit: int = 15) -> list[dict]:
                     "strong": any(names[e][0] in ("sha256", "sha1", "md5", "url", "domain", "ip") for e in ents)})
     out.sort(key=lambda d: (-d["score"], -d["item"].published_at.timestamp()))
     return out[:limit]
+
+
+# --------------------------------------------------------------------------- dashboard widgets
+def trending_cves(db: Session, limit: int = 8) -> list[dict]:
+    """Trending CVEs re-ranked by exploitation risk (CISA KEV, EPSS, CVSS from app/intel/cve.py),
+    each with the families and actors mentioned alongside it."""
+    from ..intel.cve import priority
+
+    rows = trending(db, "cve", limit=60)
+    if not rows:
+        return []
+    metas = dict(db.execute(select(Entity.id, Entity.meta).where(Entity.id.in_([r["id"] for r in rows]))).all())
+    for r in rows:
+        r["priority"], intel = priority(r["score"], metas.get(r["id"]))
+        r.update(intel)
+        r["meta"] = metas.get(r["id"]) or {}
+    rows.sort(key=lambda r: (-r["priority"], -r["score"]))
+    out = rows[:limit]
+    for r in out:
+        r["related"] = co_occurring(db, r["id"], ("malware", "actor"), 4)
+    return out
+
+
+def trending_actors(db: Session, limit: int = 8) -> list[dict]:
+    rows = trending(db, "actor", limit=limit)
+    for r in rows:
+        r["related"] = co_occurring(db, r["id"], ("malware", "cve"), 5)
+    return rows

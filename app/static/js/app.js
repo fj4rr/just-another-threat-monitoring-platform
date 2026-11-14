@@ -6,7 +6,10 @@
      [data-autosubmit]    submit the parent form on change
      [data-copy-selector] copy the text of matching elements to the clipboard
      details.pop          modal-style popover (click backdrop / Esc / [data-pop-close] to close)
-     [data-menu] / [data-nav-close]  mobile sidebar */
+     [data-menu] / [data-nav-close]  mobile sidebar
+     a[data-preview]      open a partial-HTML preview in the side drawer ([data-preview-nav] = row for ↑/↓)
+     [data-job-button] / [data-job-status]  disabled while a job runs / "Last · Next" + progress bar
+     [data-notif-toggle]  notification center in the topbar (polled together with job status) */
 (function () {
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -37,6 +40,23 @@
     if (e.target.closest("[data-nav-close]")) return setNav(false);
     if (e.target.closest(".side .nav a")) setNav(false);
   });
+
+  // ---------- sticky table headers sit right under the (sticky) topbar, whatever its height
+  const topbar = document.querySelector(".topbar");
+  if (topbar && "ResizeObserver" in window) {
+    new ResizeObserver(() => document.documentElement.style.setProperty("--topbar-h", topbar.offsetHeight + "px"))
+      .observe(topbar);
+  }
+  // a data table wider than its card falls back to horizontal scrolling (a sticky header needs the
+  // wrapper not to be a scroll container, so this is decided per table, not per breakpoint)
+  if ("ResizeObserver" in window) {
+    const fit = (wrap) => {
+      const t = wrap.querySelector("table");
+      if (t) wrap.classList.toggle("scroll-x", t.scrollWidth > wrap.clientWidth + 1);
+    };
+    const ro = new ResizeObserver((es) => es.forEach((e) => fit(e.target)));
+    document.querySelectorAll(".table-wrap.data-table").forEach((w) => { fit(w); ro.observe(w); });
+  }
 
   // ---------- back button (falls back to the dashboard when there is no history)
   document.addEventListener("click", (e) => {
@@ -151,6 +171,8 @@
       btn.removeAttribute("aria-busy");
       btn.innerHTML = "watching" in btn.dataset
         ? (btn.dataset.watching === "true" ? "★ Watching" : "☆ Watch") : label;
+      // job buttons: poll fast for a while so the progress bar appears right away
+      if (btn.dataset.jobButton) { pulse.boost = Date.now() + 20000; pollPulse(); }
     }
   });
 
@@ -238,8 +260,275 @@
     try { await fn(el, ...args); } catch (err) { emptyNote(el, "Could not load data (" + err.message + ")"); }
   };
 
+  const typingIn = () => /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") ||
+    document.activeElement?.isContentEditable;
+
+  // ---------- side preview drawer
+  // A plain left-click on a[data-preview] opens a partial-HTML preview in the right-hand drawer.
+  // Ctrl/Cmd/Shift/middle-click keep the normal href (new tab etc.). ?preview=item:12 is shareable.
+  const drawer = document.getElementById("drawer");
+  const dBody = document.getElementById("drawer-body");
+  const dBackdrop = document.querySelector(".drawer-backdrop");
+  const PREVIEW_RE = /^\/(items|entities)\/(\d+)\/preview$/;
+  let dReturn = null, dCurrent = null, dReq = 0;
+
+  const navLinks = () => [...document.querySelectorAll("main [data-preview-nav]")];
+  const rowLink = (el) => (el?.hasAttribute("data-preview-nav") ? el : el?.closest("tr, .feed-item")?.querySelector("[data-preview-nav]")) || null;
+  const markRow = (link) => {
+    document.querySelectorAll(".is-previewed").forEach((r) => r.classList.remove("is-previewed"));
+    link?.closest("tr")?.classList.add("is-previewed");
+  };
+  const setPreviewParam = (val) => {
+    const u = new URL(location.href);
+    if (val) u.searchParams.set("preview", val); else u.searchParams.delete("preview");
+    history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+  };
+
+  async function openPreview(url, origin) {
+    const m = PREVIEW_RE.exec(url || "");
+    if (!drawer || !m) return;
+    const req = ++dReq;
+    if (origin && !drawer.contains(origin)) { dReturn = origin; dCurrent = rowLink(origin); }
+    const wasOpen = !drawer.hidden;
+    drawer.hidden = false; dBackdrop.hidden = false;
+    document.body.classList.add("drawer-open");
+    dBody.classList.add("loading");
+    if (!wasOpen) dBody.innerHTML = '<div class="empty">Loading…</div>';
+    const full = document.getElementById("drawer-full");
+    full.href = url.replace(/\/preview$/, "");
+    markRow(dCurrent);
+    if (!drawer.contains(document.activeElement)) drawer.focus({ preventScroll: true });
+    try {
+      const r = await fetch(url, { credentials: "same-origin", headers: { "X-Requested-With": "fetch" } });
+      if (r.redirected && new URL(r.url).pathname === "/login") {
+        location.href = "/login?next=" + encodeURIComponent(location.pathname + location.search); return;
+      }
+      if (!r.ok) throw new Error(r.status === 404 ? "not found" : `HTTP ${r.status}`);
+      const html = await r.text();
+      if (req !== dReq) return;
+      dBody.innerHTML = html;
+      dBody.scrollTop = 0;
+      const meta = dBody.querySelector("[data-preview-meta]");
+      document.getElementById("drawer-kind").textContent = meta?.dataset.kind ? `${meta.dataset.kind} preview` : "Preview";
+      if (meta?.dataset.full) full.href = meta.dataset.full;
+      setPreviewParam(`${m[1] === "items" ? "item" : "entity"}:${m[2]}`);
+    } catch (err) {
+      if (req !== dReq) return;
+      dBody.innerHTML = "";
+      const d = document.createElement("div");
+      d.className = "empty"; d.textContent = `Could not load the preview (${err.message}).`;
+      dBody.appendChild(d);
+    } finally {
+      if (req === dReq) dBody.classList.remove("loading");
+    }
+  }
+
+  function closePreview() {
+    if (!drawer || drawer.hidden) return;
+    dReq++;
+    drawer.hidden = true; dBackdrop.hidden = true;
+    document.body.classList.remove("drawer-open");
+    markRow(null);
+    setPreviewParam("");
+    const back = dReturn;
+    dReturn = null;
+    if (back && document.contains(back)) back.focus();
+  }
+
+  function stepPreview(delta) {
+    const links = navLinks();
+    if (!links.length) return;
+    let i = links.indexOf(dCurrent);
+    i = i < 0 ? (delta > 0 ? 0 : links.length - 1) : Math.min(links.length - 1, Math.max(0, i + delta));
+    if (links[i] === dCurrent) return;
+    dCurrent = links[i]; dReturn = links[i];
+    (links[i].closest("tr") || links[i]).scrollIntoView({ block: "nearest", behavior: REDUCED ? "auto" : "smooth" });
+    openPreview(links[i].dataset.preview, null);
+  }
+
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a[data-preview]");
+    if (!a || !drawer || e.defaultPrevented) return;
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    openPreview(a.dataset.preview, a);
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-drawer-close]")) { e.preventDefault(); closePreview(); return; }
+    const step = e.target.closest("[data-drawer-step]");
+    if (step) stepPreview(Number(step.dataset.drawerStep));
+  });
+  document.addEventListener("keydown", (e) => {
+    if (!drawer || drawer.hidden) return;
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePreview(); return; }
+    if (!typingIn() && !e.ctrlKey && !e.metaKey && !e.altKey && ["ArrowDown", "ArrowUp", "j", "k"].includes(e.key)) {
+      e.preventDefault();
+      stepPreview(e.key === "ArrowDown" || e.key === "j" ? 1 : -1);
+      return;
+    }
+    if (e.key === "Tab") { // focus trap
+      const f = [...drawer.querySelectorAll('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => el.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === drawer)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      else if (!drawer.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+    }
+  }, true);
+  { // deep link: ?preview=item:12 / entity:5
+    const pm = /^(item|entity):(\d+)$/.exec(new URLSearchParams(location.search).get("preview") || "");
+    if (pm && drawer) {
+      const url = `/${pm[1] === "item" ? "items" : "entities"}/${pm[2]}/preview`;
+      openPreview(url, document.querySelector(`main [data-preview="${url}"]`));
+    }
+  }
+
+  // ---------- background jobs + notifications: one poll for both
+  // every 60 s normally, every 2.5 s while a job runs (or right after a job button was pressed).
+  const pulse = { timer: null, boost: 0, lastNotif: null, skew: 0 };
+  const bell = document.querySelector("[data-notif-toggle]");
+  const nPanel = document.getElementById("notif-panel");
+  const nBadge = document.querySelector("[data-notif-badge]");
+
+  const rel = (iso) => {
+    if (!iso) return "";
+    const s = Math.round((Date.parse(iso) - (Date.now() + pulse.skew)) / 1000);
+    const a = Math.abs(s);
+    const v = a < 45 ? null : a < 3600 ? `${Math.round(a / 60)} min` : a < 86400 ? `${Math.round(a / 3600)} h` : `${Math.round(a / 86400)} d`;
+    if (!v) return s > 0 ? "in a moment" : "just now";
+    return s > 0 ? `in ${v}` : `${v} ago`;
+  };
+
+  function renderJobs(jobs) {
+    for (const [name, j] of Object.entries(jobs || {})) {
+      document.querySelectorAll(`[data-job-button="${name}"]`).forEach((b) => {
+        if (b.getAttribute("aria-busy") === "true") return;
+        b.disabled = !!j.running;
+      });
+      document.querySelectorAll(`[data-job-status="${name}"]`).forEach((el) => {
+        el.textContent = "";
+        const line = document.createElement("div");
+        if (j.running) {
+          line.textContent = j.label || "Running…";
+          el.appendChild(line);
+          const bar = document.createElement("div");
+          bar.className = "progress" + (j.total ? "" : " indeterminate");
+          bar.setAttribute("role", "progressbar");
+          bar.setAttribute("aria-label", j.label || "Progress");
+          const fill = document.createElement("span");
+          if (j.total) {
+            const pct = Math.round((100 * j.done) / j.total);
+            fill.style.width = pct + "%";
+            bar.setAttribute("aria-valuenow", String(pct)); bar.setAttribute("aria-valuemin", "0"); bar.setAttribute("aria-valuemax", "100");
+          }
+          bar.appendChild(fill);
+          el.appendChild(bar);
+        } else {
+          const parts = [];
+          parts.push(j.last ? `Last: ${rel(j.last.finished_at)}` : "Last: never");
+          if (j.next) parts.push(`Next: ${rel(j.next)}`);
+          line.textContent = parts.join(" · ");
+          if (j.last && j.last.status === "error") {
+            const err = document.createElement("span");
+            err.className = "err"; err.textContent = " · failed";
+            err.title = j.last.message || "";
+            line.appendChild(err);
+          }
+          if (j.last && j.last.summary) line.title = j.last.summary;
+          el.appendChild(line);
+        }
+      });
+    }
+  }
+
+  function renderBadge(n) {
+    if (!bell || !n) return;
+    nBadge.hidden = !n.unread;
+    nBadge.textContent = n.unread > 99 ? "99+" : String(n.unread);
+    bell.setAttribute("aria-label", n.unread ? `Notifications, ${n.unread} unread` : "Notifications");
+    const latest = n.latest ? n.latest.id : 0;
+    if (pulse.lastNotif === null) { pulse.lastNotif = latest; return; }
+    if (latest > pulse.lastNotif) {
+      pulse.lastNotif = latest;
+      toast(n.latest.title, 6000);
+      bell.classList.remove("ring"); void bell.offsetWidth; bell.classList.add("ring");
+      if (!nPanel.hidden) loadNotifs();
+    }
+  }
+
+  async function pollPulse() {
+    clearTimeout(pulse.timer);
+    let running = false;
+    try {
+      const d = await getJSON("/api/jobs/status");
+      if (d.now) pulse.skew = Date.parse(d.now) - Date.now();
+      renderJobs(d.jobs);
+      renderBadge(d.notifications);
+      running = Object.values(d.jobs || {}).some((j) => j.running);
+    } catch {}
+    const fast = running || pulse.boost > Date.now();
+    pulse.timer = setTimeout(pollPulse, document.hidden ? 120000 : fast ? 2500 : 60000);
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && bell) pollPulse(); });
+
+  async function loadNotifs() {
+    const list = document.getElementById("notif-list");
+    try {
+      const d = await getJSON("/api/notifications?limit=30");
+      list.textContent = "";
+      if (!d.items.length) {
+        const e = document.createElement("div");
+        e.className = "empty small"; e.textContent = "No notifications yet. Job results and alerts show up here.";
+        list.appendChild(e);
+      }
+      for (const n of d.items) {
+        const safeLink = typeof n.link === "string" && n.link.startsWith("/") && !n.link.startsWith("//");
+        const row = document.createElement(safeLink ? "a" : "div");
+        if (safeLink) row.href = n.link;
+        row.className = "notif-row" + (n.unread ? " unread" : "");
+        const dot = document.createElement("span");
+        dot.className = "lvl " + (n.level || "info"); dot.title = n.level || "";
+        const txt = document.createElement("div");
+        const t = document.createElement("div"); t.className = "t"; t.textContent = n.title;
+        txt.appendChild(t);
+        if (n.body) { const b = document.createElement("div"); b.className = "b"; b.textContent = n.body; txt.appendChild(b); }
+        const w = document.createElement("div"); w.className = "w"; w.textContent = rel(n.created_at); w.title = n.created_at;
+        txt.appendChild(w);
+        row.append(dot, txt);
+        list.appendChild(row);
+      }
+      renderBadge({ unread: d.unread, latest: d.items[0] || null });
+    } catch (err) {
+      list.textContent = "";
+      const e = document.createElement("div");
+      e.className = "empty small"; e.textContent = "Could not load notifications (" + err.message + ")";
+      list.appendChild(e);
+    }
+  }
+  const setPanel = (open) => {
+    if (!bell) return;
+    nPanel.hidden = !open;
+    bell.setAttribute("aria-expanded", String(open));
+    if (open) loadNotifs();
+  };
+  document.addEventListener("click", async (e) => {
+    if (!bell) return;
+    if (e.target.closest("[data-notif-toggle]")) { setPanel(nPanel.hidden); return; }
+    if (e.target.closest("[data-notif-close]")) { setPanel(false); bell.focus(); return; }
+    if (e.target.closest("[data-notif-readall]")) {
+      try { await api("/api/notifications/read"); await loadNotifs(); } catch (err) { toast("Error: " + err.message, 6000); }
+      return;
+    }
+    if (!nPanel.hidden && !e.target.closest(".notif")) setPanel(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && bell && !nPanel.hidden) { setPanel(false); bell.focus(); }
+  });
+  if (bell) pollPulse();
+
   const JATMP = {
-    toast, api,
+    toast, api, openPreview, closePreview, pollPulse,
 
     timeline: guard(async (el, days = 30) => {
       const d = await getJSON(`/api/stats/timeline?days=${days}`);

@@ -97,8 +97,9 @@ def _external_id(r: RawItem) -> str:
     return (r.external_id or r.url or r.title or "").strip()[:500]
 
 
-def ingest(db: Session, source: Source, raws: list[RawItem]) -> list[int]:
-    """Store new items. Returns IDs of newly created items."""
+def ingest(db: Session, source: Source, raws: list[RawItem], progress=None) -> list[int]:
+    """Store new items. Returns IDs of newly created items.
+    ``progress(done, total)`` is called as entries are processed (in-memory job progress, no DB writes)."""
     from ..knowledge import canonical_malware
 
     new_ids: list[int] = []
@@ -112,7 +113,9 @@ def ingest(db: Session, source: Source, raws: list[RawItem]) -> list[int]:
             select(Item.external_id).where(Item.source_id == source.id, Item.external_id.in_(wanted))
         )
     }
-    for r in raws:
+    for n, r in enumerate(raws, 1):
+        if progress and (n % 5 == 0 or n == len(raws)):
+            progress(n, len(raws))
         ext = _external_id(r)
         if not ext or ext in known:
             continue

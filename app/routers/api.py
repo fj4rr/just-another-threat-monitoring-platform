@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import jobs
+from .. import jobs, notify
 from ..auth import audit, current_user, require, verify_csrf
 from ..db import get_db
 from ..llm import client as llm
@@ -60,7 +60,7 @@ def stats_trending_timeline(limit: int = 5, days: int = 30, _: User = Depends(cu
 
 @router.get("/stats/categories")
 def stats_categories(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.category_breakdown(db, _days(days))
+    return trends.category_breakdown(db, _days(days, 1, 3650))
 
 
 @router.get("/stats/sources")
@@ -94,20 +94,61 @@ def source_run(source_id: int, request: Request, user: User = Depends(require("a
 
 @router.post("/sources/run_all", dependencies=[Depends(verify_csrf)])
 def source_run_all(request: Request, user: User = Depends(require("analyst")), db: Session = Depends(get_db)):
+    if jobs.active_batch(db, "collect"):
+        return {"ok": True, "running": True, "message": "Collection is already running"}
     srcs = db.execute(select(Source).where(Source.enabled)).scalars().all()
-    for s in srcs:
-        jobs.run_now(jobs.run_source, s.id)
+    if not srcs:
+        return {"ok": True, "message": "No enabled sources (Settings → Sources)"}
+    batch = jobs.queue_collection(db, [s.id for s in srcs])
     audit(db, user, "source_run_all", f"{len(srcs)} sources", request)
     db.commit()
-    return {"ok": True, "message": f"{len(srcs)} sources queued"}
+    return {"ok": True, "batch": batch, "message": f"{len(srcs)} sources queued"}
 
 
 @router.post("/enrichment/run", dependencies=[Depends(verify_csrf)])
 def enrichment_run(request: Request, user: User = Depends(require("analyst")), db: Session = Depends(get_db)):
-    jobs.run_now(jobs.run_enrichment)
+    if jobs.job_running(db, "enrichment"):
+        return {"ok": True, "running": True, "message": "Enrichment is already running"}
+    batch = jobs.queue_job(db, "enrichment")
     audit(db, user, "enrichment_run", "", request)
     db.commit()
-    return {"ok": True, "message": "enrichment batch queued"}
+    return {"ok": True, "batch": batch, "message": "enrichment batch queued"}
+
+
+@router.post("/cves/refresh", dependencies=[Depends(verify_csrf)])
+def cve_refresh(request: Request, user: User = Depends(require("analyst")), db: Session = Depends(get_db)):
+    if jobs.job_running(db, "cve_intel"):
+        return {"ok": True, "running": True, "message": "CVE intel refresh is already running"}
+    batch = jobs.queue_job(db, "cve_intel")
+    audit(db, user, "cve_refresh", "", request)
+    db.commit()
+    return {"ok": True, "batch": batch, "message": "CVE intel refresh queued (KEV, EPSS, CVSS)"}
+
+
+# --------------------------------------------------------------------------- job status & notifications
+@router.get("/jobs/status")
+def jobs_status(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    out = jobs.status(db)
+    last = notify.latest(db, user)
+    out["notifications"] = {"unread": notify.unread_count(db, user),
+                            "latest": {"id": last.id, "title": last.title, "level": last.level} if last else None}
+    return out
+
+
+@router.get("/notifications")
+def notifications(limit: int = 30, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..models import Notification
+
+    rows = db.execute(select(Notification).where(notify.visible(user)).order_by(Notification.id.desc())
+                      .limit(min(max(limit, 1), 100))).scalars().all()
+    return {"items": [notify.as_dict(n, user) for n in rows], "unread": notify.unread_count(db, user)}
+
+
+@router.post("/notifications/read", dependencies=[Depends(verify_csrf)])
+def notifications_read(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    notify.mark_all_read(db, user)
+    db.commit()
+    return {"ok": True, "unread": 0}
 
 
 @router.post("/items/rescore", dependencies=[Depends(verify_csrf)])

@@ -18,6 +18,7 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "anyrun_api_key": ("", "ANYRUN_API_KEY", "ANY.RUN API key (TI Lookup)", "secret", "intel"),
     "anyrun_api_base": ("https://api.any.run/v1", "ANYRUN_API_BASE", "ANY.RUN API base URL", "text", "intel"),
     "threatfox_auth_key": ("", "ABUSECH_AUTH_KEY", "abuse.ch Auth-Key (ThreatFox, optional)", "secret", "intel"),
+    "nvd_api_key": ("", "NVD_API_KEY", "NVD API key (optional, faster CVSS lookups)", "secret", "intel"),
     # Social
     "x_bearer_token": ("", "X_BEARER_TOKEN", "X (Twitter) API v2 bearer token", "secret", "social"),
     # Enrichment
@@ -27,6 +28,8 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "vt_daily_budget": (400, "", "VirusTotal lookups per day (free tier = 500)", "int", "enrichment"),
     "vt_min_interval": (16, "", "Seconds between VirusTotal calls (free tier = 4/min)", "int", "enrichment"),
     "enrich_families": (True, "", "Pull IOCs for trending malware families from OTX / ANY.RUN", "bool", "enrichment"),
+    "cve_intel_enabled": (True, "", "CVE context every 6 h: CISA KEV, FIRST EPSS and NVD CVSS (free, no key)", "bool",
+                          "enrichment"),
     # LLM (llm_mode / llm_vendor drive the simple UI; llm_provider is what the client uses)
     "llm_mode": ("none", "", "AI", "select:none,local,cloud", "llm"),
     "llm_vendor": ("ollama", "", "Vendor / runtime", "text", "llm"),

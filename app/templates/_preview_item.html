@@ -1,0 +1,52 @@
+{# Side-preview fragment for an item. No base layout: injected into the drawer by app.js. #}
+{% from "_macros.html" import sev, verdict, chip %}
+<div data-preview-meta data-kind="Item" data-full="/items/{{ item.id }}" data-title="{{ item.title or '(untitled)' }}">
+  <div class="pv-meta">
+    <span class="badge cat-{{ item.source.category }}">{{ item.source.name }}</span>
+    <span>{{ item.kind }}</span>
+    <time datetime="{{ item.published_at.isoformat() }}Z" title="{{ item.published_at }} UTC">{{ item.published_at|timeago }}</time>
+    {% if item.author %}<span>· {{ item.author|truncate(40) }}</span>{% endif %}
+  </div>
+  <h2 class="pv-title" id="drawer-title">{{ item.title or '(untitled)' }}</h2>
+  <div class="row small">{{ sev(item.severity) }} <span class="muted">severity / 100</span></div>
+  {% if item.severity_detail %}
+  <table class="sev-rows" style="margin-top:6px"><tbody>
+    {% for d in item.severity_detail|sort(attribute='points', reverse=True) %}{% if loop.index <= 6 %}
+    <tr><td>{{ d.label }}</td><td class="num {{ 'muted' if d.points < 0 }}">{{ '%+d'|format(d.points) }}</td></tr>{% endif %}{% endfor %}
+  </tbody></table>{% endif %}
+
+  <div class="pv-actions">
+    <a class="btn sm primary" href="/items/{{ item.id }}" target="_blank" rel="noopener">Open full page ↗</a>
+    {% if item.url|safe_href != '#' %}<a class="btn sm" href="{{ item.url|safe_href }}" target="_blank" rel="noopener noreferrer">Original source ↗</a>{% endif %}
+  </div>
+
+  {% if item.llm_summary %}
+  <div class="pv-sec"><h3>AI summary</h3><div class="prose small">{{ item.llm_summary|md }}</div></div>
+  {% endif %}
+
+  {% if item.content %}
+  <div class="pv-sec"><h3>Content</h3><div class="pv-snippet">{{ item.content|truncate(900) }}</div></div>
+  {% endif %}
+
+  {% if named %}
+  <div class="pv-sec"><h3>Entities</h3>{% for e in named %}{{ chip(e) }}{% endfor %}</div>
+  {% endif %}
+
+  {% if iocs %}
+  <div class="pv-sec"><h3>Indicators ({{ ioc_total }})</h3>
+    <ul class="pv-list">{% for e in iocs %}
+      <li><a class="mono small" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview"><span class="muted">{{ e.type }}</span> {{ e.display|truncate(64, True) }}</a>{{ verdict(e.verdict if e.enriched_at else '') }}</li>{% endfor %}
+    </ul>
+    {% if ioc_total > iocs|length %}<p class="muted small" style="margin:6px 0 0">+{{ ioc_total - iocs|length }} more on the full page</p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if related %}
+  <div class="pv-sec"><h3>Correlated items</h3>
+    <ul class="pv-list">{% for r in related %}
+      <li><a href="/items/{{ r.item.id }}" data-preview="/items/{{ r.item.id }}/preview">{{ r.item.title|truncate(90) }}</a>
+        <span class="muted small" style="white-space:nowrap" title="{{ r.shared }} shared entit{{ 'y' if r.shared == 1 else 'ies' }} · score {{ r.score }}">{{ r.item.source.name|truncate(18, True) }} · {{ r.item.published_at|timeago }}</span></li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>

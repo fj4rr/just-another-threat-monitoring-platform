@@ -33,6 +33,8 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # notifications created before this moment count as read for this user ("Mark all read")
+    notif_read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Setting(Base):
@@ -178,9 +180,28 @@ class CollectorRun(Base):
     source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="running")
+    status: Mapped[str] = mapped_column(String(16), default="running")  # queued | running | ok | error | skipped | aborted
     new_items: Mapped[int] = mapped_column(Integer, default=0)
     message: Mapped[str] = mapped_column(Text, default="")
+    # a manual "Collect now" queues one run per source under one batch id, shown as one progress bar
+    batch_id: Mapped[str] = mapped_column(String(32), default="", index=True)
+    progress_total: Mapped[int] = mapped_column(Integer, default=0)
+    progress_done: Mapped[int] = mapped_column(Integer, default=0)
+    phase: Mapped[str] = mapped_column(String(64), default="")
+
+
+class Notification(Base):
+    """Something the user should know about: a finished batch, a failing source, a quota hit..."""
+
+    __tablename__ = "notifications"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # None = everyone
+    level: Mapped[str] = mapped_column(String(16), default="info")  # success | info | warning | error
+    title: Mapped[str] = mapped_column(String(256), default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    link: Mapped[str] = mapped_column(String(512), default="")  # same-origin path only
+    key: Mapped[str] = mapped_column(String(128), default="", index=True)  # de-duplication key
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
 class AuditLog(Base):

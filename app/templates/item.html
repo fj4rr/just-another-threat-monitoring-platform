@@ -33,7 +33,7 @@
       <div class="card-head"><h2>Correlated items</h2><span class="muted small" title="Shared hashes, URLs and domains weigh most; common CVEs and techniques least. Items from other sources rank higher.">ranked by evidence strength</span></div>
       {% for r in related %}
       <div class="feed-item"><div><span class="sev {{ 's-med' if r.strong }}" title="correlation score {{ r.score }} · {{ r.shared }} shared entit{{ 'y' if r.shared == 1 else 'ies' }}">{{ r.shared }}</span></div>
-        <div style="min-width:0"><a class="title" href="/items/{{ r.item.id }}">{{ r.item.title }}</a>
+        <div style="min-width:0"><a class="title" href="/items/{{ r.item.id }}" data-preview="/items/{{ r.item.id }}/preview" data-preview-nav>{{ r.item.title }}</a>
           <div class="meta"><span class="badge cat-{{ r.item.source.category }}">{{ r.item.source.name }}</span><span>{{ r.item.published_at|timeago }}</span>
             {% if r.item.source_id != item.source_id %}<span class="badge new">other source</span>{% endif %}</div>
           <div class="muted small" style="margin-top:2px">shares: {% for t, n in r.entities %}<span class="{{ 'mono' if t not in ('malware','actor','cve','technique') }}">{{ n|truncate(40, True) }}</span>{{ ', ' if not loop.last }}{% endfor %}</div></div></div>
@@ -49,7 +49,7 @@
         {% if type in ('malware','actor','cve','technique') %}{{ chip(l.entity) }}
         {% else %}
         <div class="row" style="justify-content:space-between;margin:4px 0;flex-wrap:nowrap">
-          <a class="mono" href="/entities/{{ l.entity.id }}" style="word-break:break-all">{{ l.entity.display|truncate(70, True) }}</a>
+          <a class="mono" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview" style="word-break:break-all">{{ l.entity.display|truncate(70, True) }}</a>
           {{ verdict(l.entity.verdict if l.entity.enriched_at else '') }}
         </div>
         {% for e in enr.get(l.entity.id, []) %}<div class="muted small" style="margin-left:8px">{{ e.provider }}: {{ e.summary|truncate(90) }}</div>{% endfor %}

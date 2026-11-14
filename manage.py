@@ -3,6 +3,7 @@
 
     python manage.py collect [SOURCE_ID ...]   run collectors now (all enabled if none given)
     python manage.py enrich                    run one enrichment batch
+    python manage.py cve-intel                 refresh CISA KEV / EPSS / CVSS for recent CVEs
     python manage.py digest                    generate the AI digest now
     python manage.py reextract                 re-run entity extraction on every item
     python manage.py rescore                   recompute severity scores (keeps entities)
@@ -36,6 +37,8 @@ def main(argv: list[str]) -> int:
             print(jobs.run_source(sid))
     elif cmd == "enrich":
         print(jobs.run_enrichment())
+    elif cmd == "cve-intel":
+        print(jobs.run_cve_intel(force=True))
     elif cmd == "digest":
         print(jobs.run_digest(force=True))
     elif cmd == "reextract":

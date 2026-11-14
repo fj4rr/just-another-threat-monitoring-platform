@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import distinct, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from ..auth import current_user
 from ..db import get_db
@@ -44,6 +44,11 @@ def _qs(**params) -> str:
     return urlencode({k: v for k, v in params.items() if v not in ("", 0, None, False)})
 
 
+def _keep(days: int) -> str:
+    """``days`` for _qs: 0 means "all time" and must survive into sort / pager links."""
+    return str(days)
+
+
 @router.get("/")
 def dashboard(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     digest = db.execute(select(Insight).where(Insight.kind == "digest").order_by(Insight.created_at.desc())
@@ -54,8 +59,8 @@ def dashboard(request: Request, user: User = Depends(current_user), db: Session 
     return render(request, "dashboard.html", {
         "user": user, "ov": trends.overview(db, 7),
         "trending": trends.trending(db, "malware", limit=12),
-        "actors": trends.trending(db, "actor", limit=8),
-        "cves": trends.top_entities(db, "cve", days=7, limit=8),
+        "actors": trends.trending_actors(db, limit=8),
+        "cves": trends.trending_cves(db, limit=8),
         "recent": recent, "digest": digest, "llm_on": llm.is_configured(), "watch_ids": watch_ids,
     })
 
@@ -100,7 +105,7 @@ def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: i
     ent = db.get(Entity, entity) if entity else None
     f = {"cat": cat, "kind": kind, "q": q, "source": source, "entity": entity, "min_sev": min_sev, "days": days,
          "sort": sort, "dir": direction}
-    f["qs"] = _qs(cat=cat, kind=kind, q=q, source=source, entity=entity, min_sev=min_sev, days=days)
+    f["qs"] = _qs(cat=cat, kind=kind, q=q, source=source, entity=entity, min_sev=min_sev, days=_keep(days))
     return render(request, "feed.html", {
         "user": user, "items": items, "total": total, "page": page, "pages": max(1, -(-total // PAGE)),
         "sources": sources, "f": f, "entity": ent,
@@ -123,6 +128,11 @@ def item_detail(item_id: int, request: Request, user: User = Depends(current_use
                                          "enr": enr, "llm_on": llm.is_configured()})
 
 
+def _meta_num(e: Entity, key: str) -> float:
+    v = ((e.meta or {}).get(key) or {}).get("score")
+    return float(v) if isinstance(v, (int, float)) else -1.0
+
+
 # Sortable columns of the entity lists: key -> (python sort key, default direction)
 ENTITY_SORTS = {
     "name": (lambda r, t: (r[0].display or "").lower(), "asc"),
@@ -133,17 +143,47 @@ ENTITY_SORTS = {
     "trend": (lambda r, t: (t.get(r[0].id) or {}).get("score", 0), "desc"),
     "first_seen": (lambda r, t: r[0].first_seen, "desc"),
     "last_seen": (lambda r, t: r[0].last_seen, "desc"),
+    # CVE list only (values from app/intel/cve.py)
+    "cvss": (lambda r, t: (_meta_num(r[0], "cvss"), r[1]), "desc"),
+    "epss": (lambda r, t: (_meta_num(r[0], "epss"), r[1]), "desc"),
+    "kev": (lambda r, t: (bool((r[0].meta or {}).get("kev")), r[1]), "desc"),
 }
+ENTITY_PAGE = 50
+RELATED_TYPES = ("malware", "actor", "cve")
+
+
+def related_chips(db: Session, ids: list[int], types: tuple[str, ...] = RELATED_TYPES, per: int = 5) -> dict:
+    """Most co-mentioned families / actors / CVEs for each of ``ids`` in one query."""
+    if not ids:
+        return {}
+    a, b = aliased(ItemEntity), aliased(ItemEntity)
+    rows = db.execute(
+        select(a.entity_id, Entity.id, Entity.type, Entity.display, func.count(distinct(a.item_id)))
+        .join(b, b.item_id == a.item_id).join(Entity, Entity.id == b.entity_id)
+        .where(a.entity_id.in_(ids), Entity.id != a.entity_id, Entity.type.in_(types))
+        .group_by(a.entity_id, Entity.id)
+    ).all()
+    out: dict[int, list[dict]] = {}
+    for src, eid, etype, name, n in rows:
+        out.setdefault(src, []).append({"id": eid, "type": etype, "name": name, "count": n})
+    for lst in out.values():
+        lst.sort(key=lambda d: -d["count"])
+        del lst[per:]
+    return out
 
 
 def _entity_list(request, user, db, etype: str, title: str, category: str = "", q: str = "", days: int = 30,
-                 sort: str = "mentions", direction: str = ""):
-    days = _clamp(days, 1, 3650)
+                 sort: str = "mentions", direction: str = "", page: int = 1):
+    days = _clamp(days, 0, 3650)
+    page = _clamp(page, 1, 100_000)
     q = q.strip()[:100]
     sort = sort if sort in ENTITY_SORTS else "mentions"
+    if sort in ("cvss", "epss", "kev") and etype != "cve":
+        sort = "mentions"
     direction = _dir(direction, ENTITY_SORTS[sort][1])
-    since = utcnow() - timedelta(days=days)
-    recent = func.count(distinct(Item.id)).filter(Item.published_at >= since)
+    recent = func.count(distinct(Item.id))
+    if days:
+        recent = recent.filter(Item.published_at >= utcnow() - timedelta(days=days))
     stmt = (
         select(Entity, recent.label("recent"), func.count(distinct(Item.source_id)).label("srcs"))
         .outerjoin(ItemEntity, ItemEntity.entity_id == Entity.id)
@@ -154,35 +194,41 @@ def _entity_list(request, user, db, etype: str, title: str, category: str = "", 
         stmt = stmt.where(Entity.category == category)
     if q:
         stmt = stmt.where(Entity.display.ilike(f"%{q}%"))
-    rows = list(db.execute(stmt.order_by(recent.desc(), Entity.mention_count.desc()).limit(300)).all())
+    rows = list(db.execute(stmt.order_by(recent.desc(), Entity.mention_count.desc()).limit(5000)).all())
     trend = {t["id"]: t for t in trends.trending(db, etype, limit=500)}
     keyfn = ENTITY_SORTS[sort][0]
     rows.sort(key=lambda r: keyfn(r, trend), reverse=(direction == "desc"))
+    total = len(rows)
+    maxn = max((r[1] for r in rows), default=0) or 1
+    rows = rows[(page - 1) * ENTITY_PAGE: page * ENTITY_PAGE]
+    others = tuple(t for t in RELATED_TYPES if t != etype) if etype != "malware" else RELATED_TYPES
+    related = related_chips(db, [r[0].id for r in rows], others)
     f = {"category": category, "q": q, "days": days, "sort": sort, "dir": direction,
-         "qs": _qs(category=category, q=q, days=days)}
+         "qs": _qs(category=category, q=q, days=_keep(days))}
     return render(request, "entities.html", {
-        "user": user, "rows": rows, "etype": etype, "title": title, "trend": trend,
+        "user": user, "rows": rows, "etype": etype, "title": title, "trend": trend, "total": total,
+        "page": page, "pages": max(1, -(-total // ENTITY_PAGE)), "maxn": maxn, "related": related,
         "categories": CATEGORIES if etype == "malware" else [], "f": f,
-        "cat_breakdown": trends.category_breakdown(db, days) if etype == "malware" else [],
+        "cat_breakdown": trends.category_breakdown(db, days or 3650) if etype == "malware" else [],
     })
 
 
 @router.get("/malware")
 def malware(request: Request, category: str = "", q: str = "", days: int = 30, sort: str = "mentions", dir: str = "",
-            user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return _entity_list(request, user, db, "malware", "Malware families", category, q, days, sort, dir)
+            page: int = 1, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return _entity_list(request, user, db, "malware", "Malware families", category, q, days, sort, dir, page)
 
 
 @router.get("/actors")
-def actors(request: Request, q: str = "", days: int = 30, sort: str = "mentions", dir: str = "",
+def actors(request: Request, q: str = "", days: int = 30, sort: str = "mentions", dir: str = "", page: int = 1,
            user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return _entity_list(request, user, db, "actor", "Threat actors", "", q, days, sort, dir)
+    return _entity_list(request, user, db, "actor", "Threat actors", "", q, days, sort, dir, page)
 
 
 @router.get("/cves")
-def cves(request: Request, q: str = "", days: int = 30, sort: str = "mentions", dir: str = "",
+def cves(request: Request, q: str = "", days: int = 30, sort: str = "mentions", dir: str = "", page: int = 1,
          user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return _entity_list(request, user, db, "cve", "Vulnerabilities (CVE)", "", q, days, sort, dir)
+    return _entity_list(request, user, db, "cve", "Vulnerabilities (CVE)", "", q, days, sort, dir, page)
 
 
 IOC_SORTS = {
@@ -206,7 +252,9 @@ def _ioc_filter_for_entity(entity_id: int):
 
 @router.get("/iocs")
 def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page: int = 1, entity: int = 0,
-         sort: str = "last_seen", dir: str = "", user: User = Depends(current_user), db: Session = Depends(get_db)):
+         days: int = 0, sort: str = "last_seen", dir: str = "", user: User = Depends(current_user),
+         db: Session = Depends(get_db)):
+    days = _clamp(days, 0, 3650)
     sort = sort if sort in IOC_SORTS else "last_seen"
     direction = _dir(dir, IOC_SORTS[sort][1])
     q = q.strip()[:200]
@@ -219,6 +267,8 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
         stmt = stmt.where(Entity.verdict == verdict)
     if q:
         stmt = stmt.where(Entity.value.ilike(f"%{q.lower()}%"))
+    if days:
+        stmt = stmt.where(Entity.last_seen >= utcnow() - timedelta(days=days))
     ent = db.get(Entity, entity) if entity else None
     if ent:
         stmt = stmt.where(_ioc_filter_for_entity(ent.id))
@@ -263,8 +313,8 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
                     srcs.setdefault(eid, [])
                     if (provider, "intel") not in srcs[eid]:
                         srcs[eid].append((provider, "intel"))
-    f = {"type": type, "verdict": verdict, "q": q, "entity": entity, "sort": sort, "dir": direction,
-         "qs": _qs(type=type, verdict=verdict, q=q, entity=entity)}
+    f = {"type": type, "verdict": verdict, "q": q, "entity": entity, "days": days, "sort": sort, "dir": direction,
+         "qs": _qs(type=type, verdict=verdict, q=q, entity=entity, days=days)}
     return render(request, "iocs.html", {
         "user": user, "rows": rows, "fam": fam, "srcs": srcs, "total": total, "page": page,
         "pages": max(1, -(-total // IOC_PAGE)), "f": f, "types": trends.IOC_TYPES, "entity": ent,
@@ -356,3 +406,53 @@ def watchlist(request: Request, user: User = Depends(current_user), db: Session 
             if len(latest[eid]) < 3:
                 latest[eid].append(item)
     return render(request, "watchlist.html", {"user": user, "rows": rows, "latest": latest})
+
+
+# --------------------------------------------------------------------------- side preview (fragments)
+@router.get("/items/{item_id}/preview")
+def item_preview(item_id: int, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Partial HTML for the slide-over preview: no base layout, same data as the detail page, trimmed."""
+    item = db.get(Item, item_id)
+    if not item:
+        raise HTTPException(404, "Item not found")
+    ents = sorted(item.entity_links, key=lambda link: (link.entity.type, link.entity.display))
+    named = [link.entity for link in ents if link.entity.type in ("malware", "actor", "cve", "technique")]
+    iocs = sorted((link.entity for link in ents if link.entity.type in trends.IOC_TYPES),
+                  key=lambda e: ({"malicious": 0, "suspicious": 1}.get(e.verdict or "", 2), e.type))
+    return render(request, "_preview_item.html", {
+        "user": user, "item": item, "named": named, "iocs": iocs[:12], "ioc_total": len(iocs),
+        "related": trends.correlated_items(db, item, limit=6), "llm_on": llm.is_configured(),
+    })
+
+
+@router.get("/entities/{entity_id}/preview")
+def entity_preview(entity_id: int, request: Request, user: User = Depends(current_user),
+                   db: Session = Depends(get_db)):
+    ent = db.get(Entity, entity_id)
+    if not ent:
+        raise HTTPException(404, "Entity not found")
+    is_ioc = ent.type in trends.IOC_TYPES
+    items = db.execute(
+        select(Item).join(ItemEntity, ItemEntity.item_id == Item.id).where(ItemEntity.entity_id == ent.id)
+        .order_by(Item.published_at.desc()).limit(6)
+    ).unique().scalars().all()
+    enrichments = db.execute(select(Enrichment).where(Enrichment.entity_id == ent.id)
+                             .order_by(Enrichment.provider)).scalars().all()
+    co = trends.co_occurring(db, ent.id, ("malware", "actor", "cve", "technique"), 12)
+    linked = db.execute(
+        select(Entity, EntityLink.provider).join(EntityLink, or_(
+            (EntityLink.dst_id == Entity.id) & (EntityLink.src_id == ent.id),
+            (EntityLink.src_id == Entity.id) & (EntityLink.dst_id == ent.id)))
+        .where(Entity.type.in_(("malware", "actor")) if is_ioc else Entity.type.in_(trends.IOC_TYPES))
+        .limit(10)
+    ).all()
+    ioc_total = 0
+    if not is_ioc:
+        ioc_total = db.scalar(select(func.count(Entity.id)).where(Entity.type.in_(trends.IOC_TYPES),
+                                                                   _ioc_filter_for_entity(ent.id))) or 0
+    watching = db.execute(select(Watch).where(Watch.user_id == user.id, Watch.entity_id == ent.id)).scalar_one_or_none()
+    t = next((r for r in trends.trending(db, ent.type, limit=500) if r["id"] == ent.id), None) if not is_ioc else None
+    return render(request, "_preview_entity.html", {
+        "user": user, "ent": ent, "is_ioc": is_ioc, "items": items, "enrichments": enrichments, "co": co,
+        "linked": linked, "ioc_total": ioc_total, "watching": bool(watching), "trend": t,
+    })

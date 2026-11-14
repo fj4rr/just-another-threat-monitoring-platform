@@ -7,7 +7,38 @@
 {%- endmacro %}
 
 {% macro chip(e) -%}
-<a class="chip" href="/entities/{{ e.id }}"><span class="t">{{ e.type }}</span>{{ e.display|truncate(48, True) }}</a>
+<a class="chip" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview"><span class="t">{{ e.type }}</span>{{ e.display|truncate(48, True) }}</a>
+{%- endmacro %}
+
+{# Chip from a plain dict (id, type, name[, count]) as returned by trends.* #}
+{% macro dchip(c, show_type=True, show_count=False) -%}
+<a class="chip" href="/entities/{{ c.id }}" data-preview="/entities/{{ c.id }}/preview">{% if show_type %}<span class="t">{{ c.type }}</span>{% endif %}{{ c.name|truncate(36, True) }}{% if show_count %} <span class="t">{{ c.count }}</span>{% endif %}</a>
+{%- endmacro %}
+
+{# Period filter shared by every list. 0 = all time. #}
+{% macro period_select(f, options=None) -%}
+<select name="days" aria-label="Period">{% for v, l in (options or [(1,'24 hours'),(7,'7 days'),(30,'30 days'),(90,'90 days'),(365,'1 year'),(0,'All time')]) %}
+  <option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ l }}</option>{% endfor %}</select>
+{%- endmacro %}
+
+{# Pager shared by every list. f carries qs (filters), sort and dir. #}
+{% macro pager(page, pages, f, total=None) -%}
+{% if pages > 1 %}
+<nav class="pager" aria-label="Pagination">
+  {% set qs = f.qs ~ ('&' if f.qs) ~ 'sort=' ~ f.sort ~ '&dir=' ~ f.dir %}
+  {% if page > 1 %}<a class="btn sm" href="?{{ qs }}&page=1" aria-label="First page">«</a><a class="btn sm" href="?{{ qs }}&page={{ page - 1 }}" rel="prev">← Prev</a>{% endif %}
+  <span class="muted small">Page {{ page }} / {{ pages }}{% if total is not none %} · {{ total }} row(s){% endif %}</span>
+  {% if page < pages %}<a class="btn sm" href="?{{ qs }}&page={{ page + 1 }}" rel="next">Next →</a><a class="btn sm" href="?{{ qs }}&page={{ pages }}" aria-label="Last page">»</a>{% endif %}
+</nav>
+{% endif %}
+{%- endmacro %}
+
+{# CVE intel badges from Entity.meta (KEV / EPSS / CVSS, see app/intel/cve.py) #}
+{% macro cve_badges(meta) -%}
+{% set m = meta or {} %}
+{% if m.get('kev') %}<span class="badge crit" title="Listed in the CISA Known Exploited Vulnerabilities catalog since {{ m.kev.get('date_added', '') }}{% if m.kev.get('ransomware') == 'Known' %} · used in ransomware campaigns{% endif %}">KEV</span>{% endif %}
+{% if m.get('cvss') and m.cvss.get('score') is not none %}<span class="badge {{ 'crit' if m.cvss.score >= 9 else 'warn' if m.cvss.score >= 7 else '' }}" title="CVSS {{ m.cvss.get('version', '') }} base score{% if m.cvss.get('vector') %} · {{ m.cvss.vector }}{% endif %}">CVSS {{ '%.1f'|format(m.cvss.score) }}</span>{% endif %}
+{% if m.get('epss') and m.epss.get('score') is not none %}<span class="badge {{ 'warn' if m.epss.score >= 0.1 else '' }}" title="FIRST EPSS: {{ '%.1f'|format(m.epss.score * 100) }}% probability of exploitation in the next 30 days (percentile {{ '%.0f'|format((m.epss.get('percentile') or 0) * 100) }})">EPSS {{ '%.1f'|format(m.epss.score * 100) }}%</span>{% endif %}
 {%- endmacro %}
 
 {# Sortable table header. f must carry sort, dir and qs (filters without sort/dir/page). #}
@@ -34,7 +65,7 @@
 <div class="feed-item">
   <div class="feed-side">{{ sev(i.severity) }}<time class="muted small" datetime="{{ i.published_at.isoformat() }}Z" title="{{ i.published_at }} UTC">{{ i.published_at|timeago }}</time></div>
   <div style="min-width:0">
-    <a class="title" href="/items/{{ i.id }}">{{ i.title or '(untitled)' }}</a>
+    <a class="title" href="/items/{{ i.id }}" data-preview="/items/{{ i.id }}/preview" data-preview-nav>{{ i.title or '(untitled)' }}</a>
     <div class="meta">
       <span class="badge cat-{{ i.source.category }}">{{ i.source.name }}</span>
       <span>{{ i.kind }}</span>

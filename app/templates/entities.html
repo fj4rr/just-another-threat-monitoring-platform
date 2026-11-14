@@ -1,51 +1,76 @@
 {% extends "base.html" %}
-{% from "_macros.html" import th %}
+{% from "_macros.html" import th, pager, period_select, dchip, cve_badges %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>{{ title }}</h1><p class="muted">{{ rows|length }} tracked · mentions in the last {{ f.days }} days · click a column header to sort</p></div></div>
+{% set period = (f.days ~ 'd') if f.days else 'all time' %}
+<div class="page-head"><div><h1>{{ title }}</h1><p class="muted">{{ total }} tracked · mentions {{ 'in the last ' ~ f.days ~ ' days' if f.days else 'over all time' }} · click a name to preview, a column header to sort</p></div>
+  {% if etype == 'cve' and user.role in ('admin','analyst') %}<div class="job">
+    <button class="btn" data-post="/api/cves/refresh" data-busy="Queuing…" data-job-button="cve_intel" title="Look up CISA KEV, FIRST EPSS and NVD CVSS for recently mentioned CVEs">⟳ Refresh CVE intel</button>
+    <div class="job-status small muted" data-job-status="cve_intel" aria-live="polite"></div></div>{% endif %}
+</div>
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Filter by name" aria-label="Filter by name" maxlength="100">
   {% if categories %}<select name="category" aria-label="Type"><option value="">All types</option>
     {% for c in categories %}<option value="{{ c }}" {{ 'selected' if f.category == c }}>{{ c }}</option>{% endfor %}</select>{% endif %}
-  <select name="days" aria-label="Period">{% for v in [7, 30, 90, 365] %}<option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ v }} days</option>{% endfor %}</select>
+  {{ period_select(f) }}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
   <button class="btn">Filter</button>
   {% if f.q or f.category or f.days != 30 %}<a class="btn" href="{{ path }}">Reset</a>{% endif %}
 </form>
 {% if cat_breakdown %}
 <div class="card" style="margin-bottom:16px">
-  <div class="card-head"><h2>Mentions by malware type</h2></div>
+  <div class="card-head"><h2>Mentions by malware type</h2><span class="muted small">{{ period }}</span></div>
   <div class="chart-wrap short"><canvas id="c-cat"></canvas></div>
 </div>
 {% endif %}
-<div class="card table-wrap">
-  {% set maxn = (rows|map(attribute=1)|max) if rows else 1 %}
+<div class="card table-wrap data-table">
   <table>
-    <thead><tr>{{ th('Name', 'name', f, default='asc') }}{% if categories %}{{ th('Type', 'category', f, default='asc') }}{% endif %}{{ th('Mentions (' ~ f.days ~ 'd)', 'mentions', f, 'num') }}<th style="width:18%"></th>
-      {{ th('Sources', 'sources', f, 'num') }}{{ th('Trend', 'trend', f, 'num') }}{{ th('First seen', 'first_seen', f) }}{{ th('Last seen', 'last_seen', f) }}</tr></thead>
+    <thead><tr>
+      {{ th('Name', 'name', f, 'col-title', default='asc') }}
+      {% if categories %}{{ th('Type', 'category', f, 'col-narrow', default='asc') }}{% endif %}
+      {% if etype == 'cve' %}{{ th('CVSS', 'cvss', f, 'num col-narrow') }}{{ th('EPSS', 'epss', f, 'num col-narrow') }}{% endif %}
+      {{ th('Mentions', 'mentions', f, 'num col-bar') }}
+      {{ th('Sources', 'sources', f, 'num col-narrow') }}
+      {{ th('Trend', 'trend', f, 'num col-narrow') }}
+      {{ th('First seen', 'first_seen', f, 'col-time') }}
+      {{ th('Last seen', 'last_seen', f, 'col-time') }}
+    </tr></thead>
     <tbody>
     {% for e, recent, srcs in rows %}
     {% set t = trend.get(e.id) %}
+    {% set m = e.meta or {} %}
     <tr>
-      <td><a href="/entities/{{ e.id }}">{{ e.display }}</a>{% if t and t.is_new %} <span class="badge new">new</span>{% endif %}</td>
-      {% if categories %}<td><a class="muted" href="?category={{ e.category }}&days={{ f.days }}">{{ e.category or 'other' }}</a></td>{% endif %}
-      <td class="num">{{ recent }}</td>
-      <td><div class="bar-inline" style="width:{{ (100 * recent / (maxn or 1))|round(0) }}%"></div></td>
-      <td class="num">{{ srcs }}</td>
-      <td class="num">{% if t %}{{ t.score }}{% if t.baseline and t.growth >= 2 %} <span class="muted small">×{{ t.growth }}</span>{% endif %}{% else %}<span class="muted">–</span>{% endif %}</td>
-      <td class="muted small">{{ e.first_seen.strftime('%Y-%m-%d') }}</td>
-      <td class="muted small" title="{{ e.last_seen }}">{{ e.last_seen|timeago }}</td>
+      <td class="col-title">
+        <a class="title {{ 'mono' if etype == 'cve' }}" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview" data-preview-nav>{{ e.display }}</a>
+        {% if t and t.is_new %} <span class="badge new">new</span>{% endif %}
+        {% if etype == 'cve' %}{{ cve_badges(m) }}{% endif %}
+        {% if etype == 'cve' and m.get('cvss') and m.cvss.get('description') %}<div class="snippet one-line">{{ m.cvss.description|truncate(200) }}</div>
+        {% elif e.llm_brief %}<div class="snippet one-line">{{ e.llm_brief|replace('#', '')|replace('*', '')|truncate(200) }}</div>{% endif %}
+        {% set rel = related.get(e.id, []) %}
+        {% if rel %}<div class="ent-row">{% for c in rel %}{{ dchip(c) }}{% endfor %}</div>{% endif %}
+      </td>
+      {% if categories %}<td class="col-narrow"><a class="muted" href="?category={{ e.category }}&days={{ f.days }}">{{ e.category or 'other' }}</a></td>{% endif %}
+      {% if etype == 'cve' %}
+      <td class="num col-narrow">{% if m.get('cvss') and m.cvss.get('score') is not none %}{{ '%.1f'|format(m.cvss.score) }}{% else %}<span class="muted">–</span>{% endif %}</td>
+      <td class="num col-narrow">{% if m.get('epss') and m.epss.get('score') is not none %}{{ '%.1f'|format(m.epss.score * 100) }}%{% else %}<span class="muted">–</span>{% endif %}</td>
+      {% endif %}
+      <td class="num col-bar">{{ recent }}<div class="bar-inline" style="width:{{ (100 * recent / maxn)|round(0) }}%"></div></td>
+      <td class="num col-narrow">{{ srcs }}</td>
+      <td class="num col-narrow">{% if t %}{{ t.score }}{% if t.baseline and t.growth >= 2 %} <span class="muted small">×{{ t.growth }}</span>{% endif %}{% else %}<span class="muted">–</span>{% endif %}</td>
+      <td class="col-time muted small" title="{{ e.first_seen }} UTC">{{ e.first_seen.strftime('%Y-%m-%d') }}</td>
+      <td class="col-time muted small" title="{{ e.last_seen }} UTC">{{ e.last_seen|timeago }}</td>
     </tr>
-    {% else %}<tr><td colspan="8" class="empty">Nothing tracked yet.</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="9" class="empty">Nothing tracked yet.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
+{{ pager(page, pages, f, total) }}
 {% endblock %}
 {% block scripts %}
 {% if cat_breakdown %}
 <script nonce="{{ nonce }}">
 document.addEventListener("DOMContentLoaded", () => {
-  JATMP.hbar(document.getElementById("c-cat"), "/api/stats/categories?days={{ f.days }}",
+  JATMP.hbar(document.getElementById("c-cat"), "/api/stats/categories?days={{ f.days or 3650 }}",
     { labelKey: "category", link: (r) => `/malware?category=${r.category}&days={{ f.days }}` });
 });
 </script>
