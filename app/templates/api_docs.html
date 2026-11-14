@@ -22,6 +22,12 @@
   </div>
 </div>
 
+<div class="card prose small" style="margin-bottom:16px">
+  <h2>STIX 2.1 and TAXII 2.1</h2>
+  <p>STIX bundles: <code>/api/v1/stix/bundle</code>, <code>/api/v1/stix/items/&lt;id&gt;</code> and <code>/api/v1/stix/entities/&lt;id&gt;</code> (scope <code>export</code>). Items become <em>report</em>, families <em>malware</em>, actors <em>intrusion-set</em>, CVEs <em>vulnerability</em>, techniques <em>attack-pattern</em> and indicators <em>indicator</em> with STIX patterns and <em>indicates</em> relationships, all with TLP markings.</p>
+  <p>Read-only TAXII 2.1 server for SIEMs and TIPs. Discovery URL: <code>{{ base }}/taxii2/</code>, API root <code>{{ base }}/taxii2/api/</code>, collections <em>indicators</em> and <em>reports</em>. Authenticate with an API key (scope <code>read</code>) as a Bearer token, or with HTTP Basic using any user name and the key as password. Polling with <code>added_after</code>, <code>limit</code>, <code>next</code>, <code>match[type]</code> and <code>match[id]</code> is supported (<code>match[id]</code> filters within the returned page).</p>
+</div>
+
 <div class="card table-wrap">
   <table>
     <thead><tr><th>Endpoint</th><th>Parameters</th></tr></thead>

@@ -17,6 +17,7 @@
     {% if misp_configured() and user.role in ('admin','analyst') and item.source.kind != 'misp' %}
     {% set mp = (item.raw or {}).get('misp_pushed') %}
     <button class="btn" data-post="/api/misp/push/item/{{ item.id }}" data-busy="Sending…" title="{{ 'Already sent as MISP event #' ~ mp.id if mp else 'Create a MISP event with this item and its indicators' }}">⇪ {{ 'In MISP #' ~ mp.id if mp else 'Send to MISP' }}</button>{% endif %}
+    <a class="btn" href="/api/v1/stix/items/{{ item.id }}" download="jatmp-item-{{ item.id }}.stix.json" title="STIX 2.1 bundle (report + entities + indicators), subject to the sharing rules">⇩ STIX</a>
     {% if item.url|safe_href != '#' %}<a class="btn" href="{{ item.url|safe_href }}" target="_blank" rel="noopener noreferrer">Open original ↗</a>{% endif %}</div>
 </div>
 
@@ -31,6 +32,17 @@
       <h2>Content</h2>
       <div class="content-body">{{ item.content or '(no content)' }}</div>
       {% if item.tags %}<div style="margin-top:10px">{% for t in item.tags %}<span class="badge">{{ t }}</span> {% endfor %}</div>{% endif %}
+    </div>
+    <div class="card graph-card">
+      <div class="card-head"><h2>Relationship graph</h2>
+        <div class="row graph-tools">
+          <button type="button" class="btn sm" data-graph-more hidden title="Load up to twice as many nodes">Show more</button>
+          <button type="button" class="btn sm" data-graph-zoom="out" aria-label="Zoom out">−</button>
+          <button type="button" class="btn sm" data-graph-zoom="in" aria-label="Zoom in">+</button>
+          <button type="button" class="btn sm" data-graph-zoom="fit" aria-label="Fit graph">Fit</button></div></div>
+      <div class="graph-wrap" data-graph="/api/items/{{ item.id }}/graph" aria-label="Relationship graph of this item. Nodes are focusable: Enter previews, O opens."></div>
+      <div class="graph-legend small muted"></div>
+      <p class="muted small" style="margin:6px 0 0">Click a node to preview it, double-click to open its page; drag nodes or the canvas, scroll to zoom. Dashed lines come from enrichment.</p>
     </div>
     <div class="card">
       <div class="card-head"><h2>Correlated items</h2><span class="muted small" title="Shared hashes, URLs and domains weigh most; common CVEs and techniques least. Items from other sources rank higher.">ranked by evidence strength</span></div>
@@ -62,3 +74,4 @@
   </div>
 </div>
 {% endblock %}
+{% block scripts %}<script src="/static/js/graph.js?v={{ version }}" defer></script>{% endblock %}

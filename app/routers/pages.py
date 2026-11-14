@@ -380,8 +380,14 @@ def entity_detail(entity_id: int, request: Request, user: User = Depends(current
         "user": user, "ent": ent, "items": items, "by_source": by_source, "enrichments": enrichments,
         "linked": [d for d in linked_list if d["entity"].type not in trends.IOC_TYPES or is_ioc],
         "co": co, "indicators": indicator_list[:40], "ioc_total": ioc_total, "llm_on": llm.is_configured(),
-        "watching": bool(watching), "is_ioc": is_ioc,
+        "watching": bool(watching), "is_ioc": is_ioc, "context_ok": is_ioc and bool(_context_names(ent.type)),
     })
+
+
+def _context_names(etype: str) -> list[str]:
+    from ..intel import context
+
+    return [p.name for p in context.available(etype)]
 
 
 @router.get("/insights")

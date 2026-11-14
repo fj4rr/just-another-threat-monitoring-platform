@@ -74,6 +74,26 @@ def stats_iocs(days: int = 30, _: User = Depends(current_user), db: Session = De
     return trends.ioc_breakdown(db, _days(days))
 
 
+@router.get("/items/{item_id}/graph")
+def item_graph(item_id: int, limit: int = 60, _: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..processing import graph
+
+    item = db.get(Item, item_id)
+    if not item:
+        raise HTTPException(404, "item not found")
+    return graph.item_graph(db, item, min(max(limit, 20), 150))
+
+
+@router.get("/entities/{entity_id}/graph")
+def entity_graph(entity_id: int, limit: int = 60, _: User = Depends(current_user), db: Session = Depends(get_db)):
+    from ..processing import graph
+
+    ent = db.get(Entity, entity_id)
+    if not ent:
+        raise HTTPException(404, "entity not found")
+    return graph.entity_graph(db, ent, min(max(limit, 20), 150))
+
+
 @router.get("/entities/{entity_id}/timeline")
 def entity_timeline(entity_id: int, days: int = 60, _: User = Depends(current_user), db: Session = Depends(get_db)):
     tl = trends.family_timeline(db, [entity_id], _days(days, 7, 365))
@@ -269,9 +289,11 @@ def llm_models(payload: dict = Body(default={}), _: User = Depends(require("admi
 @router.post("/intel/test/{provider}", dependencies=[Depends(verify_csrf)])
 def intel_test(provider: str, _: User = Depends(require("admin"))):
     from ..intel import NotConfigured
+    from ..intel.context import CONTEXT_CLASSES
+    from ..intel.darkweb import HudsonRock, RansomwareLive
     from ..processing.enrichment import PROVIDER_CLASSES
 
-    cls = next((c for c in PROVIDER_CLASSES if c.name == provider), None)
+    cls = next((c for c in (*PROVIDER_CLASSES, *CONTEXT_CLASSES, RansomwareLive, HudsonRock) if c.name == provider), None)
     if cls is None:
         raise HTTPException(404, "unknown provider")
     try:
@@ -280,6 +302,23 @@ def intel_test(provider: str, _: User = Depends(require("admin"))):
         raise HTTPException(400, str(e)) from e
     except Exception as e:
         raise HTTPException(400, f"{provider}: {type(e).__name__}: {e}"[:300]) from e
+
+
+@router.post("/entities/{entity_id}/context", dependencies=[Depends(verify_csrf)])
+def entity_context(entity_id: int, request: Request, user: User = Depends(require("analyst")),
+                   db: Session = Depends(get_db)):
+    from ..intel import context
+
+    ent = db.get(Entity, entity_id)
+    if not ent:
+        raise HTTPException(404, "entity not found")
+    providers = context.available(ent.type)
+    if not providers:
+        raise HTTPException(400, f"no context provider configured for {ent.type} (Settings → Threat-intel APIs)")
+    msgs = enrich_entity(db, ent, providers, auto_context=False)
+    audit(db, user, "context_lookup", f"{ent.type}:{ent.value} via {', '.join(p.name for p in providers)}", request)
+    db.commit()
+    return {"ok": True, "message": "; ".join(msgs)}
 
 
 # --------------------------------------------------------------------------- dark web tier 1 (deep dive)

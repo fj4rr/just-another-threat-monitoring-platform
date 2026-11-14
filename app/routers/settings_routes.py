@@ -21,10 +21,20 @@ def settings_ctx(db: Session, user: User, tab: str, msg: str = "") -> dict:
     kinds = {k: {"label": c.label, "category": c.category, "fields": c.fields} for k, c in REGISTRY.items()}
     ctx = {"user": user, "tab": tab, "msg": msg, "sources": sources, "kinds": kinds, "settings": settings.all_for_ui()}
     if tab == "intel":
-        from ..processing.enrichment import PROVIDER_CLASSES, available_providers
+        from ..intel import NotConfigured
+        from ..intel.context import CONTEXT_CLASSES
+        from ..intel.darkweb import HudsonRock, RansomwareLive
+        from ..processing.enrichment import PROVIDER_CLASSES
 
-        configured = {p.name for p in available_providers()}
-        ctx["providers"] = [(c.name, c.name in configured) for c in PROVIDER_CLASSES]
+        def ok(cls) -> bool:
+            try:
+                cls()
+                return True
+            except NotConfigured:
+                return False
+
+        ctx["providers"] = [(c.name, ok(c)) for c in PROVIDER_CLASSES]
+        ctx["context_providers"] = [(c.name, ok(c)) for c in (*CONTEXT_CLASSES, RansomwareLive, HudsonRock)]
     if tab == "webhooks":
         from .webhooks_routes import webhooks_ctx
 

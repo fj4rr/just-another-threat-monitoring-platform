@@ -24,6 +24,7 @@ from .routers import (
     pages,
     reports_routes,
     settings_routes,
+    taxii,
     webhooks_routes,
 )
 from .web import render
@@ -93,7 +94,7 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "app" / "static")), name="static")
 for r in (auth_routes.router, pages.router, api_v1.router, api.router, settings_routes.router, reports_routes.router,
-          admin.router, apikeys_routes.router, webhooks_routes.router):
+          admin.router, apikeys_routes.router, webhooks_routes.router, taxii.router):
     app.include_router(r)
 
 
@@ -106,14 +107,18 @@ def healthz():
 
 @app.exception_handler(LoginRequired)
 async def _login_required(request: Request, _exc: LoginRequired):
-    if request.url.path.startswith("/api/"):
-        return JSONResponse({"detail": "login required"}, status_code=401)
+    if request.url.path.startswith(("/api/", "/taxii2")):
+        return JSONResponse({"detail": "login required"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
     target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     return RedirectResponse(f"/login?next={quote(target, safe='/?=&')}", status_code=303)
 
 
 @app.exception_handler(StarletteHTTPException)
 async def _http_error(request: Request, exc: StarletteHTTPException):
+    if request.url.path.startswith("/taxii2"):  # TAXII 2.1 error message format
+        return JSONResponse({"title": str(exc.detail), "http_status": str(exc.status_code)},
+                            status_code=exc.status_code, media_type="application/taxii+json;version=2.1",
+                            headers=getattr(exc, "headers", None))
     if request.url.path.startswith("/api/"):
         # keep WWW-Authenticate / Retry-After from the exception
         return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=getattr(exc, "headers", None))

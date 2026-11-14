@@ -6,6 +6,7 @@
   <div style="min-width:0">
     <div class="row small muted"><span class="badge">{{ ent.type }}</span>{% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
       {% if is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
+      {% set geo = (ent.meta or {}).get('geo') %}{% if geo and geo.country %}<span class="badge" title="{{ geo.as_name or '' }} ({{ geo.source }})">{{ geo.country }}{% if geo.asn %} · {{ geo.asn if (geo.asn|string).startswith('AS') else 'AS' ~ geo.asn }}{% endif %}</span>{% endif %}
       {% set gn = (ent.meta or {}).get('greynoise') %}{% if gn and gn.riot %}<span class="badge good" title="GreyNoise RIOT: known benign business service">benign service</span>{% elif gn and gn.noise %}<span class="badge warn" title="GreyNoise: seen mass-scanning the internet (opportunistic, not targeted)">mass scanner</span>{% endif %}
       first seen {{ ent.first_seen.strftime('%Y-%m-%d') }} · last seen {{ ent.last_seen|timeago }} · {{ ent.mention_count }} mention(s)</div>
     <h1 class="{{ 'mono' if is_ioc else '' }}" style="margin-top:6px;word-break:break-all">{{ ent.display }}</h1>
@@ -14,12 +15,15 @@
     <button class="btn" data-post="/api/watch/{{ ent.id }}" data-watching="{{ 'true' if watching else 'false' }}" aria-pressed="{{ 'true' if watching else 'false' }}">{{ '★ Watching' if watching else '☆ Watch' }}</button>
     {% if user.role in ('admin','analyst') and (is_ioc or ent.type == 'malware') %}
     <button class="btn" data-post="/api/entities/{{ ent.id }}/enrich" data-busy="Enriching…" data-reload>⇄ Enrich now</button>{% endif %}
+    {% if context_ok and user.role in ('admin','analyst') %}
+    <button class="btn" data-post="/api/entities/{{ ent.id }}/context" data-busy="Looking up…" data-reload title="Ports, services, ASN, reputation and sandbox results from the configured context providers">🛰 Context lookup</button>{% endif %}
     {% if user.role in ('admin','analyst') and (ent.type == 'actor' or (ent.type == 'malware' and ent.category in ('ransomware', '')) or ent.type == 'domain') %}
     <button class="btn" data-post="/api/entities/{{ ent.id }}/deepdive" data-busy="Looking up…" data-reload
       title="{{ 'Infostealer exposure of this domain (Hudson Rock)' if ent.type == 'domain' else 'Leak-site victims, countries and exploited CVEs (ransomware.live)' }}">🔎 Deep dive</button>{% endif %}
     {% if misp_configured() and user.role in ('admin','analyst') and ent.type in ('malware','actor') %}
     {% set mp = (ent.meta or {}).get('misp_pushed') %}
     <button class="btn" data-post="/api/misp/push/entity/{{ ent.id }}" data-busy="Sending…" title="{{ 'Already sent as MISP event #' ~ mp.id if mp else 'Create a MISP event with the shareable indicators' }}">⇪ {{ 'In MISP #' ~ mp.id if mp else 'Send to MISP' }}</button>{% endif %}
+    <a class="btn" href="/api/v1/stix/entities/{{ ent.id }}" download="jatmp-{{ ent.type }}-{{ ent.id }}.stix.json" title="STIX 2.1 bundle, subject to the sharing rules">⇩ STIX</a>
     <a class="btn" href="/feed?entity={{ ent.id }}&days=0">All items →</a>
   </div>
 </div>
@@ -39,6 +43,17 @@
     </div>
     {% endif %}
 
+    <div class="card graph-card">
+      <div class="card-head"><h2>Relationship graph</h2>
+        <div class="row graph-tools">
+          <button type="button" class="btn sm" data-graph-more hidden title="Load up to twice as many nodes">Show more</button>
+          <button type="button" class="btn sm" data-graph-zoom="out" aria-label="Zoom out">−</button>
+          <button type="button" class="btn sm" data-graph-zoom="in" aria-label="Zoom in">+</button>
+          <button type="button" class="btn sm" data-graph-zoom="fit" aria-label="Fit graph">Fit</button></div></div>
+      <div class="graph-wrap" data-graph="/api/entities/{{ ent.id }}/graph" aria-label="Relationship graph of this entity. Nodes are focusable: Enter previews, O opens."></div>
+      <div class="graph-legend small muted"></div>
+      <p class="muted small" style="margin:6px 0 0">Click a node to preview it, double-click to open its page; drag nodes or the canvas, scroll to zoom. Dashed lines come from enrichment.</p>
+    </div>
     {% if not is_ioc %}
     <div class="card" id="indicators">
       <div class="card-head"><h2>Indicators</h2>
@@ -63,6 +78,7 @@
     {% endif %}
 
     {% include "_darkweb_cards.html" %}
+    {% if is_ioc %}{% include "_context_card.html" %}{% endif %}
     {% if enrichments %}
     <div class="card">
       <h2>Threat-intel enrichment</h2>
@@ -135,6 +151,6 @@
   </div>
 </div>
 {% endblock %}
-{% block scripts %}
+{% block scripts %}<script src="/static/js/graph.js?v={{ version }}" defer></script>
 {% if not is_ioc %}<script nonce="{{ nonce }}">document.addEventListener("DOMContentLoaded", () => JATMP.entityLine(document.getElementById("c-ent"), {{ ent.id }}, 60));</script>{% endif %}
 {% endblock %}

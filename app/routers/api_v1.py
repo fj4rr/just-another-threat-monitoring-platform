@@ -7,6 +7,7 @@ or poll with ``since`` (ISO-8601, UTC) to fetch only what arrived after your las
 """
 from __future__ import annotations
 
+import base64
 import csv
 import io
 from datetime import UTC, datetime, timedelta
@@ -33,8 +34,17 @@ ENTITY_TYPES = NAMED_TYPES + trends.IOC_TYPES
 def principal(scope: str):
     def dep(request: Request, db: Session = Depends(get_db)) -> User:
         auth = request.headers.get("authorization", "")
+        token = ""
         if auth[:7].lower() == "bearer ":
-            key = apikeys.verify(db, auth[7:].strip())
+            token = auth[7:].strip()
+        elif auth[:6].lower() == "basic ":  # TAXII clients often only do Basic: the password is the API key
+            try:
+                user_part, _, pw = base64.b64decode(auth[6:].strip()).decode().partition(":")
+            except (ValueError, UnicodeDecodeError):
+                user_part, pw = "", ""
+            token = pw or user_part
+        if token:
+            key = apikeys.verify(db, token)
             if key is None:
                 raise HTTPException(401, "invalid, expired or revoked API key", headers={"WWW-Authenticate": "Bearer"})
             if scope not in (key.scopes or []):
@@ -343,6 +353,43 @@ def ioc_feed(fmt: str, request: Request,
         w.writerow([r["type"], r["value"], r["verdict"], r["confidence"], ";".join(r["families"]), r["first_seen"],
                     r["last_seen"], r["mentions"], r["link"] or ""])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8", headers=disp)
+
+
+# --------------------------------------------------------------------------- STIX 2.1
+def _stix(bundle: dict) -> JSONResponse:
+    from ..stix import MEDIA_TYPE
+
+    return JSONResponse(bundle, media_type=MEDIA_TYPE)
+
+
+@router.get("/stix/bundle", summary="STIX 2.1 bundle of recent shareable items (reports) with their entities")
+def stix_bundle(since_days: int = Query(7, ge=0, le=3650, description="0 = all time"),
+                min_severity: int = Query(0, ge=0, le=100), limit: int = Query(200, ge=1, le=2000),
+                _: User = Depends(principal("export")), db: Session = Depends(get_db)):
+    from .. import stix
+
+    return _stix(stix.items_bundle(db, since_days, min_severity, limit))
+
+
+@router.get("/stix/items/{item_id}", summary="STIX 2.1 bundle for one item")
+def stix_item(item_id: int, _: User = Depends(principal("export")), db: Session = Depends(get_db)):
+    from .. import stix
+
+    item = db.get(Item, item_id)
+    if not item or not sharing.item_shareable(item):
+        raise HTTPException(404, "item not found")
+    return _stix(stix.item_bundle(db, item))
+
+
+@router.get("/stix/entities/{entity_id}", summary="STIX 2.1 bundle for a family / actor / CVE / indicator")
+def stix_entity(entity_id: int, _: User = Depends(principal("export")), db: Session = Depends(get_db)):
+    from .. import stix
+
+    e = db.get(Entity, entity_id)
+    if not e or (e.type in trends.IOC_TYPES and not db.execute(
+            select(Entity.id).where(Entity.id == e.id, sharing.shareable_entity_clause())).first()):
+        raise HTTPException(404, "entity not found")
+    return _stix(stix.entity_bundle(db, e))
 
 
 # --------------------------------------------------------------------------- docs (served offline, no CDN)

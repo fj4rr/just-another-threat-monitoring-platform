@@ -376,6 +376,28 @@ def run_rescore() -> str:
         db.close()
 
 
+def run_context_lookup(entity_id: int) -> str:
+    """Infrastructure context (Shodan, Censys, CrowdSec, ...) for one indicator."""
+    from .intel import context
+    from .processing.enrichment import enrich_entity
+
+    db = SessionLocal()
+    try:
+        ent = db.get(Entity, entity_id)
+        providers = context.available(ent.type) if ent else []
+        if not providers:
+            return "no context providers for this indicator"
+        msgs = enrich_entity(db, ent, providers, auto_context=False)
+        db.commit()
+        return "; ".join(msgs)
+    except Exception as e:
+        db.rollback()
+        log.warning("context lookup %s failed: %s", entity_id, e)
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
 def run_webhooks() -> str:
     from . import webhooks
 

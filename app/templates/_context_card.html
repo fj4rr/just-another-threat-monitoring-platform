@@ -1,0 +1,20 @@
+{# Infrastructure context from on-demand providers (app/intel/context.py). Expects `enrichments`, `ent`. #}
+{% set ctxp = {} %}{% for e in enrichments if e.provider in ('shodan','censys','crowdsec','pulsedive','hybrid-analysis','ipinfo') %}{% set _ = ctxp.update({e.provider: e}) %}{% endfor %}
+{% if ctxp %}
+<div class="card">
+  <div class="card-head"><h2>Infrastructure context</h2><span class="muted small">on-demand lookups</span></div>
+  <dl class="kv small">
+    {% set geo = (ent.meta or {}).get('geo') %}
+    {% if geo %}<dt>Network</dt><dd>{% if geo.asn %}<span class="mono">{{ geo.asn if (geo.asn|string).startswith('AS') else 'AS' ~ geo.asn }}</span> {% endif %}{{ geo.as_name or '' }}{% if geo.country %} · <strong>{{ geo.country }}</strong>{% endif %} <span class="muted">({{ geo.source }})</span></dd>{% endif %}
+    {% set ports = (ctxp.get('shodan').data.get('ports') if ctxp.get('shodan') else []) or (ctxp.get('censys').data.get('ports') if ctxp.get('censys') else []) %}
+    {% if ports %}<dt>Open ports</dt><dd>{% for p in ports[:30] %}<span class="badge mono">{{ p }}</span> {% endfor %}</dd>{% endif %}
+    {% if ctxp.get('censys') and ctxp.censys.data.get('protocols') %}<dt>Services</dt><dd>{{ ctxp.censys.data.protocols|join(', ') }}</dd>{% endif %}
+    {% if ctxp.get('shodan') and ctxp.shodan.data.get('hostnames') %}<dt>Hostnames</dt><dd class="mono">{{ ctxp.shodan.data.hostnames[:8]|join(', ') }}</dd>{% endif %}
+    {% if ctxp.get('shodan') and ctxp.shodan.data.get('vulns') %}<dt>Known CVEs</dt><dd>{% for c in ctxp.shodan.data.vulns[:20] %}<span class="badge mono">{{ c }}</span> {% endfor %}</dd>{% endif %}
+    {% if ctxp.get('crowdsec') %}<dt>CrowdSec</dt><dd>{{ ctxp.crowdsec.data.get('reputation', '?') }}{% if ctxp.crowdsec.data.get('behaviors') %} · {{ ctxp.crowdsec.data.behaviors[:6]|join(', ') }}{% endif %}</dd>{% endif %}
+    {% if ctxp.get('pulsedive') %}<dt>Pulsedive</dt><dd>risk {{ ctxp.pulsedive.data.get('risk', '?') }}{% if ctxp.pulsedive.data.get('threats') %} · {{ ctxp.pulsedive.data.threats[:4]|join(', ') }}{% endif %}</dd>{% endif %}
+    {% if ctxp.get('hybrid-analysis') %}{% set ha = ctxp['hybrid-analysis'] %}<dt>Sandbox</dt><dd><a href="{{ ha.permalink|safe_href }}" target="_blank" rel="noopener noreferrer">{{ ha.summary }} ↗</a></dd>{% endif %}
+  </dl>
+  <p class="muted small" style="margin:8px 0 0">Checked {{ ctxp.values()|map(attribute='fetched_at')|max|timeago }} via {{ ctxp.keys()|join(', ') }}. Full provider results are in the enrichment table.</p>
+</div>
+{% endif %}

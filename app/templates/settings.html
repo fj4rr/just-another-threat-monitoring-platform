@@ -308,6 +308,8 @@ document.addEventListener("DOMContentLoaded", () => {
   {% if tab == 'intel' %}
   <div style="margin-top:16px"><h3>Test connection</h3>
     <div class="row">{% for name, ok in providers %}<button type="button" class="btn sm" data-post="/api/intel/test/{{ name }}" data-busy="Testing…" {{ 'disabled title="No key configured"' if not ok }}>{{ name }}</button>{% endfor %}</div>
+    <p class="muted small" style="margin:10px 0 4px">On demand (context lookup, deep dive):</p>
+    <div class="row">{% for name, ok in context_providers %}<button type="button" class="btn sm" data-post="/api/intel/test/{{ name }}" data-busy="Testing…" {{ 'disabled title="No key configured"' if not ok }}>{{ name }}</button>{% endfor %}</div>
     <p class="muted small" style="margin:6px 0 0">Save keys first. Tests use account / status endpoints where the provider has one, so they don't spend lookup quota.</p></div>
   <div class="alert small" style="margin-top:16px">Keys are used both by collectors (OTX pulses, urlscan searches, ANY.RUN queries, ThreatFox) and by the cross-source enrichment that checks IOCs found in news and social posts. Keys are stored in the local database; prefer environment variables on shared hosts.</div>
   {% elif tab == 'sharing' %}

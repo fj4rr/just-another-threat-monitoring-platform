@@ -133,7 +133,7 @@ def _bump_items(db: Session, entity: Entity, old: str, new: str) -> int:
     return len(items)
 
 
-def enrich_entity(db: Session, entity: Entity, providers: list | None = None) -> list[str]:
+def enrich_entity(db: Session, entity: Entity, providers: list | None = None, auto_context: bool = True) -> list[str]:
     """Look an IOC up on every configured provider. Returns list of messages."""
     msgs = []
     providers = providers if providers is not None else available_providers()
@@ -175,6 +175,16 @@ def enrich_entity(db: Session, entity: Entity, providers: list | None = None) ->
 
             db.flush()
             webhooks.on_ioc_malicious(db, entity)
+            if auto_context and settings.get("context_on_malicious"):
+                from .. import jobs
+
+                jobs.run_now(jobs.run_context_lookup, entity.id)
+        if entity.type == "ip":
+            from ..intel.context import geo_from
+
+            geo = geo_from(results)
+            if geo:
+                entity.meta = {**(entity.meta or {}), "geo": geo}
         n = _bump_items(db, entity, old, new)
         if n:
             msgs.append(f"severity raised on {n} item(s)")

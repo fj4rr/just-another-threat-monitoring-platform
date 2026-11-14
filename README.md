@@ -8,7 +8,7 @@ AlienVault OTX, urlscan.io, ANY.RUN, abuse.ch, GreyNoise, AbuseIPDB, MISP, ranso
 malware families, actors, CVEs and indicators mentioned in each item, cross-checks indicators against the intel
 providers, correlates everything across sources and presents the result on a trend dashboard. CVEs get
 exploitation context from CISA KEV, FIRST EPSS and NVD. Other tools read the data back out through a REST API,
-IOC blocklist feeds, signed webhooks and MISP. A local or cloud LLM can optionally add summaries, briefs and a
+IOC blocklist feeds, STIX 2.1 / TAXII 2.1, signed webhooks and MISP. A local or cloud LLM can optionally add summaries, briefs and a
 daily digest.
 
 It runs as a single process with SQLite by default. There is no JavaScript build step and nothing is loaded
@@ -77,6 +77,19 @@ days, and families attributed by a provider (a hash on Bluesky identified as Lum
 linked back so the indicator connects to the articles about that family. Indicators for trending families are
 pulled from OTX and ANY.RUN, accepting only pulses that actually name the family.
 
+**Relationship graph.** Item and entity pages draw an interactive graph: the item, its entities, what
+enrichment linked them to (a hash to its family, an indicator pulled from OTX) and other items that share them.
+Nodes are coloured by type and by verdict; click one to preview it, double-click to open it, drag, zoom, and use
+the keyboard (Tab, Enter, O). It is drawn by a small built-in SVG renderer, not a third-party library, and capped
+at 60 nodes with a "Show more" step up to 150.
+
+**Infrastructure context, on demand.** "Context lookup" on an IP, domain or hash asks Shodan (open ports,
+hostnames, known CVEs), Censys (services, ASN), CrowdSec CTI (reputation, behaviours), Pulsedive (risk, threats),
+Hybrid Analysis (sandbox verdict and family) and IPinfo (ASN and country, kept for the geography features), as
+far as keys are configured. Free tiers are small, so these never run in the background batch unless "run context
+lookups when an indicator turns malicious" is switched on; Shodan InternetDB and IPinfo can be used without a key
+once keyless lookups are allowed.
+
 **Correlation.** The item page ranks related items by the strength of the evidence they share: a common hash,
 URL or domain weighs far more than a common CVE, rare entities more than frequently mentioned ones, and items
 from another source or source type receive a bonus. Entity pages show coverage per source, co-occurring
@@ -105,6 +118,14 @@ is stored. Browser sessions work too.
 *malicious*), family, age and a 0–100 confidence that grows with the number of providers agreeing. The `.txt`
 feed has one value per line and works as a firewall or proxy blocklist (for example a Palo Alto EDL or a
 FortiGate threat feed).
+
+**STIX 2.1 and TAXII 2.1.** `/api/v1/stix/bundle`, `/stix/items/<id>` and `/stix/entities/<id>` export
+reports, malware, intrusion sets, vulnerabilities, attack patterns and indicators (STIX patterns, `indicates`
+relationships, TLP markings); the *⇩ STIX* button on item and entity pages downloads the same. A read-only
+TAXII 2.1 server at `/taxii2/` offers two collections, *indicators* and *reports*, with `added_after`,
+pagination and `match[type]`, so OpenCTI, MISP, Sentinel or Splunk can subscribe. TAXII clients authenticate with
+an API key as Bearer token or as the HTTP Basic password. Object ids are stable per install, so consumers update
+objects instead of duplicating them.
 
 **Webhooks** (Settings → Webhooks): new high-severity item, watched entity mentioned, indicator turned malicious,
 job failed. Generic receivers get signed JSON (`X-JATMP-Signature: sha256=HMAC(secret, "<timestamp>.<body>")`);
@@ -225,6 +246,12 @@ and are shown there as locked.
 | AbuseIPDB | `ABUSEIPDB_API_KEY` | Free tier allows 1,000 checks/day (`abuseipdb_daily_budget`, default 900) |
 | ransomware.live | `RANSOMWARELIVE_API_KEY` | Free PRO key; required for organisational use. Without it the personal-use API (one request per minute per endpoint) is used |
 | Hudson Rock Cavalier | `HUDSONROCK_API_KEY` | Free key for the infostealer deep dive |
+| Shodan | `SHODAN_API_KEY` | Optional: without a key the free InternetDB is used (after allowing keyless context lookups) |
+| Censys | `CENSYS_API_TOKEN`, `CENSYS_ORG_ID` | Platform personal access token; free accounts have a small monthly credit |
+| CrowdSec CTI | `CROWDSEC_API_KEY` | Free tier |
+| Pulsedive | `PULSEDIVE_API_KEY` | Free tier |
+| Hybrid Analysis | `HYBRID_ANALYSIS_API_KEY` | Free (vetted) account |
+| IPinfo | `IPINFO_TOKEN` | Free Lite token; without one the keyless endpoint is used (after allowing keyless lookups) |
 | MISP | `MISP_URL`, `MISP_API_KEY` | Automation key of a MISP user; distribution, sharing group, TLS verification and auto-push under Settings → MISP |
 | X / Twitter | `X_BEARER_TOKEN` | API v2 is a paid service; alternatively set `rss_bridge` on each X source |
 | LLM | `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | Optional. `LLM_PROVIDER` is `none`, `ollama`, `openai_compatible` or `anthropic`; the Settings page reflects whatever these resolve to |
@@ -252,6 +279,12 @@ Malware families and actors can be added without touching code. Create `data/kno
 ```
 
 Restart, then run `python manage.py reextract` to reprocess existing items.
+
+### Upgrading to 0.6
+
+No schema changes. Context providers are off until a key is set (or keyless lookups are allowed), and context
+lookups only run when someone presses *Context lookup* unless the automatic option is enabled. TAXII clients
+need an API key with the `read` scope; STIX downloads through the API need `export`.
 
 ### Upgrading to 0.5
 
@@ -347,17 +380,19 @@ app/
                 misp  → RawItem
   processing/   pipeline (dedupe, sanitise, store, link entities) · extractor (IOC/CVE/family/actor)
                 severity (explainable 0–100 score) · enrichment (cross-source, consensus, re-checks)
-                trends (dashboard aggregations, weighted correlation)
+                trends (dashboard aggregations, weighted correlation) · graph (capped relationship graphs)
   intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox, MalwareBazaar, URLhaus, GreyNoise,
                 AbuseIPDB (rate limits, budgets, connection tests) · darkweb (ransomware.live, Hudson Rock)
-                misp (pull mapping, push, auto-push)
+                misp (pull mapping, push, auto-push) · context (Shodan, Censys, CrowdSec, Pulsedive,
+                Hybrid Analysis, IPinfo; on demand)
                 cve (CISA KEV, FIRST EPSS, NVD CVSS → Entity.meta; risk-weighted CVE priority)
   llm/          client (Ollama / OpenAI-compatible / Anthropic, live model list) · presets (local and cloud vendors)
                 insights (summary, brief, digest, Q&A)
   reports.py    Threat Intel Findings: gather() plus PDF / Word / Markdown / CSV exporters
   routers/      pages, api (JSON and actions), api_v1 (REST API + IOC feeds + offline docs), apikeys, webhooks,
-                settings, reports, admin, auth and setup
+                taxii (read-only TAXII 2.1), settings, reports, admin, auth and setup
   sharing.py    TLP and redistribution rules for everything that leaves JATMP
+  stix.py       STIX 2.1 objects and bundles (stable per-install ids, TLP markings)
   apikeys.py    API key creation, verification, scopes and rate limiting
   webhooks.py   events, Slack / Discord / Teams formats, HMAC signing, SSRF guard, retries
   jobs.py       APScheduler: one job per source, enrichment every N minutes, CVE intel every 6 h, daily digest,
@@ -365,7 +400,7 @@ app/
   notify.py     notification center (de-duplicated by key, per-user read watermark, 30-day retention)
   templates/    pages, plus _preview_item.html / _preview_entity.html (partial HTML for the side preview)
   static/       app.css (theme tokens, dark and light) · app.js (CSP-safe behaviours, preview drawer, job and
-                notification polling, charts) · motion.js (radar, sparklines)
+                notification polling, charts) · motion.js (radar, sparklines) · graph.js (force-directed SVG graph)
 data/           config.json (install mode, secret), jatmp.db (SQLite)
 tests/          pytest suite
 ```
@@ -375,6 +410,22 @@ Run a single web worker, because the scheduler lives in the process; scale colle
 intervals instead.
 
 ## Changelog
+
+### 0.6.0
+
+- **Relationship graph** on item and entity pages (`GET /api/items/<id>/graph`, `/api/entities/<id>/graph`):
+  entities, enrichment links and correlated items, coloured by type and verdict, with preview on click, open on
+  double-click, drag, zoom, keyboard focus and a "Show more" step. Built-in force-directed SVG renderer
+  (`static/js/graph.js`), so no graph library is vendored.
+- **On-demand infrastructure context**: Shodan (host API or keyless InternetDB), Censys Platform v3, CrowdSec
+  CTI, Pulsedive, Hybrid Analysis and IPinfo behind a *Context lookup* button on indicator pages, with an
+  *Infrastructure context* card (ports, services, hostnames, known CVEs, reputation, sandbox) and an ASN / country
+  badge stored for geography features. Optional automatic lookup when an indicator turns malicious; daily budget
+  per provider; test buttons.
+- **STIX 2.1 export** (`/api/v1/stix/...`, *⇩ STIX* buttons) and a **read-only TAXII 2.1 server** (`/taxii2/`)
+  with *indicators* and *reports* collections, `added_after`, paging, `match[type]` / `match[id]`, manifests and
+  TAXII error messages; API keys also work as HTTP Basic passwords for TAXII clients. Everything passes the
+  sharing rules (TLP, non-redistributable sources).
 
 ### 0.5.0
 
