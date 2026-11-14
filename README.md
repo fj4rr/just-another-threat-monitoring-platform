@@ -16,22 +16,30 @@ from a CDN at runtime, so it works on an isolated network.
 
 ## Screenshots
 
-Dashboard: threat radar, KPI tiles (the icon opens the detail page), headline ticker, collection volume and
-trending families.
+Dashboard: *Collect now* / *Enrich now* with last and next run, notification bell, headline ticker, threat radar,
+KPI tiles with sparklines, collection volume and trending families.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
-| Malware family page: timeline, indicators, coverage per source, co-occurring CVEs and actors | Item page: severity breakdown, extracted entities and correlated items ranked by evidence |
+| Trending CVEs (CISA KEV, CVSS, EPSS, risk-weighted priority) and trending threat actors with their families | Feed with the side preview: severity breakdown, entities and indicators without leaving the list |
 |---|---|
-| ![Entity page](docs/screenshots/entity.png) | ![Item page](docs/screenshots/item.png) |
+| ![Dashboard widgets](docs/screenshots/dashboard-widgets.png) | ![Feed and side preview](docs/screenshots/feed-preview.png) |
 
-| Feed: sortable table with severity, title and entities, source type and time | IOC table with verdicts, attributed families and where each indicator was seen |
+| Item page: severity, STIX export, extracted entities with their verdicts | Relationship graph: the item, its entities and the other items that share them |
 |---|---|
-| ![Feed](docs/screenshots/feed.png) | ![IOCs](docs/screenshots/iocs.png) |
+| ![Item page](docs/screenshots/item.png) | ![Relationship graph](docs/screenshots/graph.png) |
 
-| Malware families: sortable columns, trend score, mentions by type | AI settings: local or cloud, vendor presets and a live model list |
+| Malware family page: timeline, coverage per source, Deep dive, graph, co-mentioned entities | IOC table with verdicts, attributed families and where each indicator was seen |
 |---|---|
-| ![Malware families](docs/screenshots/malware.png) | ![AI settings](docs/screenshots/settings.png) |
+| ![Entity page](docs/screenshots/entity.png) | ![IOCs](docs/screenshots/iocs.png) |
+
+| Malware families: unified table with trend score, related entities and pagination | CVE list sorted by EPSS, with KEV badges and co-mentioned families |
+|---|---|
+| ![Malware families](docs/screenshots/malware.png) | ![CVEs](docs/screenshots/cves.png) |
+
+| Historical backfill: per-source reach and method, estimates and storage statistics | AI settings: local or cloud, vendor presets and a live model list |
+|---|---|
+| ![Backfill](docs/screenshots/backfill.png) | ![AI settings](docs/screenshots/settings.png) |
 
 | Report builder: period, content and format for the *Threat Intel Findings* document |
 |---|
