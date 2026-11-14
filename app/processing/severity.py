@@ -60,22 +60,64 @@ GROUPS: list[tuple[str, list[tuple[str, int, str]]]] = [
     ]),
 ]
 
+# Indonesian synonyms (0.8). They join the English group with the same label, so "peretasan" and "breach"
+# in one item still count once.
+ID_TERMS: dict[str, list[tuple[str, int, str]]] = {
+    "exploitation": [
+        (r"sedang dieksploitasi|aktif dieksploitasi|dieksploitasi (?:secara )?aktif", 30, "exploited in the wild"),
+        (r"\bdieksploitasi\b|\beksploitasi\b", 10, "exploitation mentioned"),
+    ],
+    "impact": [
+        (r"celah (?:keamanan )?kritis|kerentanan kritis|tingkat kritis", 12, "critical / CVSS ≥ 9"),
+        (r"eksekusi kode (?:dari )?jarak jauh", 14, "remote code execution"),
+        (r"layanan (?:publik )?lumpuh|lumpuhnya layanan|sistem lumpuh|data (?:dihapus|terenkripsi)", 10, "service disruption"),
+    ],
+    "threat class": [
+        (r"rantai pasok", 16, "supply-chain"),
+        (r"uang tebusan|meminta tebusan", 12, "ransomware"),
+        (r"penyadapan|spyware", 12, "spyware / zero-click"),
+        (r"pintu belakang", 9, "backdoor / implant"),
+        (r"pencurian (?:kredensial|kata sandi|akun|data login)", 7, "stealer"),
+        (r"kebocoran data|data (?:pribadi )?(?:bocor|dibocorkan)|bocornya data|\bbocor\b|diretas|meretas|peretasan|"
+         r"dibobol|membobol|pembobolan|"
+         r"pencurian data|dijual di (?:dark ?web|forum)|diperjualbelikan", 8, "breach / exfiltration"),
+        (r"phising|phishing|penipuan|modus|rekayasa sosial|mengatasnamakan|apk palsu|undangan (?:pernikahan )?palsu", 6,
+         "phishing / social engineering"),
+        (r"\bdeface\w*|judi online|\bjudol\b|disusupi (?:konten|iklan)|situs (?:pemerintah |kampus )?disusupi", 6,
+         "website defacement / injection"),
+    ],
+    "activity": [
+        (r"\bkampanye\b|serangan (?:siber|hacker|peretas|ransomware|ddos)|diserang", 10, "active campaign"),
+        (r"(?:malware|ransomware|varian|modus) baru", 8, "new malware / variant"),
+        (r"menargetkan|menyasar|sasaran|(?:jadi|menjadi) (?:target|korban)|target serangan|\bincar\b|mengincar", 5,
+         "targeting described"),
+        (r"\bjutaan\b|\bribuan\b|seluruh dunia|secara global", 6, "wide scale"),
+        (r"didukung negara|disponsori negara|\bspionase\b", 8, "state-sponsored / APT"),
+        (r"\bpemerintah\b|\binstansi\b|kementerian|rumah sakit|layanan publik|infrastruktur (?:kritis|vital)|perbankan",
+         5, "sensitive sector"),
+    ],
+}
+GROUPS = [(g, terms + ID_TERMS.get(g, [])) for g, terms in GROUPS]
+
 # Title patterns that indicate the item is *about* a fix, not an attack.
 PATCH_RE = re.compile(
     r"\b(?:fix(?:es|ed)?|patch(?:es|ed)?|patch tuesday|security updates?|releases? (?:security )?updates?|"
-    r"addresses|resolves|plugs|closes|mitigates|update (?:addresses|fixes)|hotfix|out-of-band update)\b", re.I)
+    r"addresses|resolves|plugs|closes|mitigates|update (?:addresses|fixes)|hotfix|out-of-band update|"
+    r"tambal|pembaruan keamanan|perbarui)\b", re.I)
 # Title patterns for meta / evergreen content: roundups, guides, opinion, marketing.
 META_RE = re.compile(
     r"\b(?:week(?:ly)? in review|in review|roundup|round-up|recap|digest|top \d+|best (?:practices|of)|"
     r"how to|what is|why you|guide to|explained|webinar|podcast|episode|survey|report finds|study finds|"
     r"predictions|outlook \d{4}|year in review|the state of|interview|opinion|q&a|cheat ?sheet|"
     r"announc(?:es|ing)|partners? with|launches|acquires|acquisition|funding|raises \$|hiring|"
-    r"certification|training|career)\b", re.I)
+    r"certification|training|career|tips|cara (?:mengatasi|mencegah|melindungi|mengecek|cek)|begini cara|"
+    r"ini cara|kenali|apa itu|pengertian|seminar|peluncuran|resmi meluncur|kolaborasi|kerja sama)\b", re.I)
 # Routine leak-site victim postings ("X ransomware group has added Y to its victims").
 VICTIM_POST_RE = re.compile(r"\b(?:added|adds|claims?|listed|lists|posted)\b.{0,60}\b(?:victims?|leak site|dls)\b", re.I)
 # Operational noise that is not a threat (install problems, outages, policy).
 NOISE_RE = re.compile(r"\b(?:installation issues?|fails? to install|known issue|outage|bug fix|end of support|"
-                      r"deprecat|price|pricing|lawsuit|fined|regulat|compliance|gdpr|privacy policy)\b", re.I)
+                      r"deprecat|price|pricing|lawsuit|fined|regulat|compliance|gdpr|privacy policy|"
+                      r"harga|promo|diskon|spesifikasi)\b", re.I)
 
 _COMPILED = [(g, [(re.compile(p, re.I | re.S), w, r) for p, w, r in terms]) for g, terms in GROUPS]
 IOC_TYPES = {"sha256", "sha1", "md5", "ip", "domain", "url"}
@@ -111,6 +153,11 @@ def score_item(title: str, body: str, entities, kind: str = "article") -> tuple[
             if not pat.search(text_l):
                 continue
             hits.append((weight * (1.5 if _title_bonus(title_l, pat) else 1.0), label))
+        # an English term and its Indonesian synonym share a label: count that label once
+        best: dict[str, float] = {}
+        for w, label in hits:
+            best[label] = max(w, best.get(label, 0.0))
+        hits = [(w, label) for label, w in best.items()]
         if not hits:
             continue
         hits.sort(reverse=True)

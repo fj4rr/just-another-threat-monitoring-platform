@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% from "_macros.html" import sev, verdict, chip %}
+{% from "_macros.html" import sev, verdict, chip, geo_chips %}
 {% block title %}{{ item.title|truncate(60) }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div style="min-width:0">
     <div class="row small muted"><span class="badge cat-{{ item.source.category }}">{{ item.source.name }}</span>{{ item.kind }} · <time datetime="{{ item.published_at.isoformat() }}Z">{{ item.published_at.strftime('%Y-%m-%d %H:%M') }} UTC</time> {% if item.author %}· {{ item.author }}{% endif %}</div>
     <h1 style="margin-top:6px;overflow-wrap:anywhere">{{ item.title }}</h1>
+    {% if geo.targets or geo.src_country or geo.lang %}<div style="margin-top:8px">{{ geo_chips(geo.targets, geo.src_country, geo.lang) }}</div>{% endif %}
   </div>
   <div class="row">
     <details class="pop"><summary class="sev-why" title="Why this severity?">{{ sev(item.severity) }}</summary>

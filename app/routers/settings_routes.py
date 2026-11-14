@@ -138,6 +138,18 @@ def _category(raw, fallback: str) -> str:
     return raw if raw in ("news", "social", "intel") else fallback
 
 
+def _geo_fields(src: Source, form) -> None:
+    """Outlet country (ISO2) and language of a source; unknown values are cleared, not guessed."""
+    from ..gazetteer import COUNTRIES
+
+    if "country" in form:
+        cc = str(form.get("country") or "").strip().upper()
+        src.country = cc if cc in COUNTRIES else ""
+    if "language" in form:
+        lang = str(form.get("language") or "").strip().lower()
+        src.language = lang if lang in ("en", "id") else ""
+
+
 @router.post("/sources", dependencies=[Depends(verify_csrf)])
 async def add_source(request: Request, user: User = Depends(require("admin")), db: Session = Depends(get_db)):
     form = await request.form()
@@ -150,6 +162,7 @@ async def add_source(request: Request, user: User = Depends(require("admin")), d
         category=_category(form.get("category"), cls.category), config=_source_config_from_form(kind, form),
         interval_minutes=_interval(form.get("interval_minutes"), 30), enabled=True,
     )
+    _geo_fields(src, form)
     db.add(src)
     audit(db, user, "source_added", f"{src.kind}:{src.name}", request)
     db.commit()
@@ -184,6 +197,7 @@ async def update_source(source_id: int, request: Request, user: User = Depends(r
             src.tlp = norm_tlp(form.get("tlp"))
         if "redistribute" in form:
             src.redistribute = {"1": True, "0": False}.get(str(form.get("redistribute")))
+        _geo_fields(src, form)
     audit(db, user, "source_updated", f"{src.name} ({action})", request)
     db.commit()
     jobs.schedule_source(src)

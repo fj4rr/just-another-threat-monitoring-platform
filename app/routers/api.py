@@ -13,7 +13,7 @@ from ..llm.client import LLMError
 from ..models import Entity, Item, Source, User, Watch
 from ..processing import trends
 from ..processing.enrichment import IOC_TYPES, enrich_entity, enrich_family
-from ..web import md
+from ..web import current_region, md
 
 router = APIRouter(prefix="/api")
 
@@ -24,54 +24,67 @@ def _days(n: int, lo: int = 1, hi: int = 365) -> int:
 
 # --------------------------------------------------------------------------- stats (read)
 @router.get("/stats/overview")
-def stats_overview(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.overview(db, _days(days))
+def stats_overview(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db),
+                   region: str = Depends(current_region)):
+    return trends.overview(db, _days(days), region)
 
 
 @router.get("/stats/kpi_series")
-def stats_kpi_series(days: int = 14, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.kpi_series(db, min(max(days, 7), 60))
+def stats_kpi_series(days: int = 14, _: User = Depends(current_user), db: Session = Depends(get_db),
+                     region: str = Depends(current_region)):
+    return trends.kpi_series(db, min(max(days, 7), 60), region)
 
 
 @router.get("/stats/timeline")
-def stats_timeline(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.timeline(db, min(max(days, 7), 180))
+def stats_timeline(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db),
+                   region: str = Depends(current_region)):
+    return trends.timeline(db, min(max(days, 7), 180), region)
 
 
 @router.get("/stats/top")
 def stats_top(type: str = "malware", days: int = 7, limit: int = 10, category: str = "",
-              _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.top_entities(db, type, _days(days), min(max(limit, 1), 50), category or None)
+              _: User = Depends(current_user), db: Session = Depends(get_db), region: str = Depends(current_region)):
+    return trends.top_entities(db, type, _days(days), min(max(limit, 1), 50), category or None, region)
 
 
 @router.get("/stats/trending")
 def stats_trending(type: str = "malware", limit: int = 10, _: User = Depends(current_user),
-                   db: Session = Depends(get_db)):
-    return trends.trending(db, type, min(max(limit, 1), 50))
+                   db: Session = Depends(get_db), region: str = Depends(current_region)):
+    return trends.trending(db, type, min(max(limit, 1), 50), region=region)
 
 
 @router.get("/stats/trending_timeline")
 def stats_trending_timeline(limit: int = 5, days: int = 30, _: User = Depends(current_user),
-                            db: Session = Depends(get_db)):
-    top = trends.trending(db, "malware", limit=min(max(limit, 1), 8))
-    tl = trends.family_timeline(db, [t["id"] for t in top], _days(days, 7, 180))
+                            db: Session = Depends(get_db), region: str = Depends(current_region)):
+    top = trends.trending(db, "malware", limit=min(max(limit, 1), 8), region=region)
+    tl = trends.family_timeline(db, [t["id"] for t in top], _days(days, 7, 180), region)
     return {"labels": tl["labels"], "series": [{"id": t["id"], "name": t["name"], "data": tl["series"][t["id"]]}
                                                for t in top]}
 
 
 @router.get("/stats/categories")
-def stats_categories(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.category_breakdown(db, _days(days, 1, 3650))
+def stats_categories(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db),
+                     region: str = Depends(current_region)):
+    return trends.category_breakdown(db, _days(days, 1, 3650), region)
 
 
 @router.get("/stats/sources")
-def stats_sources(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.source_breakdown(db, _days(days))
+def stats_sources(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db),
+                  region: str = Depends(current_region)):
+    return trends.source_breakdown(db, _days(days), region)
 
 
 @router.get("/stats/iocs")
-def stats_iocs(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db)):
-    return trends.ioc_breakdown(db, _days(days))
+def stats_iocs(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db),
+               region: str = Depends(current_region)):
+    return trends.ioc_breakdown(db, _days(days), region)
+
+
+@router.get("/stats/geo")
+def stats_geo(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db),
+              region: str = Depends(current_region)):
+    """Target countries, Indonesian provinces, source countries, languages and hosting countries."""
+    return trends.geo_stats(db, _days(days, 0, 3650), region)
 
 
 @router.get("/items/{item_id}/graph")
@@ -170,6 +183,22 @@ def notifications_read(user: User = Depends(current_user), db: Session = Depends
     notify.mark_all_read(db, user)
     db.commit()
     return {"ok": True, "unread": 0}
+
+
+@router.post("/items/geotag", dependencies=[Depends(verify_csrf)])
+def items_geotag(request: Request, user: User = Depends(require("admin")), db: Session = Depends(get_db)):
+    jobs.run_now(jobs.run_geotag, True)
+    audit(db, user, "items_geotag", "", request)
+    db.commit()
+    return {"ok": True, "message": "Geography is being recomputed in the background; a notification follows."}
+
+
+@router.post("/geoip/update", dependencies=[Depends(verify_csrf)])
+def geoip_update(request: Request, user: User = Depends(require("admin")), db: Session = Depends(get_db)):
+    jobs.run_now(jobs.run_geoip_update)
+    audit(db, user, "geoip_update", "", request)
+    db.commit()
+    return {"ok": True, "message": "Downloading the GeoIP database in the background."}
 
 
 @router.post("/items/rescore", dependencies=[Depends(verify_csrf)])

@@ -84,6 +84,13 @@ BENIGN_DOMAINS = {
     "docs.google.com", "drive.google.com", "play.google.com", "office.com", "live.com", "outlook.com",
     "gmail.com", "yahoo.com", "protonmail.com", "proton.me", "example.com", "example.net", "example.org",
     "localhost", "wp.com", "s.w.org", "jetpack.com", "i0.wp.com", "i1.wp.com", "i2.wp.com",
+    # Indonesian media, government and platforms (0.8)
+    "detik.com", "inet.detik.com", "kompas.com", "tekno.kompas.com", "cnnindonesia.com", "cnbcindonesia.com",
+    "antaranews.com", "liputan6.com", "republika.co.id", "okezone.com", "sindonews.com", "jawapos.com",
+    "tempo.co", "kumparan.com", "tribunnews.com", "kompas.id", "katadata.co.id", "bisnis.com", "idntimes.com",
+    "bssn.go.id", "kominfo.go.id", "komdigi.go.id", "ojk.go.id", "bi.go.id", "polri.go.id", "kemkes.go.id",
+    "id-sirtii.or.id", "cekrekening.id", "turnbackhoax.id", "tokopedia.com", "shopee.co.id", "bukalapak.com",
+    "gojek.com", "traveloka.com", "klikbca.com", "bca.co.id", "bri.co.id", "bankmandiri.co.id", "bni.co.id",
 }
 FILE_EXT_TLDS = {
     "exe", "dll", "zip", "rar", "js", "ps1", "bat", "vbs", "lnk", "msi", "iso", "png", "jpg",
@@ -265,6 +272,45 @@ def _sentence_start(text: str, pos: int) -> bool:
     return not before or before[-1] in ".!?:\n|—–-"
 
 
+# Indonesian word order puts the noun first: "ransomware LockBit", "malware bernama Lumma", "trojan perbankan Mamont".
+RE_NEW_FAMILY_ID = re.compile(
+    r"\b((?i:ransomware|malware|trojan|botnet|spyware|stealer|backdoor|wiper|loader))\s+"
+    r"(?:(?i:bernama|berjenis|jenis|baru|perbankan|pencuri data)\s+)*([A-Z][A-Za-z0-9]{2,}(?: [A-Z][A-Za-z0-9]{2,})?)\b")
+ID_GENERIC_WORDS = {
+    "baru", "ini", "itu", "yang", "tersebut", "jenis", "bernama", "asal", "berbahaya", "palsu", "perbankan",
+    "pencuri", "bank", "di", "dan", "untuk", "dengan", "dari", "pada", "kini", "juga", "telah", "sudah", "masih",
+    "menyerang", "mengincar", "incar", "sasar", "menyasar", "ancam", "mengancam", "serang", "menginfeksi",
+    "indonesia", "asing", "lokal", "android", "ios", "windows", "linux", "apk", "whatsapp", "telegram", "via",
+    "lewat", "melalui", "bisa", "dapat", "akan", "mampu", "curi", "mencuri", "sebar", "menyebar", "tersebar",
+    "kembali", "makin", "semakin", "ganas", "canggih", "pertama", "terbaru", "lama", "global",
+}
+
+
+def extract_candidate_families_id(text: str, known: set[str]) -> list[Extracted]:
+    """Same idea as :func:`extract_candidate_families` for Indonesian text. In prose ("…oleh ransomware
+    Brain Cipher…") a capitalised word after the noun is a name; in a title-case headline the name must be
+    CamelCase or already known."""
+    out: dict[str, Extracted] = {}
+    for m in RE_NEW_FAMILY_ID.finditer(text or ""):
+        noun_raw, name = m.group(1), m.group(2)
+        if " " in name and name.split(" ", 1)[1].lower() in ID_GENERIC_WORDS:
+            name = name.split(" ", 1)[0]
+        low = name.lower()
+        if low in ID_GENERIC_WORDS or low in GENERIC_WORDS or low in LEGIT_TOOLS:
+            continue
+        hit = knowledge.canonical_malware(low)
+        if hit:
+            out[hit[0].lower()] = Extracted("malware", hit[0].lower(), hit[0], hit[1], "kb")
+            continue
+        camel = bool(re.search(r"[a-z][A-Z]", name)) or bool(re.search(r"[A-Za-z]\d|\d[A-Za-z]", name))
+        if not camel and not noun_raw.islower():
+            continue
+        if low in known or any(low in k or k in low for k in known):
+            continue
+        out[low] = Extracted("malware", low, name, NOUN_CATEGORY.get(noun_raw.lower(), "other"), "heuristic")
+    return list(out.values())
+
+
 def extract_candidate_families(text: str, known: set[str]) -> list[Extracted]:
     """Proper-noun + malware-noun pattern. Precision rules:
     * single token only (multi-word families belong in the knowledge base);
@@ -304,9 +350,15 @@ def extract_candidate_families(text: str, known: set[str]) -> list[Extracted]:
 
 
 def extract_all(text: str, *, strict: bool = True) -> list[Extracted]:
+    from .geo import detect_language
+
     known = extract_known_entities(text)
     names = {e.value for e in known if e.type == "malware"} | {e.display.lower() for e in known}
-    return known + extract_candidate_families(text, names) + extract_iocs(text, strict=strict)
+    families = extract_candidate_families(text, names)
+    if detect_language(text) == "id":
+        have = names | {f.value for f in families}
+        families += [f for f in extract_candidate_families_id(text, have) if f.value not in have]
+    return known + families + extract_iocs(text, strict=strict)
 
 
 def severity_score(text: str, entities: list[Extracted], kind: str = "article") -> int:

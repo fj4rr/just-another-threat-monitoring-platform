@@ -13,6 +13,9 @@
                                                (after editing the knowledge base)
     python manage.py create-user NAME ROLE     create a user (multi-user mode), prompts for password
     python manage.py seed-sources              add new built-in sources missing from this install
+    python manage.py geotag                    re-run geo attribution (targets, provinces, language) on every item
+    python manage.py geoip-update              download the offline GeoIP database (DB-IP Lite, or GeoLite2 with
+                                               MAXMIND_LICENSE_KEY) into data/geoip/ and locate IP indicators
 """
 from __future__ import annotations
 
@@ -42,6 +45,13 @@ def main(argv: list[str]) -> int:
         print(jobs.run_enrichment())
     elif cmd == "cve-intel":
         print(jobs.run_cve_intel(force=True))
+    elif cmd == "geotag":
+        print(jobs.run_geotag(force=True))
+    elif cmd == "geoip-update":
+        from app import geoip, settings
+
+        print(geoip.update(str(settings.get("maxmind_license_key") or "")))
+        print(jobs.run_geotag(force=True))
     elif cmd == "digest":
         print(jobs.run_digest(force=True))
     elif cmd == "reextract":

@@ -7,6 +7,7 @@
     <div class="row small muted"><span class="badge">{{ ent.type }}</span>{% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
       {% if is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
       {% set geo = (ent.meta or {}).get('geo') %}{% if geo and geo.country %}<span class="badge" title="{{ geo.as_name or '' }} ({{ geo.source }})">{{ geo.country }}{% if geo.asn %} · {{ geo.asn if (geo.asn|string).startswith('AS') else 'AS' ~ geo.asn }}{% endif %}</span>{% endif %}
+      {% if ent.country %}<a class="badge" href="/iocs?type=ip&country={{ ent.country }}" title="Hosting country (offline GeoIP or the intel providers); not a target">hosted in {{ country_name(ent.country) }}</a>{% endif %}
       {% set gn = (ent.meta or {}).get('greynoise') %}{% if gn and gn.riot %}<span class="badge good" title="GreyNoise RIOT: known benign business service">benign service</span>{% elif gn and gn.noise %}<span class="badge warn" title="GreyNoise: seen mass-scanning the internet (opportunistic, not targeted)">mass scanner</span>{% endif %}
       first seen {{ ent.first_seen.strftime('%Y-%m-%d') }} · last seen {{ ent.last_seen|timeago }} · {{ ent.mention_count }} mention(s)</div>
     <h1 class="{{ 'mono' if is_ioc else '' }}" style="margin-top:6px;word-break:break-all">{{ ent.display }}</h1>

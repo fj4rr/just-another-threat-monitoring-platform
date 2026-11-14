@@ -72,7 +72,8 @@ class OTXCollector(Collector):
             published_at=parse_dt(p.get("created") or p.get("modified")),
             kind="pulse",
             tags=list(filter(None, (p.get("tags") or []) + fams + ([adv] if adv else []))),
-            raw={"tlp": p.get("tlp"), "indicator_count": len(p.get("indicators") or [])},
+            raw={"tlp": p.get("tlp"), "indicator_count": len(p.get("indicators") or []),
+                 "targeted_countries": [str(c) for c in (p.get("targeted_countries") or [])][:20]},
             indicators=otx.pulse_indicators(p, limit=300),
         )
 

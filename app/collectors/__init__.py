@@ -17,8 +17,15 @@ REGISTRY: dict[str, type[Collector]] = {
 }
 
 
-def _rss(name: str, url: str, every: int = 60) -> dict:
-    return {"name": name, "kind": "rss", "category": "news", "interval_minutes": every, "config": {"url": url}}
+def _rss(name: str, url: str, every: int = 60, country: str = "") -> dict:
+    return {"name": name, "kind": "rss", "category": "news", "interval_minutes": every, "country": country,
+            "config": {"url": url}}
+
+
+def _rss_id(name: str, url: str, every: int = 60) -> dict:
+    """Indonesian general technology feed: only security-related entries are kept (topic filter)."""
+    return {"name": name, "kind": "rss", "category": "news", "interval_minutes": every, "country": "ID",
+            "language": "id", "config": {"url": url, "filter": "security"}}
 
 
 def _bsky(name: str, handle: str, every: int = 30) -> dict:
@@ -43,18 +50,29 @@ DEFAULT_SOURCES: list[dict] = [
     # --- News
     _rss("The Hacker News", "https://feeds.feedburner.com/TheHackersNews", 30),
     _rss("Cyber Security News", "https://cybersecuritynews.com/feed/", 30),
-    _rss("BleepingComputer", "https://www.bleepingcomputer.com/feed/", 30),
-    _rss("SecurityWeek", "https://www.securityweek.com/feed/"),
-    _rss("The Record", "https://therecord.media/feed"),
-    _rss("Dark Reading", "https://www.darkreading.com/rss.xml"),
+    _rss("BleepingComputer", "https://www.bleepingcomputer.com/feed/", 30, "US"),
+    _rss("SecurityWeek", "https://www.securityweek.com/feed/", country="US"),
+    _rss("The Record", "https://therecord.media/feed", country="US"),
+    _rss("Dark Reading", "https://www.darkreading.com/rss.xml", country="US"),
     _rss("The DFIR Report", "https://thedfirreport.com/feed/", 180),
-    _rss("Unit 42", "https://unit42.paloaltonetworks.com/feed/", 180),
-    _rss("Malwarebytes Labs", "https://www.malwarebytes.com/blog/feed/index.xml", 120),
-    _rss("SANS ISC Diary", "https://isc.sans.edu/rssfeed_full.xml", 120),
-    _rss("Krebs on Security", "https://krebsonsecurity.com/feed/", 180),
-    _rss("Cisco Talos", "https://blog.talosintelligence.com/rss/", 180),
+    _rss("Unit 42", "https://unit42.paloaltonetworks.com/feed/", 180, "US"),
+    _rss("Malwarebytes Labs", "https://www.malwarebytes.com/blog/feed/index.xml", 120, "US"),
+    _rss("SANS ISC Diary", "https://isc.sans.edu/rssfeed_full.xml", 120, "US"),
+    _rss("Krebs on Security", "https://krebsonsecurity.com/feed/", 180, "US"),
+    _rss("Cisco Talos", "https://blog.talosintelligence.com/rss/", 180, "US"),
     _rss("Securelist (Kaspersky)", "https://securelist.com/feed/", 180),
-    _rss("Microsoft Security Blog", "https://www.microsoft.com/en-us/security/blog/feed/", 180),
+    _rss("Microsoft Security Blog", "https://www.microsoft.com/en-us/security/blog/feed/", 180, "US"),
+
+    # --- Indonesian news (technology sections, filtered to security topics; feeds verified 2026-11-15)
+    _rss_id("Detik Inet", "https://inet.detik.com/rss", 30),
+    _rss_id("CNN Indonesia Teknologi", "https://www.cnnindonesia.com/teknologi/rss"),
+    _rss_id("CNBC Indonesia Tech", "https://www.cnbcindonesia.com/tech/rss"),
+    _rss_id("Antara Tekno", "https://www.antaranews.com/rss/tekno.xml"),
+    _rss_id("Liputan6 Tekno", "https://feed.liputan6.com/rss/tekno"),
+    _rss_id("Republika Tekno", "https://www.republika.co.id/rss/tekno"),
+    _rss_id("Okezone Techno", "https://sindikasi.okezone.com/index.php/rss/16/RSS2.0"),
+    _rss_id("Sindonews Tekno", "https://tekno.sindonews.com/rss"),
+    _rss_id("Jawa Pos Teknologi", "https://www.jawapos.com/rss/teknologi"),
 
     # --- Bluesky (public API, no key)
     _bsky("vx-underground", "vxunderground.bsky.social", 60),

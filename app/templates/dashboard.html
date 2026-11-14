@@ -7,6 +7,7 @@
 <div class="page-head reveal" style="--i:0">
   <div><h1>Threat landscape</h1>
     <p class="muted">Last {{ ov.days }} days across news, social and threat-intel sources ·
+      {% if region == 'id' %}<span class="region-note" title="Items that target Indonesia, plus Indonesian outlets that name no other target country">National view: Indonesia</span> ·{% endif %}
       <span class="live"><span class="dot"></span><span data-live-stamp>live</span></span></p></div>
   {% if user.role in ('admin','analyst') %}
   <div class="row" style="align-items:flex-start">
@@ -155,7 +156,34 @@
   </div>
 </div>
 
-<div class="grid g-3" style="margin-top:16px" data-reveal="10">
+<div class="grid g-21" style="margin-top:16px;align-items:start" data-reveal="10">
+  {% set national = region == 'id' %}
+  <div class="card lift">
+    <div class="card-head"><h2>{{ 'Indonesia by province' if national else 'Target countries' }}</h2>
+      <a class="small" href="/geo">geography →</a></div>
+    <div class="geomap {{ 'warm' if national }}" data-map="{{ 'indonesia' if national else 'world' }}" data-values="v-dash-geo"
+         data-link="{{ '/feed?province={code}&days=30' if national else '/feed?country={code}&days=30' }}" data-unit="items"
+         aria-label="{{ 'Map of Indonesian provinces' if national else 'World map of target countries' }} by number of items, 30 days">
+      <div class="geo-loading muted small">Loading map…</div></div>
+    <script type="application/json" id="v-dash-geo">{{ (geo.id_values if national else geo.world_values)|tojson }}</script>
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>{{ 'Most targeted provinces' if national else 'Most targeted countries' }}</h2><span class="muted small">30 days</span></div>
+    {% set rows = geo.provinces if national else geo.targets %}
+    {% set topg = (rows[0].count if rows else 1) or 1 %}
+    <ul class="geo-list">
+      {% for r in rows[:8] %}
+      <li><span class="cc">{{ r.code[-2:] }}</span>
+        <div><a href="{{ ('/feed?province=' if national else '/feed?country=') ~ r.code }}&days=30">{{ province_name(r.code) if national else country_name(r.code) }}</a>
+          {% if r.related %}<div class="ent-row">{% for e in r.related %}{{ dchip(e) }}{% endfor %}</div>{% endif %}
+          <div class="bar {{ 'warm' if national }}" style="width:{{ (100 * r.count / topg)|round(1) }}%"></div></div>
+        <span class="num">{{ r.count }}</span></li>
+      {% else %}<li class="empty small" style="display:block">{{ 'No Indonesian provinces named in the last 30 days.' if national else 'No target countries named in the last 30 days.' }}</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="grid g-3" style="margin-top:16px" data-reveal="11">
   <div class="card lift">
     <div class="card-head"><h2>Malware by type</h2><span class="muted small">30 days</span></div>
     <div class="chart-wrap short"><canvas id="c-cat"></canvas></div>
@@ -188,6 +216,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script src="/static/js/geomap.js?v={{ version }}" defer></script>
 <script nonce="{{ nonce }}">
 document.addEventListener("DOMContentLoaded", () => {
   const J = window.JATMP;

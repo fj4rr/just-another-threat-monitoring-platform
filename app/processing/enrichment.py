@@ -185,6 +185,7 @@ def enrich_entity(db: Session, entity: Entity, providers: list | None = None, au
             geo = geo_from(results)
             if geo:
                 entity.meta = {**(entity.meta or {}), "geo": geo}
+            entity.country = infra_country(entity, results) or entity.country or ""
         n = _bump_items(db, entity, old, new)
         if n:
             msgs.append(f"severity raised on {n} item(s)")
@@ -195,6 +196,29 @@ def enrich_entity(db: Session, entity: Entity, providers: list | None = None, au
         entity.verdict = entity.verdict or "unknown"
     entity.enriched_at = utcnow()
     return msgs
+
+
+# Providers that report where an IP is hosted, best first, and the key holding the country.
+COUNTRY_KEYS = (("ipinfo", "country"), ("censys", "country"), ("shodan", "country"), ("virustotal", "country"),
+                ("abuseipdb", "countryCode"), ("crowdsec", "country"), ("otx", "country"))
+
+
+def infra_country(entity: Entity, results: list[LookupResult]) -> str:
+    """Hosting country of an IP: offline GeoIP first (consistent), then the providers. ISO2 or ''."""
+    from .. import geoip
+    from ..gazetteer import normalise_country
+
+    cc = geoip.country(entity.value)
+    if cc:
+        return cc
+    by = {r.provider: r for r in results}
+    for provider, key in COUNTRY_KEYS:
+        r = by.get(provider)
+        if r is not None:
+            cc = normalise_country((r.data or {}).get(key))
+            if cc:
+                return cc
+    return ""
 
 
 def _pulse_mentions(pulse: dict, name_l: str) -> bool:

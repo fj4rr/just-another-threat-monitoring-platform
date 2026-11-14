@@ -10,9 +10,11 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import geoip
 from ..models import Entity, Item, ItemEntity, Source, utcnow
 from ..sharing import norm_tlp
 from .extractor import Extracted, extract_all
+from .geo import tag_item
 from .severity import reasons_to_json, score_item
 
 log = logging.getLogger(__name__)
@@ -65,6 +67,7 @@ def get_or_create_entity(db: Session, ex: Extracted, seen_at: datetime | None = 
         ent = Entity(
             type=ex.type, value=ex.value, display=ex.display or ex.value, category=ex.category,
             first_seen=seen_at, last_seen=seen_at, mention_count=0, meta={},
+            country=geoip.country(ex.value) if ex.type == "ip" else "",
         )
         db.add(ent)
         db.flush()
@@ -178,6 +181,7 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, orig
         item.severity, reasons = score_item(item.title, f"{content}\n{' '.join(item.tags)}", list(uniq.values()), item.kind)
         item.severity_detail = reasons_to_json(reasons)
         link_entities(db, item, list(uniq.values()))
+        tag_item(db, item, source, replace=False)
         new_ids.append(item.id)
     source.items_count = (source.items_count or 0) + len(new_ids)
     return new_ids

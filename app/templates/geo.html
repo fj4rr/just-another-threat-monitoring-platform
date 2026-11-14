@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_macros.html" import dchip %}
+{% block title %}Geography{% endblock %}
+{% block content %}
+{% set s = stats %}
+{% set q = '&days=' ~ days %}
+<div class="page-head">
+  <div><h1>Geography</h1>
+    <p class="muted">Where reported activity takes place ({{ s.tagged }} of {{ s.total }} items name a target country){% if days %}, last {{ days }} days{% else %}, all time{% endif %}
+      {% if region == 'id' %}· <span class="region-note">National view: Indonesia</span>{% endif %}</p></div>
+  <form method="get" class="row" aria-label="Period">
+    <select name="days" data-autosubmit aria-label="Period">
+      {% for d, l in [(7,'7 days'),(30,'30 days'),(90,'90 days'),(365,'1 year'),(0,'All time')] %}<option value="{{ d }}" {{ 'selected' if days == d }}>{{ l }}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn">Apply</button></noscript>
+  </form>
+</div>
+
+{% macro geolist(rows, href, name_fn, warm=false, limit=15, unit='items') %}
+{% set top = (rows[0].count if rows else 1) or 1 %}
+<ul class="geo-list">
+  {% for r in rows[:limit] %}
+  <li><span class="cc">{{ r.code[-2:] if r.code|length > 2 else r.code }}</span>
+    <div><a href="{{ href.replace('{code}', r.code) }}">{{ name_fn(r.code) }}</a>
+      {% if r.related %}<div class="ent-row">{% for e in r.related %}{{ dchip(e) }}{% endfor %}</div>{% endif %}
+      <div class="bar {{ 'warm' if warm }}" style="width:{{ (100 * r.count / top)|round(1) }}%"></div></div>
+    <span class="num">{{ r.count }}{% if r.malicious %} <span class="badge crit" title="Malicious indicators hosted here">{{ r.malicious }}</span>{% endif %}</span></li>
+  {% else %}<li class="empty small" style="display:block">Nothing yet.</li>{% endfor %}
+</ul>
+{% endmacro %}
+
+<div class="geo-grid">
+  <div class="card">
+    <div class="card-head"><h2>Target countries</h2><span class="muted small">victims and places of activity · click to open the feed</span></div>
+    <div class="geomap" data-map="world" data-values="v-world" data-link="/feed?country={code}{{ q }}" data-unit="items" aria-label="World map of target countries by number of items">
+      <div class="geo-loading muted small">Loading map…</div></div>
+    <script type="application/json" id="v-world">{{ s.world_values|tojson }}</script>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Most targeted</h2><span class="muted small">with the families and actors named</span></div>
+    {{ geolist(s.targets, '/feed?country={code}' ~ q, country_name, limit=10) }}
+  </div>
+</div>
+
+<div class="geo-grid" style="margin-top:16px">
+  <div class="card">
+    <div class="card-head"><h2>Indonesia by province</h2><span class="muted small">provinces, cities and regional institutions named in the items</span></div>
+    <div class="geomap warm" data-map="indonesia" data-values="v-id" data-link="/feed?province={code}{{ q }}" data-unit="items" aria-label="Map of Indonesian provinces by number of items">
+      <div class="geo-loading muted small">Loading map…</div></div>
+    <script type="application/json" id="v-id">{{ s.id_values|tojson }}</script>
+    <p class="muted small" style="margin:8px 0 0">The public-domain outlines predate Kalimantan Utara and the four Papua provinces created in 2022;
+      on the map they are drawn with Kalimantan Timur, Papua and Papua Barat. The list counts them separately.</p>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Provinces</h2><a class="small" href="/feed?country=ID{{ q }}">all Indonesian items →</a></div>
+    {{ geolist(s.provinces, '/feed?province={code}' ~ q, province_name, warm=true, limit=38) }}
+  </div>
+</div>
+
+<div class="grid g-3" style="margin-top:16px">
+  <div class="card">
+    <div class="card-head"><h2>Hosting countries</h2><span class="muted small">where IP indicators are hosted</span></div>
+    {{ geolist(s.infra, '/iocs?type=ip&country={code}', country_name, limit=12, unit='IPs') }}
+    <p class="muted small" style="margin:8px 0 0">
+      {% if geoip.installed %}Offline GeoIP: {{ geoip.file }}{% if geoip.built %} (built {{ geoip.built }}){% endif %}.
+      {% if geoip.file.startswith('dbip') %}<a href="https://db-ip.com" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a> (CC BY 4.0).{% endif %}
+      {% else %}No offline GeoIP database yet: countries come from the enrichment providers.
+        {% if user.role == 'admin' %}<button type="button" class="btn sm" data-post="/api/geoip/update" data-busy="Downloading…">Download GeoIP database</button>{% endif %}{% endif %}</p>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Source countries</h2><span class="muted small">where the reporting comes from</span></div>
+    {{ geolist(s.sources, '/feed?src_country={code}' ~ q, country_name, limit=12) }}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Languages</h2></div>
+    {% set langs = {'en': 'English', 'id': 'Bahasa Indonesia'} %}
+    {{ geolist(s.languages, '/feed?lang={code}' ~ q, langs.get, limit=6) }}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/js/geomap.js?v={{ version }}" defer></script>{% endblock %}

@@ -21,8 +21,8 @@ from sqlalchemy.orm import Session
 from .. import __version__, apikeys, settings, sharing
 from ..auth import LoginRequired, audit, current_user
 from ..db import get_db
-from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, Source, User, utcnow
-from ..processing import trends
+from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, ItemGeo, Source, User, utcnow
+from ..processing import geo, trends
 from ..search import item_text_clause
 from ..web import render
 
@@ -100,6 +100,8 @@ def _entity_dict(e: Entity) -> dict:
         out["category"] = e.category
     if e.type in trends.IOC_TYPES:
         out["verdict"] = (e.verdict or "unknown") if e.enriched_at else "pending"
+    if e.type == "ip" and e.country:
+        out["country"] = e.country  # hosting country (GeoIP / providers), not a target
     if e.type == "cve":
         m = e.meta or {}
         out["kev"] = bool(m.get("kev"))
@@ -108,13 +110,15 @@ def _entity_dict(e: Entity) -> dict:
     return out
 
 
-def _item_dict(i: Item, full: bool = False) -> dict:
+def _item_dict(i: Item, full: bool = False, targets: list | None = None) -> dict:
     out = {
         "id": i.id, "title": i.title, "url": i.url or None, "kind": i.kind,
         "source": {"name": i.source.name, "category": i.source.category, "kind": i.source.kind},
         "published_at": _iso(i.published_at), "collected_at": _iso(i.collected_at), "severity": i.severity,
         "tlp": sharing.item_tlp(i), "ai_summary": i.llm_summary or None, "link": _link(f"/items/{i.id}"),
         "origin": i.origin or "live",
+        "geo": {"targets": [{"country": t["code"], "provinces": t["provinces"]} for t in targets or []],
+                "source_country": i.src_country or None, "language": i.lang or None},
         "entities": [{"id": link.entity.id, "type": link.entity.type, "value": link.entity.value}
                      for link in i.entity_links],
     }
@@ -135,6 +139,9 @@ def list_items(since: str | None = Query(None, description="Only items collected
                min_severity: int = Query(0, ge=0, le=100), source_type: str = Query("", description="news | social | intel"),
                q: str = Query("", max_length=200, description="Text search in title and content"),
                entity: int = Query(0, description="Only items mentioning this entity id"),
+               country: str = Query("", max_length=2, description="Only items that target this country (ISO-2)"),
+               province: str = Query("", max_length=8, description="Only items naming this Indonesian province (ISO 3166-2, e.g. ID-JB)"),
+               region: str = Query("", pattern="^(|intl|id)$", description="id = the National (Indonesia) view"),
                order: str = Query("desc", pattern="^(asc|desc)$"),
                cursor: int = Query(0, ge=0, description="next_cursor from the previous page"),
                limit: int = Query(100, ge=1, le=500),
@@ -150,11 +157,17 @@ def list_items(since: str | None = Query(None, description="Only items collected
         stmt = stmt.where(item_text_clause(q.strip()))
     if entity:
         stmt = stmt.where(Item.id.in_(select(ItemEntity.item_id).where(ItemEntity.entity_id == entity)))
+    if country.strip():
+        stmt = stmt.where(Item.id.in_(select(ItemGeo.item_id).where(ItemGeo.country == country.strip().upper())))
+    if province.strip():
+        stmt = stmt.where(Item.id.in_(select(ItemGeo.item_id).where(ItemGeo.region == province.strip().upper())))
+    stmt = geo.scoped(stmt, region)
     if cursor:
         stmt = stmt.where(Item.id < cursor if order == "desc" else Item.id > cursor)
     stmt = stmt.order_by(Item.id.desc() if order == "desc" else Item.id.asc()).limit(limit + 1)
     rows, nxt = _page(db.execute(stmt).unique().scalars().all(), limit)
-    return {"data": [_item_dict(i) for i in rows], "next_cursor": nxt}
+    targets = geo.targets_for(db, [i.id for i in rows])
+    return {"data": [_item_dict(i, targets=targets.get(i.id)) for i in rows], "next_cursor": nxt}
 
 
 @router.get("/items/{item_id}", summary="One item with content, tags and severity breakdown")
@@ -162,7 +175,7 @@ def get_item(item_id: int, _: User = Depends(principal("read")), db: Session = D
     item = db.get(Item, item_id)
     if not item or not sharing.item_shareable(item):
         raise HTTPException(404, "item not found")
-    return _item_dict(item, full=True)
+    return _item_dict(item, full=True, targets=geo.targets_for(db, [item.id]).get(item.id))
 
 
 # --------------------------------------------------------------------------- entities

@@ -92,4 +92,14 @@ def _add_missing_columns() -> None:
                 if col.name in have:
                     continue
                 ddl = f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col.type.compile(engine.dialect)}"
+                default = getattr(col.default, "arg", None) if col.default is not None and col.default.is_scalar else None
+                if isinstance(default, bool):
+                    ddl += f" DEFAULT {'TRUE' if default else 'FALSE'}" if not _is_sqlite else f" DEFAULT {int(default)}"
+                elif isinstance(default, (int, float)):
+                    ddl += f" DEFAULT {default}"
+                elif isinstance(default, str) and "'" not in default:
+                    ddl += f" DEFAULT '{default}'"  # existing rows get the value instead of NULL
                 conn.execute(text(ddl))
+            # indexes declared on columns added above (create_all only creates them with new tables)
+            for idx in table.indexes:
+                idx.create(conn, checkfirst=True)

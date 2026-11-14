@@ -11,7 +11,7 @@ from .. import reports
 from ..auth import audit, current_user, verify_csrf
 from ..db import get_db
 from ..models import User, utcnow
-from ..web import render
+from ..web import current_region, render
 
 router = APIRouter(prefix="/reports")
 PRESETS = [(1, "Last 24 hours"), (7, "Last 7 days"), (14, "Last 14 days"), (30, "Last 30 days"), (90, "Last 90 days")]
@@ -63,7 +63,9 @@ async def report_build(request: Request, user: User = Depends(current_user), db:
         raise HTTPException(400, "numbers expected") from e
     verdicts = {v for v in form.getlist("verdicts") if v in ("malicious", "suspicious", "clean", "unknown", "pending")}
     title = str(form.get("title", "")).strip()[:120]
-    rep = reports.gather(db, since, until, chosen, counts=counts, ioc_verdicts=verdicts or None, title=title, min_sev=min_sev)
+    region = str(form.get("region") or current_region(request))
+    rep = reports.gather(db, since, until, chosen, counts=counts, ioc_verdicts=verdicts or None, title=title,
+                         min_sev=min_sev, region=region)
     try:
         data, name, mime = reports.build(rep, fmt)
     except RuntimeError as e:  # optional dependency missing

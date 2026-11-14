@@ -13,6 +13,8 @@
       <div class="row" style="flex-wrap:nowrap"><input type="date" name="start" aria-label="Start date" max="{{ today }}" placeholder="{{ month_ago }}">
         <span class="muted">to</span><input type="date" name="end" aria-label="End date" max="{{ today }}"></div>
       <div class="muted small">Leave empty to use the quick range.</div></div>
+    <div class="field"><label for="region">Scope</label>
+      <select id="region" name="region">{% for k, l in regions.items() %}<option value="{{ k }}" {{ 'selected' if region == k }}>{{ 'International (everything)' if k == 'intl' else 'National: items that target Indonesia' }}</option>{% endfor %}</select></div>
   </div>
   <h2 style="margin-top:8px">2 · Content</h2>
   <div class="grid g-2 sections">

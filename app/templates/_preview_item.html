@@ -1,5 +1,5 @@
 {# Side-preview fragment for an item. No base layout: injected into the drawer by app.js. #}
-{% from "_macros.html" import sev, verdict, chip %}
+{% from "_macros.html" import sev, verdict, chip, geo_chips %}
 <div data-preview-meta data-kind="Item" data-full="/items/{{ item.id }}" data-title="{{ item.title or '(untitled)' }}">
   <div class="pv-meta">
     <span class="badge cat-{{ item.source.category }}">{{ item.source.name }}</span>
@@ -8,6 +8,7 @@
     {% if item.author %}<span>· {{ item.author|truncate(40) }}</span>{% endif %}
   </div>
   <h2 class="pv-title" id="drawer-title">{{ item.title or '(untitled)' }}</h2>
+  {% if geo.targets or geo.src_country %}<div style="margin:4px 0 8px">{{ geo_chips(geo.targets, geo.src_country, geo.lang) }}</div>{% endif %}
   <div class="row small">{{ sev(item.severity) }} <span class="muted">severity / 100</span></div>
   {% if item.severity_detail %}
   <table class="sev-rows" style="margin-top:6px"><tbody>

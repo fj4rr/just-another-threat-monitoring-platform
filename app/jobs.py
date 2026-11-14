@@ -430,6 +430,61 @@ def run_digest(force: bool = False) -> str:
         db.close()
 
 
+def run_geotag(force: bool = False) -> str:
+    """Geo attribution for every item (target countries / provinces, language, source country) and the
+    offline GeoIP country of IP indicators. Runs once after an upgrade or a rules change (``GEO_VERSION``),
+    or on demand (Settings -> General, ``manage.py geotag``)."""
+    from . import geoip
+    from .models import Entity
+    from .processing.geo import GEO_VERSION, retag_all
+
+    if not force and int(settings.get("geo_version") or 0) >= GEO_VERSION:
+        return "geography is up to date"
+    db = SessionLocal()
+    run = _start_run(db, "geotag")
+    try:
+        def progress(done: int, total: int) -> None:
+            run.progress_done, run.progress_total, run.phase = done, total, f"{done}/{total} items"
+            db.commit()
+
+        n = retag_all(db, progress)
+        located = 0
+        if geoip.database_path():
+            for ent in db.execute(select(Entity).where(Entity.type == "ip")).scalars():
+                cc = geoip.country(ent.value)
+                if cc and cc != ent.country:
+                    ent.country = cc
+                    located += 1
+            db.commit()
+        settings.set("geo_version", GEO_VERSION)
+        msg = f"geo-tagged {n} item(s)" + (f", located {located} IP(s)" if located else "")
+        _finish(db, run, "ok", msg)
+        if force:
+            notify.notify(db, "success", "Geography updated", msg, "/geo", key=f"geotag:{run.id}")
+            db.commit()
+        return msg
+    except Exception as e:
+        db.rollback()
+        _finish(db, run, "error", str(e))
+        log.warning("geotag failed: %s", e)
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
+def run_geoip_update() -> str:
+    """Refresh the offline GeoIP database (monthly) and locate IP indicators again."""
+    from . import geoip
+
+    try:
+        msg = geoip.update(str(settings.get("maxmind_license_key") or ""))
+    except Exception as e:
+        log.warning("GeoIP update failed: %s", e)
+        return f"error: {e}"
+    run_geotag(force=True)
+    return msg
+
+
 def run_rescore() -> str:
     """Recompute the severity of every item with the current scoring rules, using the
     entities already linked to it (no re-extraction, no network)."""
@@ -721,6 +776,10 @@ def start() -> None:
     scheduler.add_job(run_webhooks, "interval", seconds=30, id="webhooks", replace_existing=True)
     scheduler.add_job(run_digest, "cron", hour=6, minute=0, id="digest", replace_existing=True)
     scheduler.add_job(run_housekeeping, "cron", hour=3, minute=30, id="housekeeping", replace_existing=True)
+    # one-off geo attribution of existing items after an upgrade (no-op when up to date)
+    scheduler.add_job(run_geotag, "date", run_date=_now() + timedelta(seconds=20), id="geotag", replace_existing=True)
+    if settings.get("geoip_auto_update"):
+        scheduler.add_job(run_geoip_update, "cron", day=5, hour=4, minute=0, id="geoip_update", replace_existing=True)
     scheduler.start()
     log.info("scheduler started with %d jobs", len(scheduler.get_jobs()))
 

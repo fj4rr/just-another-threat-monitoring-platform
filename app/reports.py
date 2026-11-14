@@ -19,7 +19,7 @@ import io
 import re
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, distinct, func, or_, select
+from sqlalchemy import and_, distinct, func, or_, select, true
 from sqlalchemy.orm import Session
 
 from . import __version__
@@ -80,14 +80,22 @@ def _plain(text: str, limit: int) -> str:
 
 
 def gather(db: Session, since: datetime, until: datetime, sections: set[str], *, counts: dict | None = None,
-           ioc_verdicts: set[str] | None = None, title: str = "", min_sev: int = 0) -> dict:
-    """Collect the report data. ``until`` is exclusive."""
+           ioc_verdicts: set[str] | None = None, title: str = "", min_sev: int = 0, region: str = "") -> dict:
+    """Collect the report data. ``until`` is exclusive. ``region`` "id" limits it to the National (Indonesia) view."""
+    from .processing.geo import region_clause
+
     counts = {**DEFAULT_COUNTS, **(counts or {})}
     days = max(1, round((until - since).total_seconds() / 86400))
     in_range = and_(Item.published_at >= since, Item.published_at < until)
+    scope = region_clause(region)
+    if scope is not None:
+        in_range = and_(in_range, scope)
+    ent_scope = trends._entities_in_region(region, since)
+    ent_scope = ent_scope if ent_scope is not None else true()
     label = period_label(since, until)
     rep: dict = {
-        "title": title or f"Threat Intel Findings {label}", "period": label,
+        "title": title or f"Threat Intel Findings {label}" + (" · Indonesia" if scope is not None else ""),
+        "period": label, "region": "id" if scope is not None else "intl",
         "since": since, "until": until, "days": days, "generated": utcnow(), "version": __version__,
         "sections": [s for s in SECTIONS if s in sections], "counts": counts,
     }
@@ -99,11 +107,12 @@ def gather(db: Session, since: datetime, until: datetime, sections: set[str], *,
     fam_count = db.scalar(select(func.count(distinct(ItemEntity.entity_id))).join(Item, Item.id == ItemEntity.item_id)
                           .join(Entity, Entity.id == ItemEntity.entity_id).where(in_range, Entity.type == "malware")) or 0
     new_fams = db.scalar(select(func.count(Entity.id)).where(Entity.type == "malware", Entity.first_seen >= since,
-                                                             Entity.first_seen < until)) or 0
+                                                             Entity.first_seen < until, ent_scope)) or 0
     ioc_count = db.scalar(select(func.count(Entity.id)).where(Entity.type.in_(IOC_TYPES), Entity.last_seen >= since,
-                                                              Entity.last_seen < until)) or 0
+                                                              Entity.last_seen < until, ent_scope)) or 0
     malicious = db.scalar(select(func.count(Entity.id)).where(Entity.type.in_(IOC_TYPES), Entity.verdict == "malicious",
-                                                              Entity.last_seen >= since, Entity.last_seen < until)) or 0
+                                                              Entity.last_seen >= since, Entity.last_seen < until,
+                                                              ent_scope)) or 0
     high = db.scalar(select(func.count(Item.id)).where(in_range, Item.severity >= 60)) or 0
     cve_count = db.scalar(select(func.count(distinct(ItemEntity.entity_id))).join(Item, Item.id == ItemEntity.item_id)
                           .join(Entity, Entity.id == ItemEntity.entity_id).where(in_range, Entity.type == "cve")) or 0

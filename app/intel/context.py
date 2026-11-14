@@ -351,7 +351,9 @@ def geo_from(results: list[LookupResult]) -> dict | None:
     for name in ("ipinfo", "censys", "shodan", "crowdsec"):
         r = next((x for x in results if x.provider == name), None)
         if r and (r.data.get("country") or r.data.get("asn")):
-            return {"country": (r.data.get("country") or "")[:2].upper() or None, "asn": r.data.get("asn"),
+            from ..gazetteer import normalise_country
+
+            return {"country": normalise_country(r.data.get("country")) or None, "asn": r.data.get("asn"),
                     "as_name": r.data.get("as_name") or r.data.get("org"), "source": name}
     return None
 

@@ -15,6 +15,16 @@
 <a class="chip" href="/entities/{{ c.id }}" data-preview="/entities/{{ c.id }}/preview">{% if show_type %}<span class="t">{{ c.type }}</span>{% endif %}{{ c.name|truncate(36, True) }}{% if show_count %} <span class="t">{{ c.count }}</span>{% endif %}</a>
 {%- endmacro %}
 
+{# Target countries (and Indonesian provinces) of an item: [{code, provinces}] #}
+{% macro geo_chips(targets, src_country='', lang='') -%}
+<div class="geo-chips">
+  {% for t in targets %}<a class="geo-chip" href="/feed?country={{ t.code }}" title="Target country (victim or place of activity)"><span class="cc">{{ t.code }}</span><b>{{ country_name(t.code) }}</b></a>
+    {% for p in t.provinces %}<a class="geo-chip" href="/feed?province={{ p }}" title="Indonesian province"><span class="cc">{{ p[-2:] }}</span>{{ province_name(p) }}</a>{% endfor %}{% endfor %}
+  {% if src_country %}<a class="geo-chip" href="/feed?src_country={{ src_country }}" title="Where the reporting comes from"><span class="cc">src</span>{{ country_name(src_country) }}</a>{% endif %}
+  {% if lang %}<a class="geo-chip" href="/feed?lang={{ lang }}" title="Language"><span class="cc">lang</span>{{ {'id': 'Bahasa Indonesia', 'en': 'English'}.get(lang, lang) }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
 {# Period filter shared by every list. 0 = all time. #}
 {% macro period_select(f, options=None) -%}
 <select name="days" aria-label="Period">{% for v, l in (options or [(1,'24 hours'),(7,'7 days'),(30,'30 days'),(90,'90 days'),(365,'1 year'),(0,'All time')]) %}

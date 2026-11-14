@@ -31,6 +31,9 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "pulsedive_api_key": ("", "PULSEDIVE_API_KEY", "Pulsedive API key (free)", "secret", "intel"),
     "hybrid_analysis_api_key": ("", "HYBRID_ANALYSIS_API_KEY", "Hybrid Analysis API key (free)", "secret", "intel"),
     "ipinfo_token": ("", "IPINFO_TOKEN", "IPinfo token (free Lite plan)", "secret", "intel"),
+    "maxmind_license_key": ("", "MAXMIND_LICENSE_KEY",
+                            "MaxMind license key (optional; GeoLite2 instead of DB-IP Lite for offline GeoIP)",
+                            "secret", "intel"),
     "hudsonrock_api_key": ("", "HUDSONROCK_API_KEY", "Hudson Rock Cavalier API key (free; infostealer statistics)",
                            "secret", "intel"),
     "nvd_api_key": ("", "NVD_API_KEY", "NVD API key (optional, faster CVSS lookups)", "secret", "intel"),
@@ -89,6 +92,9 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "retention_full_days": (180, "", "Keep the full text for N days; older items keep title, link, entities, "
                             "severity and a snippet (0 = keep everything)", "int", "general"),
     "retention_days": (0, "", "Delete items older than N days (0 = keep forever, slimmed as above)", "int", "general"),
+    # Geography
+    "geoip_auto_update": (False, "", "Refresh the offline GeoIP database every month (DB-IP Lite, or MaxMind GeoLite2 "
+                          "with a license key) for the hosting country of IP indicators", "bool", "general"),
 }
 
 # Integer settings are clamped so a typo in the UI cannot disable throttling or flood an API.

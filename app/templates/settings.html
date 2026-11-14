@@ -20,6 +20,8 @@
       <div class="field"><label for="src-name">Name</label><input id="src-name" type="text" name="name" placeholder="e.g. SANS ISC" maxlength="120"></div>
       <div class="field"><label for="add-int">Interval (minutes)</label><input id="add-int" type="number" min="5" max="10080" name="interval_minutes" value="30"></div>
       <div class="field"><label for="cat">Category</label><select name="category" id="cat"><option>news</option><option>social</option><option>intel</option></select></div>
+      <div class="field"><label for="add-country" title="The outlet's country, for the source-country view and the National (ID) filter">Country (ISO-2, optional)</label><input id="add-country" type="text" name="country" maxlength="2" placeholder="ID" autocomplete="off"></div>
+      <div class="field"><label for="add-lang">Language</label><select id="add-lang" name="language"><option value="">detect</option><option value="en">English</option><option value="id">Bahasa Indonesia</option></select></div>
     </div>
     {% for k, v in kinds.items() %}
     <div class="kind-fields" data-kind="{{ k }}">
@@ -56,6 +58,8 @@
     <tr class="{{ 'is-disabled' if not s.enabled }}">
       <td><strong>{{ s.name }}</strong> <span class="badge cat-{{ s.category }}">{{ s.category }}</span>
         {% if s.tlp %}<span class="badge" title="Default TLP for this source's items">TLP:{{ s.tlp }}</span>{% endif %}
+        {% if s.country %}<span class="badge" title="Outlet country: {{ country_name(s.country) }}">{{ s.country }}</span>{% endif %}
+        {% if s.language %}<span class="badge" title="Language">{{ s.language }}</span>{% endif %}
         {% if s.redistribute == false or (s.redistribute is none and s.kind in ('anyrun','ransomwarelive')) %}<span class="badge" title="Never shared through the API, exports, webhooks or MISP">not shared</span>{% endif %}
         <div class="muted small mono" style="word-break:break-all">{% for k, v in (s.config or {}).items() if k not in ('user_id','since_id','account_id') %}{{ k }}={{ v }} {% endfor %}</div></td>
       <td>{{ s.kind }}</td>
@@ -85,6 +89,12 @@
                   <option value="" {{ 'selected' if s.redistribute is none }}>default ({{ 'no' if s.kind in ('anyrun','ransomwarelive') else 'yes' }})</option>
                   <option value="1" {{ 'selected' if s.redistribute == true }}>yes</option>
                   <option value="0" {{ 'selected' if s.redistribute == false }}>no</option></select></div>
+              <div class="field"><label for="cc-{{ s.id }}" title="The outlet's country (ISO-2). Items from Indonesian outlets count for the National (ID) view unless they name another target country.">Country</label>
+                <input id="cc-{{ s.id }}" type="text" name="country" maxlength="2" value="{{ s.country or '' }}" placeholder="e.g. ID" autocomplete="off"></div>
+              <div class="field"><label for="lang-{{ s.id }}" title="Used when the language of an entry cannot be detected">Language</label>
+                <select id="lang-{{ s.id }}" name="language"><option value="" {{ 'selected' if not s.language }}>detect</option>
+                  <option value="en" {{ 'selected' if s.language == 'en' }}>English</option>
+                  <option value="id" {{ 'selected' if s.language == 'id' }}>Bahasa Indonesia</option></select></div>
             </div>
             <div class="row" style="justify-content:space-between">
               <button class="btn sm danger" name="action" value="delete" data-confirm="Delete “{{ s.name }}” and all of its items? This cannot be undone.">Delete</button>
@@ -303,7 +313,9 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
     {% endfor %}
     <div class="row"><button class="btn primary">Save</button>
-      {% if tab == 'general' %}<button type="button" class="btn" data-post="/api/items/rescore" data-busy="Queuing…" title="Recompute every item's severity with the current rules (background job, no network)">Re-score all items</button>{% endif %}</div>
+      {% if tab == 'general' %}<button type="button" class="btn" data-post="/api/items/rescore" data-busy="Queuing…" title="Recompute every item's severity with the current rules (background job, no network)">Re-score all items</button>
+      <button type="button" class="btn" data-post="/api/items/geotag" data-busy="Queuing…" title="Recompute target countries, provinces, language and source country of every item (background job, no network)">Re-run geography</button>
+      <button type="button" class="btn" data-post="/api/geoip/update" data-busy="Queuing…" title="Download the offline GeoIP country database into data/geoip/ (DB-IP Lite, CC BY 4.0; or MaxMind GeoLite2 when a license key is set)">Download GeoIP database</button>{% endif %}</div>
   </form>
   {% if tab == 'intel' %}
   <div style="margin-top:16px"><h3>Test connection</h3>

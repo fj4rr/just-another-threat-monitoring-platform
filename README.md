@@ -7,7 +7,10 @@ JATMP is a self-hosted platform for keeping track of new and emerging malware ca
 AlienVault OTX, urlscan.io, ANY.RUN, abuse.ch, GreyNoise, AbuseIPDB, MISP, ransomware.live), extracts the
 malware families, actors, CVEs and indicators mentioned in each item, cross-checks indicators against the intel
 providers, correlates everything across sources and presents the result on a trend dashboard. CVEs get
-exploitation context from CISA KEV, FIRST EPSS and NVD. Other tools read the data back out through a REST API,
+exploitation context from CISA KEV, FIRST EPSS and NVD. Every item is placed on the map: which countries it
+targets (down to the province for Indonesia), where the reporting comes from and where its infrastructure is
+hosted, and the whole interface switches between an International and a National (Indonesia) view. Indonesian
+news is collected and read in Bahasa Indonesia. Other tools read the data back out through a REST API,
 IOC blocklist feeds, STIX 2.1 / TAXII 2.1, signed webhooks and MISP. A local or cloud LLM can optionally add summaries, briefs and a
 daily digest.
 
@@ -16,8 +19,9 @@ from a CDN at runtime, so it works on an isolated network.
 
 ## Screenshots
 
-Dashboard: *Collect now* / *Enrich now* with last and next run, notification bell, headline ticker, threat radar,
-KPI tiles with sparklines, collection volume and trending families.
+Dashboard: International / National (ID) switch, *Collect now* / *Enrich now* with last and next run,
+notification bell, headline ticker, threat radar, KPI tiles with sparklines, collection volume and trending
+families.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -29,7 +33,11 @@ KPI tiles with sparklines, collection volume and trending families.
 |---|---|
 | ![Item page](docs/screenshots/item.png) | ![Relationship graph](docs/screenshots/graph.png) |
 
-| Malware family page: timeline, coverage per source, Deep dive, graph, co-mentioned entities | IOC table with verdicts, attributed families and where each indicator was seen |
+| Geography: target countries on a world map, with the families and actors named per country | National (ID) view: the dashboard limited to Indonesia, with the province map |
+|---|---|
+| ![Geography](docs/screenshots/geography.png) | ![National view](docs/screenshots/dashboard-national.png) |
+
+| Malware family page: timeline, coverage per source, Deep dive, graph, co-mentioned entities | IOC table with verdicts, hosting countries, attributed families and where each indicator was seen |
 |---|---|
 | ![Entity page](docs/screenshots/entity.png) | ![IOCs](docs/screenshots/iocs.png) |
 
@@ -52,6 +60,7 @@ KPI tiles with sparklines, collection volume and trending families.
 | Source type | Included out of the box |
 |---|---|
 | **News (RSS)** | The Hacker News, Cyber Security News, BleepingComputer, SecurityWeek, The Record, Dark Reading, The DFIR Report, Unit 42, Malwarebytes Labs, SANS ISC, Krebs on Security, Cisco Talos, Securelist, Microsoft Security. Any other RSS or Atom feed can be added from the UI. |
+| **Indonesian news** (RSS, Bahasa Indonesia) | Detik Inet, CNN Indonesia Teknologi, CNBC Indonesia Tech, Antara Tekno, Liputan6 Tekno, Republika Tekno, Okezone Techno, Sindonews Tekno, Jawa Pos Teknologi. These are general technology sections, so a *security* topic filter keeps only entries about breaches, hacking, fraud, malware and the like (English and Indonesian terms). The filter can be set on any RSS source. |
 | **Bluesky** (public API, no key) | vx-underground, Marcus Hutchins, MalwareHunterTeam, Kevin Beaumont, Catalin Cimpanu, Will Thomas (BushidoToken), Zack Whittaker, Lorenzo Franceschi-Bicchierai, Dan Goodin, Karsten Hahn, hasherezade, Silas Cutler, Shadowserver, The DFIR Report, ESET Research, Cisco Talos, SentinelLABS, GreyNoise, Huntress, Ransomware.live |
 | **Mastodon** (public API, no key) | Marcus Hutchins, Brian Krebs, Brad Duncan (malware-traffic), SANS ISC, Proofpoint Threat Insight, Thomas Roccia, ffforward, Matt Taggart, Kevin Beaumont |
 | **X / Twitter** (API v2 bearer token or an RSS bridge) | Enabled: vxunderground, MalwareTechBlog, malwrhunterteam. Available but disabled by default so the API quota is not spent unintentionally: GossiTheDog, cyb3rops, 1ZRR4H, BushidoToken, TheDFIRReport, Unit42_Intel, abuse_ch, malware_traffic, ESETresearch, MsftSecIntel, executemalware, pr0xylife, g0njxa, Max_Mal_, RedDrip7, fr0gger_, StopMalvertisin, ViriBack, Fox_threatintel, FalconFeedsio, H4ckManac, anyrun_app, ffforward |
@@ -97,6 +106,35 @@ Hybrid Analysis (sandbox verdict and family) and IPinfo (ASN and country, kept f
 far as keys are configured. Free tiers are small, so these never run in the background batch unless "run context
 lookups when an indicator turns malicious" is switched on; Shodan InternetDB and IPinfo can be used without a key
 once keyless lookups are allowed.
+
+**Geography.** Three relations are kept apart so that hosting countries never inflate the target map:
+
+- *Target countries* (and, for Indonesia, the province): where the victims are or the activity takes place. They
+  come from place names and demonyms in the text, the 38 Indonesian provinces with their cities and regencies
+  (an ambiguous name such as Malang or Palu only counts after *Kota*, *Kabupaten*, *Pemkot*...), Indonesian
+  institutions and companies (BSSN, Komdigi, BPJS, OJK, Pertamina...), `.go.id` / `.co.id` / `.ac.id` domains,
+  the victim country of leak-site postings and the targeted countries OTX and ransomware.live supply. A country
+  that describes the *attacker* is not a target: "Russian hackers", "China-nexus", "Iran-linked", "attributed to
+  North Korea", "peretas asal Rusia".
+- *Source country*: the outlet's country (set per source), or Indonesia for items written in Indonesian.
+- *Hosting country* of IP indicators: from an offline GeoIP database when one is installed (DB-IP Lite, or MaxMind
+  GeoLite2 with a key), otherwise from the enrichment providers (IPinfo, VirusTotal, AbuseIPDB, OTX...).
+
+The **Geography** page shows target countries on a world map and Indonesian provinces on a province map (both
+link to the matching feed), the families and actors named per country, hosting countries, source countries and
+languages. The maps are drawn from public-domain Natural Earth outlines that ship with JATMP, so nothing is
+loaded from outside. Item pages and previews list the targets, source country and language; the feed and the
+REST API filter by `country`, `province`, `src_country` and `lang`.
+
+**International / National (ID).** The switch in the top bar limits the dashboard, every list, the statistics,
+the report builder and the IOC table to Indonesia: items that target Indonesia, plus items from Indonesian outlets
+that do not name another target country. The choice is remembered for the session.
+
+**Bahasa Indonesia.** Language is detected per item. The severity rules know Indonesian terms (*kebocoran data*,
+*diretas*, *peretasan*, *penipuan*, *phising*, *dieksploitasi*, *uang tebusan*, *judi online*...) and count an
+English term and its Indonesian synonym once; awareness pieces (*tips*, *cara*, *kenali*) are damped like
+English guides. The extractor recognises the Indonesian word order for new families ("ransomware Brain Cipher",
+"trojan perbankan Mamont"), and Indonesian news and government domains are never indicators.
 
 **Correlation.** The item page ranks related items by the strength of the evidence they share: a common hash,
 URL or domain weighs far more than a common CVE, rare entities more than frequently mentioned ones, and items
@@ -285,6 +323,7 @@ and are shown there as locked.
 | Pulsedive | `PULSEDIVE_API_KEY` | Free tier |
 | Hybrid Analysis | `HYBRID_ANALYSIS_API_KEY` | Free (vetted) account |
 | IPinfo | `IPINFO_TOKEN` | Free Lite token; without one the keyless endpoint is used (after allowing keyless lookups) |
+| Offline GeoIP | `MAXMIND_LICENSE_KEY` | Optional. *Download GeoIP database* (Settings → General) or `manage.py geoip-update` fetches DB-IP IP to Country Lite (no account, CC BY 4.0) into `data/geoip/`; with a MaxMind key it fetches GeoLite2 Country instead. Monthly refresh is a setting |
 | MISP | `MISP_URL`, `MISP_API_KEY` | Automation key of a MISP user; distribution, sharing group, TLS verification and auto-push under Settings → MISP |
 | X / Twitter | `X_BEARER_TOKEN` | API v2 is a paid service; alternatively set `rss_bridge` on each X source |
 | LLM | `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | Optional. `LLM_PROVIDER` is `none`, `ollama`, `openai_compatible` or `anthropic`; the Settings page reflects whatever these resolve to |
@@ -312,6 +351,22 @@ Malware families and actors can be added without touching code. Create `data/kno
 ```
 
 Restart, then run `python manage.py reextract` to reprocess existing items.
+
+### Upgrading to 0.8
+
+- New table `item_geo` and columns `items.lang`, `items.src_country`, `sources.country`, `sources.language` and
+  `entities.country` are created on start-up. Columns added this way now get their default value on existing rows
+  (earlier versions left them NULL).
+- About 20 seconds after the first start, a background job assigns target countries, provinces, language and
+  source country to every existing item (*Re-run geography* under Settings → General does the same, and so does
+  `python manage.py geotag`). No network requests.
+- **Add new built-in sources** under Settings → Sources adds the nine Indonesian news feeds. Set the country of
+  your own outlets under *Edit* so they count for the source-country view (Indonesian ones also for the National
+  view).
+- For hosting countries without provider lookups, press *Download GeoIP database* (Settings → General or the
+  Geography page) or run `python manage.py geoip-update`.
+- Run `python manage.py rescore` to apply the Indonesian severity terms to items collected before the upgrade.
+- New dependency: `maxminddb` (pure Python), so run `pip install -r requirements.txt` again.
 
 ### Upgrading to 0.7
 
@@ -378,6 +433,9 @@ packages, so run `pip install -r requirements.txt` again.
 - **Webhooks.** Targets must resolve to public addresses (checked when saved and again before each delivery;
   redirects are not followed) unless an admin allows private ones. Signing secrets are derived from the session
   secret and a per-hook salt, so the database holds nothing that could forge a signature.
+- **GeoIP download.** The offline GeoIP database is fetched from download.db-ip.com (or download.maxmind.com with
+  a license key) only when an admin asks for it or the monthly refresh is switched on; a download that is not a
+  valid database is discarded. IP lookups themselves never leave the host.
 - **Sharing.** TLP and per-source redistribution flags gate the API, exports, webhooks and MISP pushes (see
   *Sharing and integrations*).
 - API keys entered in the UI are stored in the local database. On shared hosts prefer environment variables,
@@ -397,6 +455,8 @@ python manage.py reextract        # re-extract entities on every item
 python manage.py rescore          # recompute severity with the current rules (also a button in Settings → General)
 python manage.py seed-sources     # add new built-in sources to an existing install (also a button in Settings)
 python manage.py slim             # apply the retention tier now (trim the text of old items)
+python manage.py geotag           # re-run geo attribution (targets, provinces, language, source country)
+python manage.py geoip-update     # download the offline GeoIP database and locate IP indicators
 python manage.py vacuum           # give freed space back to the disk
 python manage.py copy-db postgresql+psycopg://jatmp:secret@localhost:5432/jatmp   # copy into an empty database
 python manage.py create-user alice analyst
@@ -418,7 +478,8 @@ The test suite runs against a throw-away SQLite database with no network access 
 the extractor, severity scoring, enrichment consensus, feed sorting, the AI settings mapping, the report
 builder in all four formats, password, CSRF and redirect handling, feed sanitisation, the settings form, the
 multi-user login flow, list pagination and filters, the preview fragments, job batches and progress,
-notifications and the CVE lookups (against a mocked HTTP transport). GitHub Actions runs lint and tests on Python 3.11 and 3.12 and builds the Docker
+notifications, the CVE lookups (against a mocked HTTP transport), geo attribution (targets versus attackers,
+Indonesian places and institutions), the region filter, the Indonesian severity terms and the map outlines. GitHub Actions runs lint and tests on Python 3.11 and 3.12 and builds the Docker
 image.
 
 ## Architecture
@@ -427,7 +488,8 @@ image.
 app/
   collectors/   rss, bluesky, mastodon, x_twitter, intel (OTX, urlscan, ANY.RUN, ThreatFox, ransomware.live),
                 misp  → RawItem
-  processing/   pipeline (dedupe, sanitise, store, link entities) · extractor (IOC/CVE/family/actor)
+  processing/   pipeline (dedupe, sanitise, store, link entities, geo-tag) · extractor (IOC/CVE/family/actor)
+                geo (language, target countries and provinces, source country, International / National filter)
                 severity (explainable 0–100 score) · enrichment (cross-source, consensus, re-checks)
                 trends (dashboard aggregations, weighted correlation) · graph (capped relationship graphs)
   intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox, MalwareBazaar, URLhaus, GreyNoise,
@@ -440,6 +502,8 @@ app/
   reports.py    Threat Intel Findings: gather() plus PDF / Word / Markdown / CSV exporters
   routers/      pages, api (JSON and actions), api_v1 (REST API + IOC feeds + offline docs), apikeys, webhooks,
                 taxii (read-only TAXII 2.1), settings, reports, admin, auth and setup
+  gazetteer.py  countries (English and Indonesian names, demonyms), 38 Indonesian provinces, cities, institutions
+  geoip.py      offline GeoIP (MaxMind-format database in data/geoip/) for the hosting country of IPs
   sharing.py    TLP and redistribution rules for everything that leaves JATMP
   stix.py       STIX 2.1 objects and bundles (stable per-install ids, TLP markings)
   backfill.py   backfill reach, estimates and storage statistics (the job is jobs.run_backfill)
@@ -452,6 +516,8 @@ app/
   templates/    pages, plus _preview_item.html / _preview_entity.html (partial HTML for the side preview)
   static/       app.css (theme tokens, dark and light) · app.js (CSP-safe behaviours, preview drawer, job and
                 notification polling, charts) · motion.js (radar, sparklines) · graph.js (force-directed SVG graph)
+                geomap.js (choropleth maps) · geo/ (pre-projected Natural Earth outlines: world, Indonesian provinces)
+scripts/        build_geo.py (rebuilds static/geo from Natural Earth GeoJSON; not needed at runtime)
 data/           config.json (install mode, secret), jatmp.db (SQLite)
 tests/          pytest suite
 ```
@@ -463,6 +529,33 @@ Run a single web worker, because the scheduler lives in the process; scale colle
 intervals instead.
 
 ## Changelog
+
+### 0.8.0
+
+- **Geo attribution** per item (`app/processing/geo.py`, `app/gazetteer.py`): target countries from place names,
+  demonyms, Indonesian provinces, cities, regencies, institutions and domains, leak-site victim countries and the
+  countries OTX and ransomware.live supply; attacker countries ("Russian hackers", "China-nexus", "attributed to",
+  "peretas asal") are recognised and left out. Stored in the new `item_geo` table, kept apart from the source
+  country (`items.src_country`, `sources.country`) and the hosting country of IPs (`entities.country`).
+- **International / National (ID) switch** in the top bar for the dashboard, Feed, Malware, Actors, CVEs, IOCs,
+  statistics and the report builder (new *Scope* option); remembered for the session.
+- **Geography page** with a world map of target countries and an Indonesian province map (Natural Earth, public
+  domain, pre-projected so no map library is needed; `static/js/geomap.js`), families and actors per country,
+  hosting countries, source countries and languages. A map card on the dashboard follows the switch.
+- **Offline GeoIP** for IP indicators (`app/geoip.py`): DB-IP Lite or MaxMind GeoLite2 in `data/geoip/`, downloaded
+  on request or monthly; otherwise the country comes from IPinfo, VirusTotal, AbuseIPDB or OTX. Fixes OTX country
+  names being cut to two letters.
+- **Bahasa Indonesia**: language detection, Indonesian severity terms (synonyms counted once), Indonesian word order
+  for new family names, Indonesian news and government domains excluded from indicators.
+- **Indonesian news sources**: nine technology feeds with a new RSS *security* topic filter; sources have a country
+  and language (Settings → Sources → Edit).
+- Feed filters `country`, `province`, `src_country`, `lang`; target chips on feed rows, item pages and previews;
+  hosting-country chips and filter on the IOC table; REST API v1 items carry `geo` and accept `country`,
+  `province` and `region`, IP indicators carry `country`; `GET /api/stats/geo`.
+- `manage.py geotag` and `geoip-update`, *Re-run geography* and *Download GeoIP database* buttons, a one-off
+  geo-tagging job after the upgrade.
+- Fix: columns added by the start-up migration now get their default on existing rows, and indexes declared on
+  them are created.
 
 ### 0.7.0
 
@@ -609,6 +702,9 @@ intervals instead.
 Built and maintained by [**fj4rr**](https://github.com/fj4rr) ·
 [github.com/fj4rr/just-another-threat-monitoring-platform](https://github.com/fj4rr/just-another-threat-monitoring-platform).
 Issues and pull requests are welcome.
+
+Map outlines: [Natural Earth](https://www.naturalearthdata.com/) (public domain). Offline GeoIP, when downloaded:
+[IP Geolocation by DB-IP](https://db-ip.com) (CC BY 4.0) or MaxMind GeoLite2 under its own licence.
 
 ## Notes
 

@@ -58,7 +58,41 @@ VERDICT_CLASS = {"malicious": "crit", "suspicious": "warn", "clean": "good", "un
 templates.env.globals["verdict_class"] = lambda v: VERDICT_CLASS.get(v or "", "muted")
 
 
+def current_region(request: Request) -> str:
+    """The International / National (Indonesia) view. ``?region=`` switches it and is remembered in the
+    session, so sort and pager links do not need to carry it."""
+    from .processing.geo import REGIONS, norm_region
+
+    has_session = "session" in request.scope
+    q = (request.query_params.get("region") or "").strip().lower()
+    if q in REGIONS:
+        if has_session:
+            request.session["region"] = q
+        return q
+    return norm_region(request.session.get("region") if has_session else "")
+
+
+def region_href(request: Request, region: str) -> str:
+    url = request.url.remove_query_params(["page", "region"]).include_query_params(region=region)
+    return f"{url.path}?{url.query}"
+
+
+templates.env.globals["region_href"] = region_href
+
+
+def _geo_globals() -> None:
+    from . import gazetteer
+
+    templates.env.globals["country_name"] = gazetteer.country_name
+    templates.env.globals["province_name"] = gazetteer.province_name
+
+
+_geo_globals()
+
+
 def render(request: Request, name: str, ctx: dict | None = None, status_code: int = 200):
+    from .processing.geo import REGIONS
+
     cfg = load_config()
     base = {
         "request": request,
@@ -67,6 +101,7 @@ def render(request: Request, name: str, ctx: dict | None = None, status_code: in
         "csrf": csrf_token(request),
         "path": request.url.path,
         "nonce": getattr(request.state, "csp_nonce", ""),
+        "region": current_region(request), "regions": REGIONS,
     }
     base.update(ctx or {})
     return templates.TemplateResponse(request, name, base, status_code=status_code)

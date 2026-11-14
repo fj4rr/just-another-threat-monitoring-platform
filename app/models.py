@@ -61,6 +61,9 @@ class Source(Base):
     # sharing (app/sharing.py): "" = CLEAR unless the item carries its own TLP; None = default for the kind
     tlp: Mapped[str] = mapped_column(String(16), default="")
     redistribute: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+    # geography (app/processing/geo.py): the outlet's country (ISO2) and language; "" = unknown / detect
+    country: Mapped[str] = mapped_column(String(2), default="")
+    language: Mapped[str] = mapped_column(String(8), default="")
 
 
 class Item(Base):
@@ -92,6 +95,8 @@ class Item(Base):
     origin: Mapped[str] = mapped_column(String(16), default="live")  # live | backfill
     # retention tier: content trimmed to a snippet and raw dropped once older than retention_full_days
     slimmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    lang: Mapped[str] = mapped_column(String(8), default="")  # detected language: en | id | ""
+    src_country: Mapped[str] = mapped_column(String(2), default="", index=True)  # outlet country (or ID for Bahasa)
 
     source: Mapped[Source] = relationship(lazy="joined")
     entity_links: Mapped[list[ItemEntity]] = relationship(
@@ -118,6 +123,22 @@ class Entity(Base):
     llm_brief: Mapped[str] = mapped_column(Text, default="")
     llm_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     enriched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # infrastructure location of an IP (GeoIP / intel providers); never used as a target country
+    country: Mapped[str] = mapped_column(String(2), default="", index=True)
+
+
+class ItemGeo(Base):
+    """A country (and, for Indonesia, a province) that an item is *about*: the victim or the place where
+    the activity happened. Attacker origin and hosting location are deliberately not stored here."""
+
+    __tablename__ = "item_geo"
+    __table_args__ = (Index("ix_item_geo_country", "country", "region"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id", ondelete="CASCADE"), index=True)
+    country: Mapped[str] = mapped_column(String(2))  # ISO 3166-1 alpha-2
+    region: Mapped[str] = mapped_column(String(8), default="")  # ISO 3166-2 (Indonesian provinces only)
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    origin: Mapped[str] = mapped_column(String(8), default="text")  # text | feed
 
 
 class ItemEntity(Base):

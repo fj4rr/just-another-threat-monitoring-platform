@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar
+import re
 import time
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
@@ -15,6 +16,18 @@ WP_MAX_PAGES = 60  # 6,000 posts per source per backfill run
 WAYBACK_MAX_SNAPSHOTS = 80
 
 
+# "filter: security" keeps only entries about security from general technology feeds (many Indonesian
+# outlets publish one tech feed for gadgets, apps and cyber incidents alike). English and Indonesian terms.
+SECURITY_RE = re.compile(
+    r"\b(?:hack(?:ed|er|ers|ing)?|breach(?:ed|es)?|malware|ransomware|phish(?:ing)?|vulnerab\w*|exploit\w*|"
+    r"cyber\w*|leak(?:ed|s)?|ddos|scam\w*|fraud\w*|spyware|botnet|trojan|zero[\s-]?day|cve-\d{4}|stealer|"
+    r"backdoor|deface\w*|infostealer|data breach|"
+    r"peretas|peretasan|diretas|meretas|retas|kebocoran|bocor|siber|penipuan|penipu|phising|pishing|"
+    r"pembobolan|dibobol|membobol|pencurian data|data pribadi|pembajakan akun|dibajak|serangan (?:siber|ransomware|ddos)|"
+    r"kejahatan digital|keamanan digital|modus|mengatasnamakan|judi online|judol|bssn|pdns|pusat data nasional|"
+    r"skimming|social engineering|rekayasa sosial|kode otp|apk palsu|undangan pernikahan)\b", re.I)
+
+
 def _entry_time(e) -> datetime | None:
     for key in ("published_parsed", "updated_parsed"):
         if e.get(key):
@@ -26,7 +39,13 @@ class RSSCollector(Collector):
     kind = "rss"
     category = "news"
     label = "RSS / Atom feed"
-    fields = [("url", "Feed URL", "https://example.com/feed/")]
+    fields = [("url", "Feed URL", "https://example.com/feed/"),
+              ("filter", "Topic filter (optional): 'security' keeps only security-related entries", "security")]
+
+    def _keep(self, raws: list[RawItem]) -> list[RawItem]:
+        if str(self.cfg.get("filter") or "").strip().lower() != "security":
+            return raws
+        return [r for r in raws if SECURITY_RE.search(f"{r.title}\n{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}")]
 
     def _url(self) -> str:
         url = self.cfg.get("url")
@@ -53,7 +72,7 @@ class RSSCollector(Collector):
                 external_id=e.get("id") or e.get("link") or e.get("title", ""), title=e.get("title", ""),
                 url=e.get("link", ""), author=e.get("author", ""), content=content_txt, published_at=_entry_time(e),
                 kind="post" if self.source.category == "social" else "article", tags=tags))
-        return out
+        return self._keep(out)
 
     def fetch(self) -> list[RawItem]:
         url = self._url()
@@ -115,11 +134,11 @@ class RSSCollector(Collector):
                     return
                 total_pages = r.headers.get("x-wp-totalpages", "?")
                 progress(f"WordPress page {page}/{total_pages}")
-                yield [RawItem(
+                yield self._keep([RawItem(
                     external_id=(p.get("guid") or {}).get("rendered") or p.get("link") or str(p.get("id")),
                     title=strip_html((p.get("title") or {}).get("rendered", "")), url=p.get("link", ""),
                     content=(p.get("content") or {}).get("rendered") or (p.get("excerpt") or {}).get("rendered", ""),
-                    published_at=parse_dt(p.get("date_gmt")), kind="article") for p in posts]
+                    published_at=parse_dt(p.get("date_gmt")), kind="article") for p in posts])
                 if total_pages != "?" and page >= int(total_pages):
                     return
 

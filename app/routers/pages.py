@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from .. import gazetteer
 from ..auth import current_user
 from ..db import get_db
 from ..knowledge import CATEGORIES
@@ -18,14 +19,15 @@ from ..models import (
     Insight,
     Item,
     ItemEntity,
+    ItemGeo,
     Source,
     User,
     Watch,
     utcnow,
 )
-from ..processing import trends
+from ..processing import geo, trends
 from ..search import item_text_clause
-from ..web import render
+from ..web import current_region, render
 
 router = APIRouter()
 PAGE = 40
@@ -51,17 +53,19 @@ def _keep(days: int) -> str:
 
 
 @router.get("/")
-def dashboard(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def dashboard(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db),
+              region: str = Depends(current_region)):
     digest = db.execute(select(Insight).where(Insight.kind == "digest").order_by(Insight.created_at.desc())
                         .limit(1)).scalar_one_or_none()
-    recent = db.execute(select(Item).where(Item.severity >= 30).order_by(Item.published_at.desc())
-                        .limit(12)).scalars().all()
+    recent = db.execute(geo.scoped(select(Item).where(Item.severity >= 30), region)
+                        .order_by(Item.published_at.desc()).limit(12)).scalars().all()
     watch_ids = [w.entity_id for w in db.execute(select(Watch).where(Watch.user_id == user.id)).scalars()]
     return render(request, "dashboard.html", {
-        "user": user, "ov": trends.overview(db, 7),
-        "trending": trends.trending(db, "malware", limit=12),
-        "actors": trends.trending_actors(db, limit=8),
-        "cves": trends.trending_cves(db, limit=8),
+        "user": user, "ov": trends.overview(db, 7, region),
+        "trending": trends.trending(db, "malware", limit=12, region=region),
+        "actors": trends.trending_actors(db, limit=8, region=region),
+        "cves": trends.trending_cves(db, limit=8, region=region),
+        "geo": trends.geo_stats(db, 30, region, families_per=2),
         "recent": recent, "digest": digest, "llm_on": llm.is_configured(), "watch_ids": watch_ids,
     })
 
@@ -74,15 +78,37 @@ FEED_SORTS = {
 }
 
 
+def _cc(value: str) -> str:
+    v = (value or "").strip().upper()
+    return v if v in gazetteer.COUNTRIES else ""
+
+
+def _province(value: str) -> str:
+    v = (value or "").strip().upper()
+    return v if v in gazetteer.PROVINCES else ""
+
+
 @router.get("/feed")
 def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: int = 0, entity: int = 0,
-         min_sev: int = 0, days: int = 30, page: int = 1, sort: str = "time", dir: str = "",
-         user: User = Depends(current_user), db: Session = Depends(get_db)):
+         min_sev: int = 0, days: int = 30, page: int = 1, sort: str = "time", dir: str = "", country: str = "",
+         province: str = "", lang: str = "", src_country: str = "", user: User = Depends(current_user),
+         db: Session = Depends(get_db),
+         region: str = Depends(current_region)):
     days, min_sev, page = _clamp(days, 0, 3650), _clamp(min_sev, 0, 100), _clamp(page, 1, 100_000)
     q = q.strip()[:200]
+    country, province, src_country = _cc(country), _province(province), _cc(src_country)
+    lang = lang if lang in ("en", "id") else ""
     sort = sort if sort in FEED_SORTS else "time"
     direction = _dir(dir, FEED_SORTS[sort][1])
-    stmt = select(Item).join(Source, Source.id == Item.source_id)
+    stmt = geo.scoped(select(Item).join(Source, Source.id == Item.source_id), region)
+    if country:
+        stmt = stmt.where(Item.id.in_(select(ItemGeo.item_id).where(ItemGeo.country == country)))
+    if province:
+        stmt = stmt.where(Item.id.in_(select(ItemGeo.item_id).where(ItemGeo.region == province)))
+    if lang:
+        stmt = stmt.where(Item.lang == lang)
+    if src_country:
+        stmt = stmt.where(Item.src_country == src_country)
     if cat:
         stmt = stmt.where(Source.category == cat)
     if kind:
@@ -104,11 +130,13 @@ def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: i
     sources = db.execute(select(Source).order_by(Source.category, Source.name)).scalars().all()
     ent = db.get(Entity, entity) if entity else None
     f = {"cat": cat, "kind": kind, "q": q, "source": source, "entity": entity, "min_sev": min_sev, "days": days,
-         "sort": sort, "dir": direction}
-    f["qs"] = _qs(cat=cat, kind=kind, q=q, source=source, entity=entity, min_sev=min_sev, days=_keep(days))
+         "sort": sort, "dir": direction, "country": country, "province": province, "lang": lang,
+         "src_country": src_country}
+    f["qs"] = _qs(cat=cat, kind=kind, q=q, source=source, entity=entity, min_sev=min_sev, days=_keep(days),
+                  country=country, province=province, lang=lang, src_country=src_country)
     return render(request, "feed.html", {
         "user": user, "items": items, "total": total, "page": page, "pages": max(1, -(-total // PAGE)),
-        "sources": sources, "f": f, "entity": ent,
+        "sources": sources, "f": f, "entity": ent, "targets": geo.targets_for(db, [i.id for i in items]),
     })
 
 
@@ -125,7 +153,13 @@ def item_detail(item_id: int, request: Request, user: User = Depends(current_use
         for e in db.execute(select(Enrichment).where(Enrichment.entity_id.in_(ent_ids))).scalars():
             enr.setdefault(e.entity_id, []).append(e)
     return render(request, "item.html", {"user": user, "item": item, "ents": ents, "related": related,
-                                         "enr": enr, "llm_on": llm.is_configured()})
+                                         "enr": enr, "llm_on": llm.is_configured(), "geo": item_geo(db, item)})
+
+
+def item_geo(db: Session, item: Item) -> dict:
+    """Target countries / provinces, source country and language of one item (for the item page and preview)."""
+    return {"targets": geo.targets_for(db, [item.id]).get(item.id, []), "src_country": item.src_country or "",
+            "lang": item.lang or ""}
 
 
 def _meta_num(e: Entity, key: str) -> float:
@@ -173,7 +207,7 @@ def related_chips(db: Session, ids: list[int], types: tuple[str, ...] = RELATED_
 
 
 def _entity_list(request, user, db, etype: str, title: str, category: str = "", q: str = "", days: int = 30,
-                 sort: str = "mentions", direction: str = "", page: int = 1):
+                 sort: str = "mentions", direction: str = "", page: int = 1, region: str = ""):
     days = _clamp(days, 0, 3650)
     page = _clamp(page, 1, 100_000)
     q = q.strip()[:100]
@@ -190,12 +224,13 @@ def _entity_list(request, user, db, etype: str, title: str, category: str = "", 
         .outerjoin(Item, Item.id == ItemEntity.item_id)
         .where(Entity.type == etype).group_by(Entity.id)
     )
+    stmt = geo.scoped(stmt, region)  # national view: entities mentioned by Indonesian items only
     if category:
         stmt = stmt.where(Entity.category == category)
     if q:
         stmt = stmt.where(Entity.display.ilike(f"%{q}%"))
     rows = list(db.execute(stmt.order_by(recent.desc(), Entity.mention_count.desc()).limit(5000)).all())
-    trend = {t["id"]: t for t in trends.trending(db, etype, limit=500)}
+    trend = {t["id"]: t for t in trends.trending(db, etype, limit=500, region=region)}
     keyfn = ENTITY_SORTS[sort][0]
     rows.sort(key=lambda r: keyfn(r, trend), reverse=(direction == "desc"))
     total = len(rows)
@@ -209,26 +244,27 @@ def _entity_list(request, user, db, etype: str, title: str, category: str = "", 
         "user": user, "rows": rows, "etype": etype, "title": title, "trend": trend, "total": total,
         "page": page, "pages": max(1, -(-total // ENTITY_PAGE)), "maxn": maxn, "related": related,
         "categories": CATEGORIES if etype == "malware" else [], "f": f,
-        "cat_breakdown": trends.category_breakdown(db, days or 3650) if etype == "malware" else [],
+        "cat_breakdown": trends.category_breakdown(db, days or 3650, region) if etype == "malware" else [],
     })
 
 
 @router.get("/malware")
 def malware(request: Request, category: str = "", q: str = "", days: int = 30, sort: str = "mentions", dir: str = "",
-            page: int = 1, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return _entity_list(request, user, db, "malware", "Malware families", category, q, days, sort, dir, page)
+            page: int = 1, user: User = Depends(current_user), db: Session = Depends(get_db),
+            region: str = Depends(current_region)):
+    return _entity_list(request, user, db, "malware", "Malware families", category, q, days, sort, dir, page, region)
 
 
 @router.get("/actors")
 def actors(request: Request, q: str = "", days: int = 30, sort: str = "mentions", dir: str = "", page: int = 1,
-           user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return _entity_list(request, user, db, "actor", "Threat actors", "", q, days, sort, dir, page)
+           user: User = Depends(current_user), db: Session = Depends(get_db), region: str = Depends(current_region)):
+    return _entity_list(request, user, db, "actor", "Threat actors", "", q, days, sort, dir, page, region)
 
 
 @router.get("/cves")
 def cves(request: Request, q: str = "", days: int = 30, sort: str = "mentions", dir: str = "", page: int = 1,
-         user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return _entity_list(request, user, db, "cve", "Vulnerabilities (CVE)", "", q, days, sort, dir, page)
+         user: User = Depends(current_user), db: Session = Depends(get_db), region: str = Depends(current_region)):
+    return _entity_list(request, user, db, "cve", "Vulnerabilities (CVE)", "", q, days, sort, dir, page, region)
 
 
 IOC_SORTS = {
@@ -252,8 +288,8 @@ def _ioc_filter_for_entity(entity_id: int):
 
 @router.get("/iocs")
 def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page: int = 1, entity: int = 0,
-         days: int = 0, sort: str = "last_seen", dir: str = "", user: User = Depends(current_user),
-         db: Session = Depends(get_db)):
+         days: int = 0, sort: str = "last_seen", dir: str = "", country: str = "", user: User = Depends(current_user),
+         db: Session = Depends(get_db), region: str = Depends(current_region)):
     days = _clamp(days, 0, 3650)
     sort = sort if sort in IOC_SORTS else "last_seen"
     direction = _dir(dir, IOC_SORTS[sort][1])
@@ -269,6 +305,12 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
         stmt = stmt.where(Entity.value.ilike(f"%{q.lower()}%"))
     if days:
         stmt = stmt.where(Entity.last_seen >= utcnow() - timedelta(days=days))
+    country = _cc(country)
+    if country:  # hosting country (GeoIP / providers)
+        stmt = stmt.where(Entity.country == country)
+    in_region = trends._entities_in_region(region)
+    if in_region is not None:
+        stmt = stmt.where(in_region)
     ent = db.get(Entity, entity) if entity else None
     if ent:
         stmt = stmt.where(_ioc_filter_for_entity(ent.id))
@@ -314,7 +356,7 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
                     if (provider, "intel") not in srcs[eid]:
                         srcs[eid].append((provider, "intel"))
     f = {"type": type, "verdict": verdict, "q": q, "entity": entity, "days": days, "sort": sort, "dir": direction,
-         "qs": _qs(type=type, verdict=verdict, q=q, entity=entity, days=days)}
+         "country": country, "qs": _qs(type=type, verdict=verdict, q=q, entity=entity, days=days, country=country)}
     return render(request, "iocs.html", {
         "user": user, "rows": rows, "fam": fam, "srcs": srcs, "total": total, "page": page,
         "pages": max(1, -(-total // IOC_PAGE)), "f": f, "types": trends.IOC_TYPES, "entity": ent,
@@ -390,6 +432,19 @@ def _context_names(etype: str) -> list[str]:
     return [p.name for p in context.available(etype)]
 
 
+@router.get("/geo")
+def geography(request: Request, days: int = 30, user: User = Depends(current_user), db: Session = Depends(get_db),
+              region: str = Depends(current_region)):
+    from .. import geoip
+
+    days = _clamp(days, 0, 3650)
+    stats = trends.geo_stats(db, days, region)
+    return render(request, "geo.html", {
+        "user": user, "stats": stats, "days": days, "geoip": geoip.status(),
+        "provinces_all": gazetteer.PROVINCES, "map_parent": gazetteer.MAP_PARENT,
+    })
+
+
 @router.get("/insights")
 def insights(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     rows = db.execute(select(Insight).order_by(Insight.created_at.desc()).limit(50)).scalars().all()
@@ -428,6 +483,7 @@ def item_preview(item_id: int, request: Request, user: User = Depends(current_us
     return render(request, "_preview_item.html", {
         "user": user, "item": item, "named": named, "iocs": iocs[:12], "ioc_total": len(iocs),
         "related": trends.correlated_items(db, item, limit=6), "llm_on": llm.is_configured(),
+        "geo": item_geo(db, item),
     })
 
 
