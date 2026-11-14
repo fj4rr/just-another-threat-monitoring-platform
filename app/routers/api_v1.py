@@ -23,6 +23,7 @@ from ..auth import LoginRequired, audit, current_user
 from ..db import get_db
 from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, Source, User, utcnow
 from ..processing import trends
+from ..search import item_text_clause
 from ..web import render
 
 router = APIRouter(prefix="/api/v1", tags=["v1"])
@@ -113,6 +114,7 @@ def _item_dict(i: Item, full: bool = False) -> dict:
         "source": {"name": i.source.name, "category": i.source.category, "kind": i.source.kind},
         "published_at": _iso(i.published_at), "collected_at": _iso(i.collected_at), "severity": i.severity,
         "tlp": sharing.item_tlp(i), "ai_summary": i.llm_summary or None, "link": _link(f"/items/{i.id}"),
+        "origin": i.origin or "live",
         "entities": [{"id": link.entity.id, "type": link.entity.type, "value": link.entity.value}
                      for link in i.entity_links],
     }
@@ -145,8 +147,7 @@ def list_items(since: str | None = Query(None, description="Only items collected
     if source_type:
         stmt = stmt.where(Source.category == source_type)
     if q.strip():
-        like = f"%{q.strip()}%"
-        stmt = stmt.where(or_(Item.title.ilike(like), Item.content.ilike(like)))
+        stmt = stmt.where(item_text_clause(q.strip()))
     if entity:
         stmt = stmt.where(Item.id.in_(select(ItemEntity.item_id).where(ItemEntity.entity_id == entity)))
     if cursor:

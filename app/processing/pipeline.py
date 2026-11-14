@@ -98,7 +98,37 @@ def _external_id(r: RawItem) -> str:
     return (r.external_id or r.url or r.title or "").strip()[:500]
 
 
-def ingest(db: Session, source: Source, raws: list[RawItem], progress=None) -> list[int]:
+def _slim_raw(raw: dict | None, content: str) -> dict:
+    """Keep provider metadata, drop bulky copies of the content (some feeds repeat the full text in raw)."""
+    out = {}
+    for k, v in (raw or {}).items():
+        if isinstance(v, str) and (len(v) > 2000 or (content and v.strip() == content.strip())):
+            continue
+        out[k] = v
+    return out
+
+
+def ingest_committed(db: Session, source: Source, raws: list[RawItem], progress=None, origin: str = "live",
+                     attempts: int = 3) -> list[int]:
+    """``ingest`` + commit, safe against a concurrent run of the same source (scheduled collector vs backfill,
+    or two manual runs): if the other run stored an entry between our duplicate check and our insert, the
+    unique constraint fires; roll back and try again, and the second pass skips what is now stored."""
+    from sqlalchemy.exc import IntegrityError
+
+    for attempt in range(attempts):
+        try:
+            ids = ingest(db, source, raws, progress, origin)
+            db.commit()
+            return ids
+        except IntegrityError:
+            db.rollback()
+            if attempt == attempts - 1:
+                raise
+            source = db.get(Source, source.id)
+    return []
+
+
+def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, origin: str = "live") -> list[int]:
     """Store new items. Returns IDs of newly created items.
     ``progress(done, total)`` is called as entries are processed (in-memory job progress, no DB writes)."""
     from ..knowledge import canonical_malware
@@ -129,8 +159,8 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None) -> l
         item = Item(
             source_id=source.id, kind=r.kind, external_id=ext, title=(r.title or "")[:1000],
             url=safe_url(r.url), author=(r.author or "")[:250], content=content[:50000],
-            tags=[str(t)[:80] for t in r.tags[:50]], published_at=published, raw=r.raw or {},
-            tlp=norm_tlp((r.raw or {}).get("tlp")),
+            tags=[str(t)[:80] for t in r.tags[:50]], published_at=published, raw=_slim_raw(r.raw, content),
+            tlp=norm_tlp((r.raw or {}).get("tlp")), origin=origin,
         )
         db.add(item)
         db.flush()

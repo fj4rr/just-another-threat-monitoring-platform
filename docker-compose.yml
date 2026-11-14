@@ -1,6 +1,10 @@
 services:
   jatmp:
-    build: .
+    build:
+      context: .
+      args:
+        # 1 = include the PostgreSQL driver (needed with the "postgres" profile below)
+        WITH_POSTGRES: ${JATMP_WITH_POSTGRES:-0}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -13,6 +17,9 @@ services:
       JATMP_SECURE_COOKIES: ${JATMP_SECURE_COOKIES:-0}
       # IPs allowed to set X-Forwarded-* headers (your proxy); "*" trusts everyone.
       JATMP_FORWARDED_ALLOW_IPS: ${JATMP_FORWARDED_ALLOW_IPS:-127.0.0.1}
+      # Empty = SQLite in /data. For the "postgres" profile use
+      # postgresql+psycopg://jatmp:${JATMP_DB_PASSWORD}@db:5432/jatmp
+      JATMP_DATABASE_URL: ${JATMP_DATABASE_URL:-}
     restart: unless-stopped
     # To use Ollama running on the host: set LLM_BASE_URL=http://host.docker.internal:11434
     extra_hosts:
@@ -26,6 +33,25 @@ services:
     volumes:
       - ollama-data:/root/.ollama
 
+  # Optional: PostgreSQL instead of SQLite (large backfills, many concurrent writers).
+  # In .env: JATMP_WITH_POSTGRES=1, JATMP_DB_PASSWORD=<strong password> and JATMP_DATABASE_URL as above, then
+  # `docker compose --profile postgres up -d --build`. Move existing data with `python manage.py copy-db <url>`.
+  db:
+    image: postgres:16.6-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: jatmp
+      POSTGRES_USER: jatmp
+      POSTGRES_PASSWORD: ${JATMP_DB_PASSWORD:-change-me}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jatmp -d jatmp"]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   jatmp-data:
   ollama-data:
+  pg-data:

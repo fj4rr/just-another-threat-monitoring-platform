@@ -44,6 +44,7 @@
           {% if iocs %}<a class="chip" href="/items/{{ i.id }}" title="{{ iocs|length }} indicator(s) extracted"><span class="t">ioc</span>{{ iocs|length }}</a>{% endif %}
           {% if i.llm_summary %}<span class="badge new">AI</span>{% endif %}
         </div>{% endif %}
+        {% if i.origin == 'backfill' %}<span class="badge" title="Collected by a historical backfill; does not count as trending now">history</span>{% endif %}
       </td>
       <td class="col-src"><span class="badge cat-{{ i.source.category }}">{{ i.source.category }}</span>
         <div class="small" style="margin-top:3px"><a class="muted" href="?{{ f.qs }}{{ '&' if f.qs }}source={{ i.source.id }}&sort={{ f.sort }}&dir={{ f.dir }}" title="Only this source">{{ i.source.name }}</a>

@@ -7,7 +7,7 @@ from ..intel import NotConfigured, make_ioc
 from ..intel.clients import OTX, AnyRun, ThreatFox, URLScan
 from ..models import utcnow
 from ..processing.pipeline import RawItem
-from .base import Collector, SkipCollector, parse_dt
+from .base import BackfillCapability, Collector, SkipCollector, parse_dt
 
 
 class OTXCollector(Collector):
@@ -27,33 +27,54 @@ class OTXCollector(Collector):
         else:
             since = self.source.last_run or (utcnow() - timedelta(days=3))
             pulses = otx.subscribed(since.strftime("%Y-%m-%dT%H:%M:%S"), limit=50)
-        out = []
-        for p in pulses:
-            fams = [f.get("display_name") if isinstance(f, dict) else f for f in p.get("malware_families") or []]
-            adv = p.get("adversary") or ""
-            body = "\n".join(filter(None, [
-                p.get("description", ""),
-                f"Adversary: {adv}" if adv else "",
-                f"Malware families: {', '.join(filter(None, fams))}" if fams else "",
-                f"Targeted countries: {', '.join(p.get('targeted_countries') or [])}" if p.get("targeted_countries") else "",
-                f"Industries: {', '.join(p.get('industries') or [])}" if p.get("industries") else "",
-                f"ATT&CK: {', '.join(a.get('id', a) if isinstance(a, dict) else a for a in p.get('attack_ids') or [])}"
-                if p.get("attack_ids") else "",
-                "References: " + " ".join(p.get("references") or []) if p.get("references") else "",
-            ]))
-            out.append(RawItem(
-                external_id=p.get("id", ""),
-                title=p.get("name", "(pulse)"),
-                url=f"https://otx.alienvault.com/pulse/{p.get('id', '')}",
-                author=p.get("author_name", ""),
-                content=body,
-                published_at=parse_dt(p.get("created") or p.get("modified")),
-                kind="pulse",
-                tags=list(filter(None, (p.get("tags") or []) + fams + ([adv] if adv else []))),
-                raw={"tlp": p.get("tlp"), "indicator_count": len(p.get("indicators") or [])},
-                indicators=otx.pulse_indicators(p, limit=300),
-            ))
-        return out
+        return [self.to_raw(otx, p) for p in pulses]
+
+    def backfill_capability(self) -> BackfillCapability:
+        if self.cfg.get("mode") == "search":
+            return BackfillCapability(False, note="OTX pulse search is not time-bounded; use a subscribed source")
+        return BackfillCapability(True, "subscribed pulses modified in the range (modified_since, paged)", None,
+                                  "only pulses from users and groups you subscribe to on OTX")
+
+    def backfill(self, since, until, progress):
+        try:
+            otx = OTX()
+        except NotConfigured as e:
+            raise SkipCollector(str(e)) from e
+        for page in range(1, 101):
+            data = otx._get("pulses/subscribed", {"limit": 50, "page": page,
+                                                  "modified_since": since.strftime("%Y-%m-%dT%H:%M:%S")})
+            pulses = data.get("results", [])
+            progress(f"page {page}")
+            raws = [self.to_raw(otx, p) for p in pulses]
+            yield [r for r in raws if r.published_at is None or r.published_at <= until]
+            if not data.get("next") or not pulses:
+                return
+
+    def to_raw(self, otx, p: dict) -> RawItem:
+        fams = [f.get("display_name") if isinstance(f, dict) else f for f in p.get("malware_families") or []]
+        adv = p.get("adversary") or ""
+        body = "\n".join(filter(None, [
+            p.get("description", ""),
+            f"Adversary: {adv}" if adv else "",
+            f"Malware families: {', '.join(filter(None, fams))}" if fams else "",
+            f"Targeted countries: {', '.join(p.get('targeted_countries') or [])}" if p.get("targeted_countries") else "",
+            f"Industries: {', '.join(p.get('industries') or [])}" if p.get("industries") else "",
+            f"ATT&CK: {', '.join(a.get('id', a) if isinstance(a, dict) else a for a in p.get('attack_ids') or [])}"
+            if p.get("attack_ids") else "",
+            "References: " + " ".join(p.get("references") or []) if p.get("references") else "",
+        ]))
+        return RawItem(
+            external_id=p.get("id", ""),
+            title=p.get("name", "(pulse)"),
+            url=f"https://otx.alienvault.com/pulse/{p.get('id', '')}",
+            author=p.get("author_name", ""),
+            content=body,
+            published_at=parse_dt(p.get("created") or p.get("modified")),
+            kind="pulse",
+            tags=list(filter(None, (p.get("tags") or []) + fams + ([adv] if adv else []))),
+            raw={"tlp": p.get("tlp"), "indicator_count": len(p.get("indicators") or [])},
+            indicators=otx.pulse_indicators(p, limit=300),
+        )
 
 
 class URLScanCollector(Collector):
@@ -61,6 +82,9 @@ class URLScanCollector(Collector):
     category = "intel"
     label = "urlscan.io search"
     fields = [("query", "Search query", "verdicts.malicious:true AND date:>now-1d")]
+
+    def backfill_capability(self) -> BackfillCapability:
+        return BackfillCapability(False, note="search results are quota-limited; widen the date in the query instead")
 
     def fetch(self) -> list[RawItem]:
         query = self.cfg.get("query") or "verdicts.malicious:true AND date:>now-1d"
@@ -102,6 +126,9 @@ class AnyRunCollector(Collector):
     label = "ANY.RUN TI Lookup query"
     fields = [("query", "TI Lookup query", 'threatName:"lumma"'), ("depth", "Lookback days", "7")]
 
+    def backfill_capability(self) -> BackfillCapability:
+        return BackfillCapability(False, note="TI Lookup quota is small; raise 'Lookback days' on the source instead")
+
     def fetch(self) -> list[RawItem]:
         try:
             ar = AnyRun()
@@ -141,14 +168,30 @@ class ThreatFoxCollector(Collector):
             tf = ThreatFox()
         except NotConfigured as e:
             raise SkipCollector(str(e)) from e
-        rows = tf.recent(days=1)
+        return self._group(tf.recent(days=1), lambda _row: utcnow().strftime("%Y-%m-%d"))
+
+    def backfill_capability(self) -> BackfillCapability:
+        return BackfillCapability(True, "recent IOCs grouped per family and day", 7,
+                                  "the ThreatFox API returns at most the last 7 days")
+
+    def backfill(self, since, until, progress):
+        try:
+            tf = ThreatFox()
+        except NotConfigured as e:
+            raise SkipCollector(str(e)) from e
+        days = max(1, min(7, (until - since).days + 1))
+        progress(f"get_iocs for {days} day(s)")
+        rows = [r for r in tf.recent(days=days)
+                if (dt := parse_dt(r.get("first_seen"))) is None or since <= dt <= until]
+        yield self._group(rows, lambda row: str(row.get("first_seen") or "")[:10] or utcnow().strftime("%Y-%m-%d"))
+
+    def _group(self, rows: list[dict], day_of) -> list[RawItem]:
         # group IOCs by malware family into one item per family per day
-        groups: dict[str, list[dict]] = {}
+        groups: dict[tuple[str, str], list[dict]] = {}
         for row in rows:
-            groups.setdefault(row.get("malware_printable") or "Unknown", []).append(row)
+            groups.setdefault((day_of(row), row.get("malware_printable") or "Unknown"), []).append(row)
         out = []
-        day = utcnow().strftime("%Y-%m-%d")
-        for fam, items in groups.items():
+        for (day, fam), items in groups.items():
             inds = []
             for row in items[:300]:
                 raw = row.get("ioc", "")
@@ -182,24 +225,19 @@ class RansomwareLiveCollector(Collector):
     fields = [("country", "Only victims in this country (ISO-2 code, optional)", "ID"),
               ("group", "Only this group (optional)", "akira")]
 
-    def fetch(self) -> list[RawItem]:
-        from ..intel.darkweb import RansomwareLive
-
-        rl = RansomwareLive()
+    def _victims(self, rl) -> list[dict]:
         if self.cfg.get("country"):
-            victims = rl.country_victims(str(self.cfg["country"]))
-        elif self.cfg.get("group"):
-            victims = rl.group_victims(str(self.cfg["group"]).lower())
-        else:
-            victims = rl.recent_victims()
-        cutoff = (self.source.last_run or utcnow() - timedelta(days=14)) - timedelta(days=2)
+            return rl.country_victims(str(self.cfg["country"]))
+        if self.cfg.get("group"):
+            return rl.group_victims(str(self.cfg["group"]).lower())
+        return rl.recent_victims()
+
+    @staticmethod
+    def _to_raws(victims: list[dict], rl) -> list[RawItem]:
         out = []
         for v in victims:
             if not v["victim"] or not v["group"]:
                 continue
-            when = parse_dt(v["discovered"] or v["attackdate"])
-            if when and when < cutoff and (self.cfg.get("country") or self.cfg.get("group")):
-                continue  # country / group lists return the full history; only keep fresh posts
             # the victim's website is deliberately kept out of the text: it is the victim, not an indicator
             body = "\n".join(filter(None, [
                 f"Ransomware group {v['group']} listed {v['victim']} on its leak site.",
@@ -211,9 +249,34 @@ class RansomwareLiveCollector(Collector):
                 external_id=v["id"] or f"{v['group']}:{v['victim']}"[:500],
                 title=f"{v['group']} claims {v['victim']}",
                 url=v["permalink"] or f"https://www.ransomware.live/group/{v['group']}",
-                author="ransomware.live", content=body, published_at=when, kind="post",
-                tags=[v["group"], "leak-site"] + ([f"country:{v['country']}"] if v["country"] else []),
+                author="ransomware.live", content=body, published_at=parse_dt(v["discovered"] or v["attackdate"]),
+                kind="post", tags=[v["group"], "leak-site"] + ([f"country:{v['country']}"] if v["country"] else []),
                 raw={"victim": v["victim"], "group": v["group"], "country": v["country"], "sector": v["sector"],
                      "website": v["website"], "api": "pro" if rl.pro else "free"},
             ))
         return out
+
+    def fetch(self) -> list[RawItem]:
+        from ..intel.darkweb import RansomwareLive
+
+        rl = RansomwareLive()
+        raws = self._to_raws(self._victims(rl), rl)
+        if self.cfg.get("country") or self.cfg.get("group"):
+            # country / group lists return the full history; the scheduled run only keeps fresh posts
+            cutoff = (self.source.last_run or utcnow() - timedelta(days=14)) - timedelta(days=2)
+            raws = [r for r in raws if not r.published_at or r.published_at >= cutoff]
+        return raws
+
+    def backfill_capability(self) -> BackfillCapability:
+        if self.cfg.get("country") or self.cfg.get("group"):
+            return BackfillCapability(True, "the full victim list for the configured country / group", None,
+                                      "ransomware.live keeps history back to 2021 for most groups")
+        return BackfillCapability(False, note="the recent list only holds the last 100 victims; add a source "
+                                              "with a country or group to backfill")
+
+    def backfill(self, since, until, progress):
+        from ..intel.darkweb import RansomwareLive
+
+        progress("victim list")
+        rl = RansomwareLive()
+        yield [r for r in self._to_raws(self._victims(rl), rl) if r.published_at and since <= r.published_at <= until]

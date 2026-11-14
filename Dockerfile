@@ -2,8 +2,10 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 JATMP_DATA_DIR=/data JATMP_HOST=0.0.0.0 \
     PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+ARG WITH_POSTGRES=0
+COPY requirements.txt requirements-postgres.txt ./
+RUN pip install -r requirements.txt && \
+    if [ "$WITH_POSTGRES" = "1" ]; then pip install -r requirements-postgres.txt; fi
 COPY . .
 RUN useradd -r -u 10001 jatmp && mkdir -p /data && chown jatmp /data
 USER jatmp

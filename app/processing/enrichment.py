@@ -276,10 +276,14 @@ def run_batch(db: Session, progress=None) -> str:
     iocs = list(db.execute(q).scalars())
     # top-up with IOCs discovered via enrichment links (family indicators)
     if len(iocs) < batch:
-        extra = db.execute(
-            select(Entity).where(Entity.type.in_(IOC_TYPES), Entity.enriched_at.is_(None))
-            .order_by(Entity.first_seen.desc()).limit(batch - len(iocs))
-        ).scalars()
+        extra_q = select(Entity).where(Entity.type.in_(IOC_TYPES), Entity.enriched_at.is_(None))
+        if not settings.get("enrich_backfill"):
+            # indicators only seen in backfilled history would burn the free quotas on old data
+            live = select(ItemEntity.entity_id).join(Item, Item.id == ItemEntity.item_id).where(
+                or_(Item.origin.is_(None), Item.origin != "backfill"))
+            linked = select(EntityLink.dst_id).union(select(EntityLink.src_id))
+            extra_q = extra_q.where(or_(Entity.id.in_(live), Entity.id.in_(linked)))
+        extra = db.execute(extra_q.order_by(Entity.first_seen.desc()).limit(batch - len(iocs))).scalars()
         iocs += [e for e in extra if e not in iocs]
     # 3) re-check: "unknown" results age (providers learn about an IOC days later) and
     #    errored lookups (quota / network) deserve a retry. Uses up to a quarter of the batch.

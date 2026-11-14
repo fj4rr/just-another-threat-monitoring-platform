@@ -24,6 +24,7 @@ from ..models import (
     utcnow,
 )
 from ..processing import trends
+from ..search import item_text_clause
 from ..web import render
 
 router = APIRouter()
@@ -95,8 +96,7 @@ def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: i
     if days:
         stmt = stmt.where(Item.published_at >= utcnow() - timedelta(days=days))
     if q:
-        like = f"%{q}%"
-        stmt = stmt.where(or_(Item.title.ilike(like), Item.content.ilike(like)))
+        stmt = stmt.where(item_text_clause(q))
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     cols = FEED_SORTS[sort][0]()
     order = [c.asc() if direction == "asc" else c.desc() for c in cols] + [Item.id.desc()]

@@ -89,6 +89,9 @@ class Item(Base):
     llm_summary: Mapped[str] = mapped_column(Text, default="")
     llm_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     tlp: Mapped[str] = mapped_column(String(16), default="")  # from the feed (OTX / MISP); "" = inherit source
+    origin: Mapped[str] = mapped_column(String(16), default="live")  # live | backfill
+    # retention tier: content trimmed to a snippet and raw dropped once older than retention_full_days
+    slimmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     source: Mapped[Source] = relationship(lazy="joined")
     entity_links: Mapped[list[ItemEntity]] = relationship(

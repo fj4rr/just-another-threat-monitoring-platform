@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Backfill{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Historical backfill</h1>
+  <p class="muted">Crawl further back than the live collectors. Backfilled items keep their original dates, so they never count as trending now{{ '' if enrich_backfill else ', and their indicators are not enriched (Settings → Enrichment)' }}.</p></div>
+  <div class="job">
+    <div class="row"><button class="btn primary" id="bf-start" data-job-button="backfill">⤓ Start backfill</button>
+      {% if active %}<button class="btn" data-post="/api/backfill/stop" data-busy="Stopping…">■ Stop</button>{% endif %}</div>
+    <div class="job-status muted" data-job-status="backfill" aria-live="polite"></div>
+  </div>
+</div>
+
+<div class="grid g-21" style="align-items:start">
+<div class="card table-wrap">
+  <form id="bf-form" class="filters" style="margin-bottom:10px">
+    <fieldset class="seg" style="border:0;padding:0;margin:0"><legend class="sr-only">Range</legend>
+      {% for d, l in presets %}<label class="check small"><input type="radio" name="days" value="{{ d }}" {{ 'checked' if d == 30 }}> {{ l }}</label>{% endfor %}
+      <label class="check small"><input type="radio" name="days" value="custom"> Custom</label>
+    </fieldset>
+    <span class="row small" id="bf-custom" hidden>
+      <label class="small" style="margin:0" for="bf-since">From</label><input type="date" id="bf-since" style="width:auto">
+      <label class="small" style="margin:0" for="bf-until">to</label><input type="date" id="bf-until" style="width:auto"></span>
+    <button type="button" class="btn" id="bf-estimate">Estimate</button>
+    <button type="button" class="btn sm" id="bf-all">Select all supported</button>
+  </form>
+  <table class="small" id="bf-table">
+    <thead><tr><th><span class="sr-only">Select</span></th><th>Source</th><th>How far back</th><th class="num">Have</th><th class="num">Estimate</th></tr></thead>
+    <tbody>
+    {% for s in sources %}{% set c = caps[s.id] %}
+    <tr class="{{ 'is-disabled' if not c.supported }}" data-src="{{ s.id }}">
+      <td><input type="checkbox" name="src" value="{{ s.id }}" aria-label="Backfill {{ s.name }}" {{ 'disabled' if not c.supported }} {{ 'checked' if c.supported and s.enabled and s.kind in ('rss', 'otx', 'misp') }}></td>
+      <td><strong>{{ s.name }}</strong> <span class="badge cat-{{ s.category }}">{{ s.kind }}</span>{% if not s.enabled %} <span class="muted">(disabled)</span>{% endif %}</td>
+      <td>{% if c.supported %}{{ c.method }}{% if c.max_days %} · max {{ c.max_days }} days{% endif %}<div class="muted" data-cell="note">{{ c.note }}</div>{% else %}<span class="muted">not supported: {{ c.note }}</span>{% endif %}</td>
+      <td class="num" data-cell="have">–</td><td class="num" data-cell="estimate">–</td>
+    </tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="grid" style="align-content:start">
+  <div class="card">
+    <h2>Storage</h2>
+    <dl class="kv small">
+      <dt>Database</dt><dd>{{ stats.engine }}{% if stats.bytes %} · {{ '%.1f'|format(stats.bytes / 1048576) }} MB{% endif %}</dd>
+      <dt>Items</dt><dd>{{ '{:,}'.format(stats['items']) }} ({{ '{:,}'.format(stats.live) }} live, {{ '{:,}'.format(stats.backfill) }} backfilled)</dd>
+      <dt>Slimmed</dt><dd>{{ '{:,}'.format(stats.slimmed) }} (text trimmed by the retention tier)</dd>
+      <dt>Oldest item</dt><dd>{{ stats.oldest.strftime('%Y-%m-%d') if stats.oldest else '–' }}</dd>
+      <dt>Retention</dt><dd>full text {{ (retention_full_days ~ ' days') if retention_full_days else 'forever' }} · delete {{ ('after ' ~ retention_days ~ ' days') if retention_days else 'never' }}
+        <a class="small" href="/settings?tab=general">change</a></dd>
+    </dl>
+    {% if retention_days %}<p class="alert small" style="margin:10px 0 0">Items older than {{ retention_days }} days are deleted every night, so the backfill does not go further back than that.</p>{% endif %}
+  </div>
+  <div class="card table-wrap">
+    <h2>Recent backfill runs</h2>
+    <table class="small"><tbody>
+    {% for r in runs %}<tr><td>{{ names.get(r.source_id, '#' ~ r.source_id) }}<div class="muted" title="{{ r.message }}">{{ (r.message or '')|truncate(90) }}</div></td>
+      <td><span class="status-dot {{ 'ok' if r.status == 'ok' else 'error' if r.status == 'error' else 'skipped' }}"></span>{{ r.status }}</td>
+      <td class="muted">{{ r.started_at|timeago }}</td></tr>
+    {% else %}<tr><td class="empty">No backfill yet.</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ nonce }}">
+document.addEventListener("DOMContentLoaded", () => {
+  const J = window.JATMP;
+  const form = document.getElementById("bf-form");
+  const custom = document.getElementById("bf-custom");
+  form.addEventListener("change", () => { custom.hidden = form.querySelector("[name=days]:checked").value !== "custom"; });
+  const payload = () => {
+    const days = form.querySelector("[name=days]:checked").value;
+    const ids = [...document.querySelectorAll("#bf-table [name=src]:checked")].map((c) => c.value);
+    return days === "custom"
+      ? { source_ids: ids, since: document.getElementById("bf-since").value, until: document.getElementById("bf-until").value }
+      : { source_ids: ids, days: Number(days) };
+  };
+  const cell = (id, name) => document.querySelector(`#bf-table tr[data-src="${id}"] [data-cell="${name}"]`);
+  document.getElementById("bf-all").addEventListener("click", () =>
+    document.querySelectorAll("#bf-table [name=src]:not(:disabled)").forEach((c) => { c.checked = true; }));
+  document.getElementById("bf-estimate").addEventListener("click", async (e) => {
+    const btn = e.currentTarget; btn.disabled = true; btn.setAttribute("aria-busy", "true");
+    try {
+      const d = await J.api("/api/backfill/estimate", payload());
+      for (const r of d.rows) {
+        if (!r.supported) continue;
+        cell(r.id, "have").textContent = (r.have ?? 0).toLocaleString();
+        const est = cell(r.id, "estimate");
+        est.textContent = r.estimate == null ? "?" : (r.exact ? "" : "~") + r.estimate.toLocaleString();
+        est.title = r.exact ? "exact count from the WordPress API" : "estimated from the recent posting rate";
+        const note = cell(r.id, "note");
+        if (note) note.textContent = [r.method !== undefined && r.kind === "rss" ? r.method : "", r.from ? `from ${r.from}` : "", r.clamp, r.probe_error].filter(Boolean).join(" · ");
+      }
+      J.toast(`${d.since} to ${d.until}: ${d.message}`, 7000);
+    } catch (err) { J.toast("Error: " + err.message, 7000); }
+    finally { btn.disabled = false; btn.removeAttribute("aria-busy"); }
+  });
+  document.getElementById("bf-start").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    if (!confirm("Start the backfill for the selected sources? It runs in the background, one source at a time.")) return;
+    btn.disabled = true;
+    try { const d = await J.api("/api/backfill/start", payload()); J.toast(d.message, 7000); }
+    catch (err) { J.toast("Error: " + err.message, 7000); btn.disabled = false; }
+    J.pollPulse();
+  });
+});
+</script>
+{% endblock %}

@@ -103,6 +103,85 @@ def queue_collection(db, source_ids: list[int]) -> str:
     return batch
 
 
+def queue_backfill(db, source_ids: list[int], since: datetime, until: datetime) -> str:
+    """One queued run per source under a ``backfill-`` batch; a single worker runs them one after another
+    (backfills are long and SQLite has one writer, so they must not compete with each other)."""
+    batch = _new_batch("backfill")
+    for sid in source_ids:
+        db.add(CollectorRun(job=f"backfill:{sid}", source_id=sid, status="queued", batch_id=batch))
+    db.commit()
+    run_now(run_backfill, batch, since.isoformat(), until.isoformat())
+    return batch
+
+
+_cancelled: set[str] = set()
+
+
+def cancel_backfill(batch_id: str) -> None:
+    _cancelled.add(batch_id)
+
+
+def run_backfill(batch_id: str, since_iso: str, until_iso: str) -> str:
+    from . import backfill
+    from .processing.pipeline import ingest_committed
+
+    since, until = datetime.fromisoformat(since_iso), datetime.fromisoformat(until_iso)
+    db = SessionLocal()
+    total_new = 0
+    try:
+        runs = db.execute(select(CollectorRun).where(CollectorRun.batch_id == batch_id, CollectorRun.status == "queued")
+                          .order_by(CollectorRun.id)).scalars().all()
+        for run in runs:
+            if batch_id in _cancelled:
+                _finish(db, run, "aborted", "backfill stopped by a user")
+                continue
+            src = db.get(Source, run.source_id) if run.source_id else None
+            run.status, run.started_at = "running", utcnow()
+            db.commit()
+            if src is None or src.kind not in REGISTRY:
+                _finish(db, run, "error", "source not found")
+                continue
+            fetched = new = 0
+            count = {"new": 0}  # read by the progress callback while pages arrive
+            try:
+                coll = REGISTRY[src.kind](src)
+                cap = coll.backfill_capability()
+                if not cap.supported:
+                    _finish(db, run, "skipped", cap.note or "backfill not supported")
+                    continue
+                s_eff, clamp = backfill.effective_since(since, until, cap)
+
+                def note(msg: str, _run=run, _src=src, _count=count) -> None:
+                    _progress(_run.id, _count["new"], 0, f"{_src.name}: {msg}"[:64])
+
+                for page in coll.backfill(s_eff, until, note):
+                    if batch_id in _cancelled:
+                        break
+                    fetched += len(page)
+                    new += len(ingest_committed(db, src, page, origin="backfill"))
+                    src = db.get(Source, src.id)
+                    count["new"] = new
+                    _progress(run.id, new, 0, f"{src.name}: {fetched} fetched"[:64])
+                msg = f"{new} new of {fetched} fetched, {s_eff:%Y-%m-%d} to {until:%Y-%m-%d}"
+                if clamp:
+                    msg += f" ({clamp})"
+                if batch_id in _cancelled:
+                    msg += "; stopped by a user"
+                total_new += new
+                _finish(db, run, "ok", msg, new)
+            except SkipCollector as e:
+                db.rollback()
+                _finish(db, run, "skipped", str(e))
+            except Exception as e:
+                db.rollback()
+                log.warning("backfill of source %s failed: %s", run.source_id, e)
+                _finish(db, run, "error", f"{type(e).__name__}: {e}\n{traceback.format_exc()[-1500:]}", new)
+        return f"backfilled {total_new} item(s)"
+    finally:
+        _cancelled.discard(batch_id)
+        db.close()
+
+
 def queue_job(db, job: str) -> str:
     """Queue a manual enrichment / CVE-intel run, visible as 'queued' immediately."""
     funcs = {"enrichment": run_enrichment, "cve_intel": run_cve_intel}
@@ -137,6 +216,18 @@ def _maybe_finish_batch(db, batch_id: str) -> None:
                 body.append(f"{len(skipped)} skipped (missing API key or disabled provider)")
             notify.notify(db, "warning" if errs else "success", title, ". ".join(body),
                           "/settings?tab=sources" if errs else "/feed?days=1", key=key)
+        elif batch_id.startswith("backfill-"):
+            new = sum(r.new_items or 0 for r in runs)
+            errs = [r for r in runs if r.status == "error"]
+            done = [r for r in runs if r.status == "ok"]
+            stopped = any(r.status == "aborted" for r in runs)
+            title = (f"Backfill {'stopped' if stopped else 'finished'}: {new} historical item{'s' if new != 1 else ''} "
+                     f"from {len(done)} source{'s' if len(done) != 1 else ''}")
+            if errs:
+                title += f", {len(errs)} error{'s' if len(errs) != 1 else ''}"
+            notify.notify(db, "warning" if errs else "success", title,
+                          "Backfilled items keep their original dates, so they do not count as trending now.",
+                          "/backfill", key=key)
         else:
             run = runs[-1]
             label = {"enrichment": "Enrichment", "cve_intel": "CVE intel refresh"}.get(run.job, run.job)
@@ -169,9 +260,10 @@ def run_source(source_id: int, batch_id: str = "") -> str:
         try:
             _progress(run.id, 0, 0, "fetching")
             raws = cls(src).fetch()
-            from .processing.pipeline import ingest
+            from .processing.pipeline import ingest_committed
 
-            new_ids = ingest(db, src, raws, progress=lambda d, t: _progress(run.id, d, t, "storing"))
+            new_ids = ingest_committed(db, src, raws, progress=lambda d, t: _progress(run.id, d, t, "storing"))
+            src = db.get(Source, source_id)
             src.last_status, src.last_error = "ok", ""
             src.last_run = utcnow()
             db.commit()
@@ -425,6 +517,34 @@ def run_misp_autopush(item_ids: list[int]) -> str:
         db.close()
 
 
+SNIPPET = 400
+
+
+def slim_items(db, limit: int = 20_000) -> int:
+    """Retention tier: past ``retention_full_days`` an item keeps its title, link, entities, severity and a
+    short snippet; the full text and bulky raw provider data go (FTS follows through its triggers)."""
+    days = int(settings.get("retention_full_days") or 0)
+    if days <= 0:
+        return 0
+    cutoff = utcnow() - timedelta(days=days)
+    n = 0
+    rows = db.execute(select(Item).where(Item.published_at < cutoff, Item.slimmed_at.is_(None))
+                      .order_by(Item.id).limit(limit)).unique().scalars()
+    now = utcnow()
+    for item in rows:
+        text = item.content or ""
+        if len(text) > SNIPPET:
+            item.content = text[:SNIPPET].rsplit(" ", 1)[0] + " …"
+        item.raw = {k: v for k, v in (item.raw or {}).items()
+                    if isinstance(v, (str, int, float, bool)) and len(str(v)) <= 200}
+        item.slimmed_at = now
+        n += 1
+        if n % 1000 == 0:
+            db.commit()
+    db.commit()
+    return n
+
+
 def run_housekeeping() -> str:
     days = int(settings.get("retention_days") or 0)
     db = SessionLocal()
@@ -432,6 +552,7 @@ def run_housekeeping() -> str:
         cutoff = utcnow() - timedelta(days=30)
         db.execute(delete(CollectorRun).where(CollectorRun.started_at < cutoff))
         notify.prune(db, 30)
+        slimmed = slim_items(db)
         from .models import WebhookDelivery
 
         db.execute(delete(WebhookDelivery).where(WebhookDelivery.created_at < cutoff))
@@ -449,7 +570,7 @@ def run_housekeeping() -> str:
                                             Entity.type.in_(("md5", "sha1", "sha256", "ip", "domain", "url"))))
         db.execute(delete(Insight).where(Insight.kind == "answer", Insight.created_at < utcnow() - timedelta(days=90)))
         db.commit()
-        return f"removed {n} old item(s)"
+        return f"removed {n} old item(s), slimmed {slimmed}"
     finally:
         db.close()
 
@@ -519,9 +640,28 @@ def status(db) -> dict:
     last = _last_finished(db, CollectorRun.job.like("source:%"))
     collect["last"] = {"finished_at": _iso(last.finished_at), "status": "ok", "summary": ""} if last else None
     collect["next"] = _next_run("source:")
+    bf: dict = {"running": False, "done": 0, "total": 0, "label": "", "last": None, "next": None}
+    bbatch = active_batch(db, "backfill")
+    if bbatch:
+        runs = db.execute(select(CollectorRun).where(CollectorRun.batch_id == bbatch)).scalars().all()
+        done = sum(1 for r in runs if r.status not in ACTIVE)
+        new = sum(r.new_items or 0 for r in runs if r.status not in ACTIVE)
+        cur = next((r for r in runs if r.status == "running"), None)
+        live = {}
+        if cur:
+            with _live_lock:
+                live = dict(_live.get(cur.id) or {})
+            new += live.get("done", 0)
+        bf.update(running=True, done=done, total=len(runs), batch=bbatch,
+                  label=f"Backfilling… {done}/{len(runs)} sources · {new} new"
+                        + (f" · {live['phase']}" if live.get("phase") else ""))
+    lastb = _last_finished(db, CollectorRun.job.like("backfill:%"))
+    if lastb:
+        bf["last"] = {"finished_at": _iso(lastb.finished_at), "status": "ok", "summary": ""}
     return {
         "now": _iso(utcnow()),
         "jobs": {
+            "backfill": bf,
             "collect": collect,
             "enrich": _single_job(db, "enrichment", "indicators"),
             "cve_intel": _single_job(db, "cve_intel", "CVEs"),

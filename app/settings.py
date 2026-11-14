@@ -49,6 +49,8 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "context_on_malicious": (False, "", "Run context lookups automatically when an indicator turns malicious", "bool",
                              "enrichment"),
     "context_daily_budget": (100, "", "Context lookups per provider per day", "int", "enrichment"),
+    "enrich_backfill": (False, "", "Also enrich indicators that only appear in backfilled (historical) items",
+                        "bool", "enrichment"),
     "enrich_families": (True, "", "Pull IOCs for trending malware families from OTX / ANY.RUN", "bool", "enrichment"),
     "cve_intel_enabled": (True, "", "CVE context every 6 h: CISA KEV, FIRST EPSS and NVD CVSS (free, no key)", "bool",
                           "enrichment"),
@@ -84,7 +86,9 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "misp_autopush_min_severity": (0, "", "Push new items to MISP automatically at or above this severity (0 = off)",
                                    "int", "misp"),
     # Housekeeping
-    "retention_days": (180, "", "Delete items older than N days (0 = keep forever)", "int", "general"),
+    "retention_full_days": (180, "", "Keep the full text for N days; older items keep title, link, entities, "
+                            "severity and a snippet (0 = keep everything)", "int", "general"),
+    "retention_days": (0, "", "Delete items older than N days (0 = keep forever, slimmed as above)", "int", "general"),
 }
 
 # Integer settings are clamped so a typo in the UI cannot disable throttling or flood an API.
@@ -94,6 +98,7 @@ INT_BOUNDS: dict[str, tuple[int, int]] = {
     "vt_daily_budget": (0, 100_000),
     "vt_min_interval": (0, 3600),
     "retention_days": (0, 3650),
+    "retention_full_days": (0, 3650),
     "greynoise_daily_budget": (0, 100_000),
     "abuseipdb_daily_budget": (0, 100_000),
     "api_rate_limit": (1, 100_000),

@@ -31,6 +31,8 @@
     <div class="card">
       <h2>Content</h2>
       <div class="content-body">{{ item.content or '(no content)' }}</div>
+      {% if item.slimmed_at %}<p class="muted small" style="margin:8px 0 0">The full text was trimmed by the retention setting on {{ item.slimmed_at.strftime('%Y-%m-%d') }}; the original is at the source link.</p>{% endif %}
+      {% if item.origin == 'backfill' %}<p class="muted small" style="margin:8px 0 0">Collected by a historical backfill.</p>{% endif %}
       {% if item.tags %}<div style="margin-top:10px">{% for t in item.tags %}<span class="badge">{{ t }}</span> {% endfor %}</div>{% endif %}
     </div>
     <div class="card graph-card">

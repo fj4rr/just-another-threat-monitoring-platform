@@ -7,6 +7,9 @@
     python manage.py digest                    generate the AI digest now
     python manage.py reextract                 re-run entity extraction on every item
     python manage.py rescore                   recompute severity scores (keeps entities)
+    python manage.py slim                      apply the retention tier now (trim old items' text)
+    python manage.py vacuum                    give freed space back to the disk (SQLite VACUUM / PG VACUUM)
+    python manage.py copy-db URL               copy this database into an empty one (e.g. SQLite -> PostgreSQL)
                                                (after editing the knowledge base)
     python manage.py create-user NAME ROLE     create a user (multi-user mode), prompts for password
     python manage.py seed-sources              add new built-in sources missing from this install
@@ -75,6 +78,26 @@ def main(argv: list[str]) -> int:
         print(f"re-extracted {n} items, removed {res.rowcount} orphaned entities")
     elif cmd == "rescore":
         print(jobs.run_rescore())
+    elif cmd == "slim":
+        db = SessionLocal()
+        try:
+            print(f"slimmed {jobs.slim_items(db, limit=10_000_000)} item(s)")
+        finally:
+            db.close()
+    elif cmd == "vacuum":
+        from app.db import engine
+
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.exec_driver_sql("VACUUM" if engine.dialect.name == "sqlite" else "VACUUM ANALYZE")
+        print("done")
+    elif cmd == "copy-db":
+        if not args:
+            print("usage: python manage.py copy-db postgresql+psycopg://user:pass@host:5432/jatmp")
+            return 1
+        from app.dbcopy import copy_database
+
+        counts = copy_database(args[0])
+        print(f"copied {sum(counts.values())} rows; now set JATMP_DATABASE_URL to the new database and restart")
     elif cmd == "seed-sources":
         from app.setup_service import seed_missing_sources
 

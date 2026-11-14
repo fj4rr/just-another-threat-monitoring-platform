@@ -28,6 +28,20 @@ if _is_sqlite:
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
+@event.listens_for(SessionLocal, "before_flush")
+def _truncate_strings(session, _ctx, _instances):
+    """SQLite ignores VARCHAR(n); PostgreSQL rejects longer values. Trim instead of failing a whole batch."""
+    from sqlalchemy import String, inspect
+
+    for obj in list(session.new) + list(session.dirty):
+        for col in inspect(obj).mapper.columns:
+            n = getattr(col.type, "length", None)
+            if n and isinstance(col.type, String):
+                v = getattr(obj, col.key, None)
+                if isinstance(v, str) and len(v) > n:
+                    setattr(obj, col.key, v[:n])
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -58,6 +72,9 @@ def init_db() -> None:
 
     Base.metadata.create_all(engine)
     _add_missing_columns()
+    from .search import ensure_fts
+
+    ensure_fts(engine)
 
 
 def _add_missing_columns() -> None:

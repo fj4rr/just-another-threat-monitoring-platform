@@ -168,11 +168,36 @@ server or provider reports. Local runtimes: Ollama, LM Studio, llama.cpp, vLLM, 
 server. Cloud providers: Anthropic, OpenAI, OpenRouter, Groq, Gemini, Mistral, DeepSeek, xAI, Together or any
 OpenAI-compatible API. The output language is configurable.
 
+### History and storage
+
+**Backfill** (Manage → Backfill, admin): crawl further back than the live collectors, with presets of 7 days, 30
+days, 90 days and 1 year or a custom range. Each source shows how far it can reach and how: WordPress sites (many
+security blogs) return every post in the range through their REST API, other feeds are rebuilt from Internet
+Archive snapshots, Bluesky, Mastodon, OTX and MISP page back with their own cursors, ransomware.live country and
+group sources return their full victim lists, and ThreatFox reaches 7 days. *Estimate* shows the expected number
+of items per source first (exact for WordPress sites). The backfill runs in the background, one source at a time,
+with the usual progress bar, a stop button and a summary notification.
+
+Backfilled items keep their original publication dates and are marked *history*, so they never show up as
+trending now or as newly seen; their indicators are not sent to the enrichment providers unless you enable it
+(free quotas stay with live data), and no webhooks, MISP pushes or AI summaries fire for them.
+
+**Retention tiers.** Items keep their full text for 180 days by default; after that they keep the title, link,
+entities, severity and a short snippet, and the bulky raw provider data is dropped. Deleting old items is off by
+default. Both are set under Settings → General. Copies of the text that some feeds repeat in their raw data are
+dropped on ingest.
+
+**Search** uses SQLite's FTS5 full-text index (title and text, word-prefix matching) and falls back to substring
+matching on PostgreSQL.
+
+**PostgreSQL** is optional for large installs: start the bundled database with the `postgres` compose profile, or
+point `JATMP_DATABASE_URL` at your own, and move an existing SQLite install over with `python manage.py copy-db`.
+
 ### Operation
 
 JATMP installs in **single-user** mode (no login) or **multi-user** mode with admin, analyst and viewer roles,
 user management, job status and an audit log. Users keep a personal watchlist, and the interface offers a dark
-and a light theme, a `/` shortcut for search, a phone layout, configurable data retention and a Docker image
+and a light theme, a `/` shortcut for search, a phone layout, retention tiers and a Docker image
 with a health check.
 
 **Tables and preview.** The Feed, IOC, Malware, Threat actor and CVE lists share one table design: sortable
@@ -262,7 +287,7 @@ Runtime and deployment variables:
 |---|---|---|
 | `JATMP_HOST`, `JATMP_PORT` | `127.0.0.1`, `8000` | Bind address |
 | `JATMP_DATA_DIR` | `./data` | Location of `config.json` and the SQLite database |
-| `JATMP_DATABASE_URL` | SQLite | For example `postgresql+psycopg://jatmp:secret@db:5432/jatmp` (install `psycopg[binary]`) |
+| `JATMP_DATABASE_URL` | SQLite | For example `postgresql+psycopg://jatmp:secret@db:5432/jatmp` (install `requirements-postgres.txt`) |
 | `JATMP_SECURE_COOKIES` | `0` | Set to `1` behind HTTPS: `Secure` session cookie and HSTS |
 | `JATMP_FORWARDED_ALLOW_IPS` | `127.0.0.1` | Proxies allowed to set `X-Forwarded-*` (client IP in the audit log) |
 | `JATMP_PUBLIC_URL` | empty | Public base URL used for links in API output, webhooks and MISP events |
@@ -279,6 +304,19 @@ Malware families and actors can be added without touching code. Create `data/kno
 ```
 
 Restart, then run `python manage.py reextract` to reprocess existing items.
+
+### Upgrading to 0.7
+
+- New columns `items.origin` and `items.slimmed_at` are added on start-up, and the full-text index is built once
+  (a few seconds per 100,000 items).
+- **Retention changed.** The default for deleting old items is now *never* (it was 180 days), because a backfill
+  of a year would otherwise be deleted the same night; instead, items older than 180 days are slimmed to title,
+  link, entities, severity and a snippet. An install where you saved a retention value keeps it, and the backfill
+  does not reach further back than that.
+- PostgreSQL, Docker: in `.env` set `JATMP_WITH_POSTGRES=1`, `JATMP_DB_PASSWORD=<strong password>` and
+  `JATMP_DATABASE_URL=postgresql+psycopg://jatmp:<password>@db:5432/jatmp`, then `docker compose --profile postgres
+  up -d --build`. Without Docker: `pip install -r requirements-postgres.txt`. To bring existing data along, run
+  `python manage.py copy-db <url>` against the new, empty database before switching `JATMP_DATABASE_URL`.
 
 ### Upgrading to 0.6
 
@@ -350,6 +388,9 @@ python manage.py digest           # generate the AI digest now
 python manage.py reextract        # re-extract entities on every item
 python manage.py rescore          # recompute severity with the current rules (also a button in Settings → General)
 python manage.py seed-sources     # add new built-in sources to an existing install (also a button in Settings)
+python manage.py slim             # apply the retention tier now (trim the text of old items)
+python manage.py vacuum           # give freed space back to the disk
+python manage.py copy-db postgresql+psycopg://jatmp:secret@localhost:5432/jatmp   # copy into an empty database
 python manage.py create-user alice analyst
 ```
 
@@ -393,6 +434,8 @@ app/
                 taxii (read-only TAXII 2.1), settings, reports, admin, auth and setup
   sharing.py    TLP and redistribution rules for everything that leaves JATMP
   stix.py       STIX 2.1 objects and bundles (stable per-install ids, TLP markings)
+  backfill.py   backfill reach, estimates and storage statistics (the job is jobs.run_backfill)
+  search.py     FTS5 full-text search with a LIKE fallback · dbcopy.py (copy-db)
   apikeys.py    API key creation, verification, scopes and rate limiting
   webhooks.py   events, Slack / Discord / Teams formats, HMAC signing, SSRF guard, retries
   jobs.py       APScheduler: one job per source, enrichment every N minutes, CVE intel every 6 h, daily digest,
@@ -405,11 +448,33 @@ data/           config.json (install mode, secret), jatmp.db (SQLite)
 tests/          pytest suite
 ```
 
-SQLite in WAL mode is the default database; for larger deployments point `JATMP_DATABASE_URL` at PostgreSQL.
+SQLite in WAL mode is the default database; for larger deployments (long backfills while collectors run, many
+users) point `JATMP_DATABASE_URL` at PostgreSQL. String columns are trimmed to their declared length before
+writing, because PostgreSQL rejects what SQLite silently accepts.
 Run a single web worker, because the scheduler lives in the process; scale collection by adjusting source
 intervals instead.
 
 ## Changelog
+
+### 0.7.0
+
+- **Historical backfill** (Manage → Backfill): per-source reach and method, presets and custom ranges, estimates
+  (exact for WordPress sites), background run one source at a time with progress, stop and a summary
+  notification. Methods: WordPress REST API or Internet Archive snapshots for RSS, cursor paging for Bluesky,
+  Mastodon, OTX and MISP, full lists for ransomware.live country / group sources, 7 days for ThreatFox; X,
+  urlscan and ANY.RUN explain why they cannot.
+- Items carry an **origin** (live / backfill), shown as a *history* badge and in the API. History does not count
+  as trending, moves an entity's first-seen date back instead of marking it new, and is not enriched unless
+  enabled.
+- **Retention tiers**: full text for 180 days (configurable), then title, link, entities, severity and a snippet;
+  deletion is off by default. Bulky copies of the text in raw provider data are dropped on ingest.
+  `manage.py slim` and `vacuum`.
+- **Full-text search** with SQLite FTS5 (word-prefix matching, safe against FTS syntax in user input) for the
+  feed, the global search and `/api/v1/items?q=`.
+- **PostgreSQL option**: `postgres` compose profile, `requirements-postgres.txt`, `manage.py copy-db` to move a
+  SQLite install, string values trimmed to column length before writing, storage statistics for both engines.
+- Fix: a collector run and a backfill (or two manual runs) storing the same entry at the same moment no longer
+  fail the run on the unique constraint; the write is retried and the duplicate skipped.
 
 ### 0.6.0
 
