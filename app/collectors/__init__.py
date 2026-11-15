@@ -22,10 +22,12 @@ def _rss(name: str, url: str, every: int = 60, country: str = "") -> dict:
             "config": {"url": url}}
 
 
-def _rss_id(name: str, url: str, every: int = 60) -> dict:
-    """Indonesian general technology feed: only security-related entries are kept (topic filter)."""
+def _rss_id(name: str, url: str, every: int = 60, security_filter: bool = True) -> dict:
+    """Indonesian feed. General technology sections keep only security-related entries (topic filter);
+    security-only outlets pass ``security_filter=False``."""
+    config = {"url": url, "filter": "security"} if security_filter else {"url": url}
     return {"name": name, "kind": "rss", "category": "news", "interval_minutes": every, "country": "ID",
-            "language": "id", "config": {"url": url, "filter": "security"}}
+            "language": "id", "config": config}
 
 
 def _bsky(name: str, handle: str, every: int = 30) -> dict:
@@ -38,9 +40,12 @@ def _masto(name: str, account: str, every: int = 30) -> dict:
             "config": {"account": account}}
 
 
-def _x(name: str, username: str, enabled: bool = True, every: int = 180) -> dict:
-    return {"name": f"{name} (X)", "kind": "x", "category": "social", "interval_minutes": every,
+def _x(name: str, username: str, enabled: bool = True, every: int = 180, country: str = "") -> dict:
+    spec = {"name": f"{name} (X)", "kind": "x", "category": "social", "interval_minutes": every,
             "enabled": enabled, "config": {"username": username}}
+    if country:  # Indonesian accounts count for the source-country and National views
+        spec.update(country=country, language="id" if country == "ID" else "")
+    return spec
 
 
 # Seeded on install (and by `python manage.py seed-sources` for existing installs).
@@ -73,6 +78,10 @@ DEFAULT_SOURCES: list[dict] = [
     _rss_id("Okezone Techno", "https://sindikasi.okezone.com/index.php/rss/16/RSS2.0"),
     _rss_id("Sindonews Tekno", "https://tekno.sindonews.com/rss"),
     _rss_id("Jawa Pos Teknologi", "https://www.jawapos.com/rss/teknologi"),
+    # security-only outlet (CVE analysis, data breaches, ransomware), so no topic filter; verified 2026-11-16.
+    # Not included: bssn.go.id answers automated clients with 403, Tempo's feed sits behind a Cloudflare
+    # challenge, Kompas forbids automated collection in robots.txt, and cyberthreat.id is offline.
+    _rss_id("Seraphim News", "https://www.seraphimnews.my.id/rss.xml", 180, security_filter=False),
 
     # --- Bluesky (public API, no key)
     _bsky("vx-underground", "vxunderground.bsky.social", 60),
@@ -122,6 +131,10 @@ DEFAULT_SOURCES: list[dict] = [
         ("Fox_threatintel", "Fox_threatintel"), ("FalconFeeds", "FalconFeedsio"), ("Hackmanac", "H4ckManac"),
         ("ANY.RUN", "anyrun_app"), ("ffforward", "ffforward"),
     ]],
+    # Indonesian accounts (handles confirmed from press and official documents, 2026-11-16), disabled too.
+    # BSSN's own account is left out because its handle could not be confirmed.
+    _x("Teguh Aprianto (Ethical Hacker Indonesia)", "secgron", enabled=False, country="ID"),
+    _x("Id-SIRTII/CC (BSSN)", "Id_SIRTII", enabled=False, country="ID"),
 
     # --- Threat intel platforms
     {"name": "OTX subscribed pulses", "kind": "otx", "category": "intel", "interval_minutes": 60,

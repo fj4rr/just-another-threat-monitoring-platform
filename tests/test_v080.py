@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import select
 
 from app import gazetteer, geoip, jobs, settings
-from app.collectors import DEFAULT_SOURCES, REGISTRY
+from app.collectors import DEFAULT_SOURCES, REGISTRY, source_key
 from app.db import session_scope
 from app.intel import LookupResult
 from app.models import Entity, Item, ItemGeo, Source, utcnow
@@ -289,8 +289,17 @@ def test_indonesian_family_names():
 
 def test_default_indonesian_sources():
     ids = [s for s in DEFAULT_SOURCES if s.get("country") == "ID"]
-    assert len(ids) >= 8
-    assert all(s["config"].get("filter") == "security" and s["language"] == "id" for s in ids)
+    assert all(s["language"] == "id" for s in ids)
+    rss = [s for s in ids if s["kind"] == "rss"]
+    assert len(rss) >= 10
+    # general technology sections are filtered; the security-only outlet is not
+    assert sum(s["config"].get("filter") == "security" for s in rss) >= 9
+    assert any(s["name"] == "Seraphim News" and "filter" not in s["config"] for s in rss)
+    xs = {s["config"]["username"]: s for s in ids if s["kind"] == "x"}
+    assert set(xs) >= {"secgron", "Id_SIRTII"} and not any(s["enabled"] for s in xs.values())
+    # every built-in source has a distinct identity, so seeding never adds duplicates
+    keys = [source_key(s["kind"], s["config"]) for s in DEFAULT_SOURCES]
+    assert len(keys) == len(set(keys))
 
 
 def test_source_form_saves_country_and_language(client, installed):
