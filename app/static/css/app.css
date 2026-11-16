@@ -212,7 +212,7 @@ details summary { cursor: pointer; }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes sweep { to { transform: rotate(360deg); } }
 @keyframes ping { 0%, 100% { r: var(--r0); opacity: .9; } 8% { r: calc(var(--r0) * 2.6); opacity: 1; } 30% { r: var(--r0); opacity: .75; } }
-@keyframes ping-s { 0%, 100% { transform: scale(1); opacity: .9; } 8% { transform: scale(2.2); opacity: 1; } 30% { transform: scale(1); opacity: .75; } }
+@keyframes ping-s { 0%, 100% { transform: scale(1); opacity: .9; } 8% { transform: scale(1.6); opacity: 1; } 30% { transform: scale(1); opacity: .75; } }
 @keyframes halo { 0% { r: var(--r0); opacity: .55; } 100% { r: calc(var(--r0) * 4); opacity: 0; } }
 @keyframes glow-drift { 0% { transform: translate(0, 0); } 50% { transform: translate(4%, 6%); } 100% { transform: translate(0, 0); } }
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
@@ -615,12 +615,10 @@ select.sm { padding: 4px 8px; font-size: 12.5px; width: auto; }
   background: var(--surface-2); color: var(--text-secondary); font-size: 12px; cursor: pointer; }
 .rf:hover { border-color: var(--accent); }
 .rf[aria-pressed="false"] { opacity: .45; background: transparent; }
-.rf[aria-pressed="false"] .shape { filter: grayscale(1); }
-.shape { display: inline-block; width: 9px; height: 9px; flex: none; }
-.shape.s-malware { border-radius: 50%; background: var(--series-1); }
-.shape.s-cve { background: var(--series-7); transform: rotate(45deg) scale(.85); }
-.shape.s-actor { background: var(--series-4); clip-path: polygon(50% 0, 100% 100%, 0 100%); width: 10px; height: 10px; }
-.shape-ico { width: 12px; height: 12px; vertical-align: -1px; margin-right: 5px; overflow: visible; }
+.rf[aria-pressed="false"] .shape-ico { filter: grayscale(1); }
+.shape { display: inline-block; width: 14px; height: 14px; flex: none; }
+.shape-ico { width: 15px; height: 15px; vertical-align: -3px; margin-right: 5px; overflow: visible; flex: none; }
+.rf .shape-ico { margin-right: 0; }
 .radar-legend .key { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .radar-legend .key span { display: inline-flex; align-items: center; }
 .radar-legend ol li { display: list-item; }

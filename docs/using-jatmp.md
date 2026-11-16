@@ -15,8 +15,8 @@ with a health check.
 
 From top to bottom:
 
-- **Threat radar** and **globe**. The radar shows trending malware families (circles), CVEs (diamonds) and threat
-  actors (triangles): the closer to the centre, the higher the trend score; the larger, the more mentions; a
+- **Threat radar** and **globe**. The radar shows trending malware families (bug icon), CVEs (broken shield) and threat
+  actors (hooded hacker): the closer to the centre, the higher the trend score; the larger, the more mentions; a
   dashed ring marks entries first seen this week. The buttons in the card head hide or show a type. The globe
   shows the top 10 target countries of the last 30 days (Indonesian provinces in the National view). It turns
   from one to the next and shows each one's count and the families and actors named there. Drag it to turn it,

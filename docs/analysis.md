@@ -64,7 +64,7 @@ entities, related indicators and enrichment results.
 
 The dashboard scores each family, CVE and threat actor by its recent mention rate against a 30-day
 baseline, weighted by how many sources and source types cover it, and shows the result on the threat radar (one
-shape per type), in a chart over time and in the *Trending malware*, *Trending CVEs* and *Trending threat
+icon per type), in a chart over time and in the *Trending malware*, *Trending CVEs* and *Trending threat
 actors* tables, which also list the families, actors and CVEs mentioned alongside each entry.
 
 Two breakdowns put the period in context. *CVEs by exploitation risk* places each CVE in the first bucket it

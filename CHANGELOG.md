@@ -2,6 +2,11 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.8.3
+
+- Threat radar icons: a bug for malware families, a broken shield for CVEs and a hooded hacker for threat actors,
+  instead of circles, diamonds and triangles. The same icons appear in the legend and on the filter buttons.
+
 ## 0.8.2
 
 - **Dashboard rework.** Top row: the threat radar next to a globe. Below it, five KPI tiles in one row (new:
