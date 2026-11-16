@@ -24,6 +24,25 @@ Telegram web-preview parser and paging, ScamSniffer, and the fraud analysis (sca
 identifiers and their exclusions, losses, victims, velocity, the pages and the outbound rules). GitHub Actions runs lint and tests on Python 3.11 and 3.12 and builds the Docker
 image.
 
+## Documentation site
+
+The pages under `docs/` are plain Markdown that reads on GitHub and also builds a MkDocs (Material) site, published
+to GitHub Pages by `.github/workflows/docs.yml` on every push to `main` that touches the docs.
+
+```bash
+pip install -r requirements-docs.txt
+```
+```bash
+mkdocs serve                  # http://127.0.0.1:8000 with live reload
+```
+```bash
+mkdocs build --strict         # what CI runs: broken links and anchors fail the build
+```
+
+Navigation is in `mkdocs.yml`; add a new page there and to the index in `docs/README.md`. `scripts/mkdocs_hooks.py`
+renders the root `CHANGELOG.md` as the changelog page and rewrites the links that only make sense on GitHub
+(`../CHANGELOG.md`, `../README.md`, the "← Documentation index" back links).
+
 ## Architecture
 
 ```

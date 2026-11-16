@@ -1,0 +1,92 @@
+site_name: JATMP
+site_description: Just Another Threat Monitoring Platform – self-hosted cyber threat and scam monitoring
+site_url: https://fj4rr.github.io/just-another-threat-monitoring-platform/
+repo_url: https://github.com/fj4rr/just-another-threat-monitoring-platform
+repo_name: fj4rr/just-another-threat-monitoring-platform
+edit_uri: edit/main/docs/
+copyright: JATMP by fj4rr
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  icon:
+    repo: fontawesome/brands/github
+  font: false  # no Google Fonts: the site works offline and without third-party requests
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+extra_css:
+  - assets/extra.css
+
+hooks:
+  - scripts/mkdocs_hooks.py
+
+plugins:
+  - search
+
+markdown_extensions:
+  - tables
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.details
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+nav:
+  - Home: README.md
+  - Setting up:
+      - Getting started: getting-started.md
+      - Configuration: configuration.md
+      - Upgrading: upgrading.md
+      - Maintenance commands: maintenance.md
+  - Using JATMP:
+      - Sources: sources.md
+      - Using JATMP: using-jatmp.md
+      - Analysis: analysis.md
+      - Geography and Indonesia: geography.md
+      - Scams and fraud: fraud.md
+      - Sharing and integrations: integrations.md
+      - Reporting and AI: reporting-and-ai.md
+      - History and storage: history-and-storage.md
+      - Screenshots: screenshots.md
+  - Reference:
+      - Security: security.md
+      - Development and architecture: development.md
+      - Changelog: changelog.md

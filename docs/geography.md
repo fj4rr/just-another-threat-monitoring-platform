@@ -29,7 +29,7 @@ REST API filter by `country`, `province`, `src_country` and `lang`. The map and 
 lists scroll, so every target country and province is listed.
 
 On the dashboard, a globe shows the top 10 target countries (or provinces in the National view) of the last 30
-days, built from the same outlines; see [the dashboard](using-jatmp.md#dashboard).
+days, built from the same outlines; see [the dashboard](using-jatmp.md#dashboards).
 
 ## International / National (ID)
 

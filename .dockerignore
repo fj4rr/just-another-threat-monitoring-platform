@@ -11,3 +11,7 @@ data
 tests
 *.md
 !README.md
+site
+docs
+mkdocs.yml
+requirements-docs.txt

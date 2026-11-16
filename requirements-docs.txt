@@ -1,0 +1,2 @@
+# Documentation site (MkDocs + Material). Not needed to run JATMP.
+mkdocs-material==9.6.23

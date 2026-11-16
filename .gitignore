@@ -6,3 +6,4 @@ data/
 .claude/
 .pytest_cache/
 .ruff_cache/
+site/

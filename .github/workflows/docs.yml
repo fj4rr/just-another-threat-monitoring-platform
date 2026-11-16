@@ -1,0 +1,39 @@
+name: Docs
+
+# Builds the MkDocs site from docs/ (strict: broken links and anchors fail the build) and, on main, publishes it to
+# the gh-pages branch. GitHub Pages serves that branch once it is selected under Settings -> Pages.
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", "mkdocs.yml", "CHANGELOG.md", "scripts/mkdocs_hooks.py", "requirements-docs.txt",
+            ".github/workflows/docs.yml"]
+  pull_request:
+    paths: ["docs/**", "mkdocs.yml", "CHANGELOG.md", "scripts/mkdocs_hooks.py", "requirements-docs.txt"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+      - run: pip install -r requirements-docs.txt
+      - run: mkdocs build --strict
+      - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdocs gh-deploy --force --no-history --message "Docs for {sha}"

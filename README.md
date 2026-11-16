@@ -13,7 +13,7 @@ International and a National (Indonesia) view.
 It runs as a single process with SQLite by default. There is no JavaScript build step and nothing is loaded from
 a CDN at runtime, so it works on an isolated network.
 
-![Dashboard](docs/screenshots/dashboard-overview.png)
+![Cyber threats dashboard](docs/screenshots/dashboard-overview.png)
 
 More in the [screenshot tour](docs/screenshots.md).
 
@@ -71,7 +71,10 @@ before exposing the port to a network. See [Getting started](docs/getting-starte
 | **Use** | [Sources](docs/sources.md) · [Using JATMP](docs/using-jatmp.md) · [Analysis](docs/analysis.md) · [Geography](docs/geography.md) · [Scams and fraud](docs/fraud.md) · [Integrations](docs/integrations.md) · [Reporting and AI](docs/reporting-and-ai.md) · [History and storage](docs/history-and-storage.md) |
 | **Reference** | [Security](docs/security.md) · [Development and architecture](docs/development.md) · [Changelog](CHANGELOG.md) |
 
-The full index is in [docs/](docs/README.md).
+The same pages are published as a searchable site at
+**[fj4rr.github.io/just-another-threat-monitoring-platform](https://fj4rr.github.io/just-another-threat-monitoring-platform/)**
+(built with MkDocs from [docs/](docs/README.md); `pip install -r requirements-docs.txt` and `mkdocs serve` to read
+them locally).
 
 ## Credits
 

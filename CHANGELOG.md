@@ -39,6 +39,10 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 - Scam detection: vendor listicles ("Top 10 Best … Tools [Ranked & Scored]") only count their title, so a list of
   fraud-detection products is no longer filed as a scam report. Stored items are re-analysed once after the upgrade.
 - Fix: the scam overview's brand list styled the sidebar's logo row too (shared class name).
+- **Documentation site**: the `docs/` pages also build a searchable MkDocs (Material) site with light and dark
+  themes, published to GitHub Pages from `main` (`.github/workflows/docs.yml`, strict: broken links and anchors
+  fail the build). The Markdown still reads on GitHub; see [Development](docs/development.md#documentation-site).
+  Screenshots of the dashboards, scam pages and backfill page are updated.
 - API: `/api/stats/*` take periods up to 365 days; `scope=fraud` limits trending, trending timelines, sources and
   sectors to scam reports; new `/api/stats/fraud/overview`, `/fraud/kpi_series` and `/fraud/timeline`; timelines
   return `step` (1 = daily, 7 = weekly).
