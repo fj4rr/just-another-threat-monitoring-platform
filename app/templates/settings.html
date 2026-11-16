@@ -167,7 +167,7 @@
       </details>
       <h3>What the AI should do</h3>
       <div class="field"><label class="check"><input type="checkbox" name="llm_auto_extract" {{ 'checked' if ai.vals.llm_auto_extract }}> Discover malware families that are not in the knowledge base yet</label></div>
-      <div class="field"><label class="check"><input type="checkbox" name="llm_daily_digest" {{ 'checked' if ai.vals.llm_daily_digest }}> Write a daily digest (06:00 UTC)</label></div>
+      <div class="field"><label class="check"><input type="checkbox" name="llm_daily_digest" {{ 'checked' if ai.vals.llm_daily_digest }}> Write a daily executive summary (06:00 UTC)</label></div>
       <div class="field"><label class="check"><input type="checkbox" name="llm_auto_summarize" {{ 'checked' if ai.vals.llm_auto_summarize }}> Summarise new high-severity items automatically <span class="muted">(uses more tokens)</span></label></div>
       <div class="field"><label for="llm-lang">Language for AI output</label><input id="llm-lang" type="text" name="llm_language" value="{{ ai.vals.llm_language or 'English' }}" placeholder="English, Bahasa Indonesia, Deutsch…"></div>
     </div>

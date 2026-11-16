@@ -86,8 +86,8 @@ def test_dashboard_layout(client, v082_items):
                    "/static/js/globe.js"):
         assert marker in page, marker
     assert "Most-mentioned families" not in page and 'id="c-top"' not in page
-    # the AI digest card only appears when an LLM is configured (none in the test install)
-    assert "AI digest</h2>" not in page
+    # the AI executive summary card only appears when an LLM is configured (none in the test install)
+    assert "Executive summary</h2>" not in page
     # tiles come before the volume chart, the trending tables before the over-time chart
     assert page.index('data-kpi="items"') < page.index('id="c-timeline"') < page.index("Trending CVEs") < page.index('id="c-trend"')
     assert page.index('id="c-cat"') < page.index("Notable recent items") < page.index('id="c-src"') < page.index('id="c-ioc"')

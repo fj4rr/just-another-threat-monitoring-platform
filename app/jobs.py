@@ -428,13 +428,13 @@ def run_digest(force: bool = False) -> str:
         ins = daily_digest(db)
         db.commit()
         _finish(db, run, "ok", ins.title)
-        notify.notify(db, "info", "AI digest ready", ins.title, "/insights", key=f"digest:{ins.id}")
+        notify.notify(db, "info", "AI executive summary ready", ins.title, "/insights", key=f"digest:{ins.id}")
         db.commit()
         return ins.title
     except Exception as e:
         db.rollback()
         _finish(db, run, "error", str(e))
-        notify.notify(db, "error", "AI digest failed", str(e)[:300], "/insights",
+        notify.notify(db, "error", "AI executive summary failed", str(e)[:300], "/insights",
                       key=f"digestfail:{date.today().isoformat()}")
         db.commit()
         return f"error: {e}"

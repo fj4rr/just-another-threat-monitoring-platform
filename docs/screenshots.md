@@ -2,8 +2,8 @@
 
 [← Documentation index](README.md)
 
-A tour of the interface. The dashboards, scam & fraud pages and backfill page are as of 0.10, the other pages
-as of 0.8.2 (the sidebar in those shots predates the two dashboards).
+A tour of the interface as of 0.10, taken on a test install filled from public sources (no enrichment keys, so most
+indicators show as *pending*).
 
 Cyber threats dashboard: the sidebar with the two dashboards and the cyber and scam pages under *Intelligence*,
 the period switch (7 days to 1 year) with the backfill note, International / National (ID) switch, *Collect now*

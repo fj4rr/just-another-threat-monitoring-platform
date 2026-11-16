@@ -77,7 +77,7 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "llm_api_key": ("", "LLM_API_KEY", "API key (OpenAI-compatible / Anthropic)", "secret", "llm"),
     "llm_auto_summarize": (False, "", "Auto-summarize new high-severity items", "bool", "llm"),
     "llm_auto_extract": (True, "", "Let the LLM discover malware families not in the knowledge base", "bool", "llm"),
-    "llm_daily_digest": (True, "", "Generate a daily AI digest", "bool", "llm"),
+    "llm_daily_digest": (True, "", "Write a daily AI executive summary", "bool", "llm"),
     "llm_language": ("English", "", "Language for AI output (e.g. English, Bahasa Indonesia)", "text", "llm"),
     # Sharing: what may leave JATMP through the REST API, exports, webhooks and MISP
     "api_max_tlp": ("GREEN", "", "Highest TLP shared through the API, exports, webhooks and MISP",

@@ -42,7 +42,8 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 - **Documentation site**: the `docs/` pages also build a searchable MkDocs (Material) site with light and dark
   themes, published to GitHub Pages from `main` (`.github/workflows/docs.yml`, strict: broken links and anchors
   fail the build). The Markdown still reads on GitHub; see [Development](docs/development.md#documentation-site).
-  Screenshots of the dashboards, scam pages and backfill page are updated.
+  Every screenshot is retaken for 0.10, and the remaining "digest" labels (AI settings, report appendix,
+  notifications) now say executive summary.
 - API: `/api/stats/*` take periods up to 365 days; `scope=fraud` limits trending, trending timelines, sources and
   sectors to scam reports; new `/api/stats/fraud/overview`, `/fraud/kpi_series` and `/fraud/timeline`; timelines
   return `step` (1 = daily, 7 = weekly).

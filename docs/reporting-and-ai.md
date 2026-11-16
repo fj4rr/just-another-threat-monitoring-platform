@@ -10,7 +10,7 @@ The report builder produces a **Threat Intel Findings** document for any period,
 It opens with a summary of the period, writes up the top findings (published time, severity, description,
 related malware, actors and CVEs, and a link to the original), lists the leading malware families with their
 type, the sources that covered them and an example hash, and closes with the top indicators of compromise and
-their verdicts. Collection statistics, actors, CVEs, newly seen families and the latest AI digest can be
+their verdicts. Collection statistics, actors, CVEs, newly seen families and the latest AI executive summary can be
 appended. The number of findings, families and indicators is adjustable.
 
 ## AI (optional)

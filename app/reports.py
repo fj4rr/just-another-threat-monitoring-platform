@@ -7,7 +7,7 @@ Structure (PDF / Word / Markdown):
      description, related malware / actors / CVEs and the link to the original
   3. Top malware families – type, mentions, sources that covered them, an example hash
   4. Top indicators of compromise – verdict, attributed family, where they were seen
-  Appendix (optional) – collection statistics, threat actors, CVEs, newly seen families, AI digest
+  Appendix (optional) – collection statistics, threat actors, CVEs, newly seen families, AI executive summary
 
 ``gather()`` collects everything once into plain dicts; the exporters only format.
 Word and PDF need the optional ``python-docx`` / ``reportlab`` packages (in requirements.txt).
@@ -36,7 +36,7 @@ SECTIONS = {
     "actors": "Appendix: threat actors",
     "cves": "Appendix: vulnerabilities (CVE)",
     "new": "Appendix: newly seen families",
-    "digest": "Appendix: latest AI digest",
+    "digest": "Appendix: latest AI executive summary",
 }
 DEFAULT_COUNTS = {"findings": 3, "families": 10, "iocs": 20}
 FORMATS = {"pdf": "PDF", "docx": "Word (.docx)", "md": "Markdown", "csv": "CSV"}
@@ -392,9 +392,9 @@ def to_markdown(rep: dict) -> bytes:
             lines += [f"### {title}", ""] + table(hdr, rows)
         if rep.get("digest"):
             d = rep["digest"]
-            lines += [f"### Latest AI digest — {d['title']}", "", f"_{_fmt(d['created'])} · {d['model']}_", "", d["content"], ""]
+            lines += [f"### Latest AI executive summary — {d['title']}", "", f"_{_fmt(d['created'])} · {d['model']}_", "", d["content"], ""]
         elif "digest" in rep:
-            lines += ["### Latest AI digest", "", "_no digest available for this period_", ""]
+            lines += ["### Latest AI executive summary", "", "_no executive summary available for this period_", ""]
     return "\n".join(lines).encode("utf-8")
 
 
@@ -427,7 +427,7 @@ def to_csv(rep: dict) -> bytes:
         w.writerows(rows)
     if rep.get("digest"):
         w.writerow([])
-        w.writerow(["## Latest AI digest", rep["digest"]["title"], _fmt(rep["digest"]["created"]), rep["digest"]["model"]])
+        w.writerow(["## Latest AI executive summary", rep["digest"]["title"], _fmt(rep["digest"]["created"]), rep["digest"]["model"]])
         for line in rep["digest"]["content"].splitlines():
             w.writerow([line])
     return ("\ufeff" + buf.getvalue()).encode("utf-8")
@@ -512,7 +512,7 @@ def to_docx(rep: dict) -> bytes:
             table(hdr, rows)
         if rep.get("digest"):
             d = rep["digest"]
-            doc.add_heading(f"Latest AI digest — {d['title']}", 2)
+            doc.add_heading(f"Latest AI executive summary — {d['title']}", 2)
             small(f"{_fmt(d['created'])} · {d['model']}")
             for para in re.split(r"\n{2,}", d["content"]):
                 doc.add_paragraph(re.sub(r"[*_#`]+", "", para).strip())
@@ -631,7 +631,7 @@ def to_pdf(rep: dict) -> bytes:
             story.append(Spacer(1, 6))
         if rep.get("digest"):
             d = rep["digest"]
-            story += [Paragraph(escape(f"Latest AI digest — {d['title']}"), h2), Paragraph(escape(f"{_fmt(d['created'])} · {d['model']}"), meta)]
+            story += [Paragraph(escape(f"Latest AI executive summary — {d['title']}"), h2), Paragraph(escape(f"{_fmt(d['created'])} · {d['model']}"), meta)]
             for para in re.split(r"\n{2,}", d["content"]):
                 story.append(Paragraph(escape(re.sub(r"[*_#`]+", "", para).strip()).replace("\n", "<br/>"), body))
                 story.append(Spacer(1, 3))
