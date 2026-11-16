@@ -137,32 +137,96 @@ Max ~450 words."""
     return out
 
 
+DIGEST_LEVELS = ("low", "elevated", "high", "critical")
+DIGEST_SYSTEM = (
+    "You are the head of a threat intelligence team writing the morning executive summary for security "
+    "leadership. You are brief, concrete and calm. Use only the data supplied; never invent names, numbers or IOCs."
+)
+
+
+def _plain(text) -> str:
+    """One line of plain text: no markdown emphasis, no LaTeX ($\\le$ from some models), no bullets."""
+    t = str(text or "")
+    t = re.sub(r"\$\\(?:le|leq)\$", "\u2264", t)
+    t = re.sub(r"\$\\(?:ge|geq)\$", "\u2265", t)
+    t = re.sub(r"\$([^$]{1,40})\$", lambda m: m.group(1).replace("\\", ""), t)
+    t = re.sub(r"\*\*|__|`", "", t)
+    t = re.sub(r"^\s*(?:[-\u2022]|\d+[.)])\s+", "", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def digest_data(raw: str) -> dict:
+    """Validate the model's JSON executive summary; {} when it is unusable."""
+    d = _json_from(raw)
+    headline = _plain(d.get("headline"))[:400]
+    if not headline:
+        return {}
+    level = str(d.get("level") or "").strip().lower()
+    points = []
+    for pt in d.get("points") or []:
+        if isinstance(pt, dict):
+            title, detail = _plain(pt.get("title"))[:120], _plain(pt.get("detail"))[:400]
+        else:
+            title, detail = _plain(pt)[:120], ""
+        if title:
+            points.append({"title": title, "detail": detail})
+    actions = [a for a in (_plain(x)[:300] for x in d.get("actions") or []) if a]
+    return {"headline": headline, "level": level if level in DIGEST_LEVELS else "",
+            "points": points[:4], "actions": actions[:3]}
+
+
+def digest_markdown(d: dict) -> str:
+    """Markdown copy of a structured summary, for the AI insights page, reports and the API."""
+    lines = [(f"**{d['level'].title()}** · " if d.get("level") else "") + d["headline"], ""]
+    lines += [f"- **{p['title']}**" + (f" – {p['detail']}" if p["detail"] else "") for p in d.get("points", [])]
+    if d.get("actions"):
+        lines += ["", "**Actions today**", ""] + [f"{n}. {a}" for n, a in enumerate(d["actions"], 1)]
+    return "\n".join(lines)
+
+
 def daily_digest(db: Session, user_id: int | None = None) -> Insight:
+    """Executive summary of the last 24 hours (0.10: short and structured instead of a long report)."""
+    from ..processing import fraudstats
+
     since = utcnow() - timedelta(hours=24)
-    trend = trends.trending(db, "malware", limit=10)
-    actors = trends.trending(db, "actor", limit=5)
-    cves = trends.top_entities(db, "cve", days=2, limit=8)
+    keep = ("name", "category", "recent", "baseline", "sources", "growth", "is_new")
+    trend = [{k: r[k] for k in keep} for r in trends.trending(db, "malware", limit=8)]
+    actors = [{k: r[k] for k in keep} for r in trends.trending(db, "actor", limit=5)]
+    cves = [{k: r.get(k) for k in ("name", "recent", "kev", "cvss", "epss")} for r in trends.trending_cves(db, limit=6)]
+    scams = [{"scam_type": r["entity"].display, "reports_7d": r["week"], "prev_7d": r["week_prev"],
+              "spreading": r["spreading"]} for r in fraudstats.scam_type_table(db, "", 7)[:5]]
+    sectors = [{"sector": r["label"], "items_7d": r["count"]} for r in trends.sector_breakdown(db, 7) if r["count"]][:5]
     items = db.execute(
-        select(Item).where(Item.published_at >= since).order_by(Item.severity.desc()).limit(30)
+        select(Item).where(Item.published_at >= since)
+        .order_by((Item.severity + Item.fraud_score / 2).desc()).limit(25)
     ).scalars().all()
     lines = "\n".join(
-        f"- ({i.source.category}/{i.source.name}, sev {i.severity}) {i.title} :: {_clip(i.llm_summary or i.content, 300)}"
-        for i in items
+        f"- ({i.source.name}, sev {i.severity}{f', fraud {i.fraud_score}' if i.fraud_score else ''}) {i.title} :: "
+        f"{_clip(i.llm_summary or i.content, 220)}" for i in items
     )
-    prompt = f"""Produce today's threat-landscape digest in {_lang()} for a SOC team.
+    prompt = f"""Write today's executive summary of the threat landscape in {_lang()}.
 
-TRENDING MALWARE (score, recent mentions vs baseline, #sources, new?):
-{json.dumps(trend, default=str)}
-TRENDING ACTORS: {json.dumps(actors, default=str)}
-MOST-DISCUSSED CVEs (48h): {json.dumps(cves, default=str)}
-TOP ITEMS LAST 24H:
+DATA (last 7 days unless stated)
+Trending malware: {json.dumps(trend, default=str)}
+Trending threat actors: {json.dumps(actors, default=str)}
+Trending CVEs (kev = in CISA KEV): {json.dumps(cves, default=str)}
+Scam & fraud: {json.dumps(scams, default=str)}
+Most affected sectors (Indonesian IIV sectors): {json.dumps(sectors, default=str)}
+Top items of the last 24 hours:
 {lines or 'none'}
 
-Markdown: **Headline** (1 sentence), **Top 5 things to know** (each: what, why it matters, source),
-**Rising / new malware** (explain the trend), **Vulnerabilities to patch**, **Recommended actions today**.
-Max ~500 words."""
-    out = client.complete(SYSTEM, prompt, max_tokens=3500)
-    ins = Insight(kind="digest", title=f"Daily digest {utcnow():%Y-%m-%d}", content=out,
+Answer with ONE JSON object and nothing else:
+{{"headline": "one sentence, at most 30 words: the single most important development",
+  "level": "low | elevated | high | critical  (overall threat level today)",
+  "points": [{{"title": "at most 8 words", "detail": "one sentence, at most 30 words: what happened and why it matters"}}],
+  "actions": ["one imperative sentence, at most 20 words"]}}
+Rules: 3 or 4 points, at most 3 actions, ordered by importance. Plain text only inside the strings: no markdown,
+no LaTeX or math notation (write "2.9.3 or earlier", not symbols), no lists inside strings. Name sources only
+when it matters. Skip routine noise."""
+    out = client.complete(DIGEST_SYSTEM, prompt, max_tokens=1500)
+    data = digest_data(out)
+    content = digest_markdown(data) if data else _plain(out)
+    ins = Insight(kind="digest", title=f"Executive summary {utcnow():%Y-%m-%d}", content=content, data=data,
                   model=f"{client.provider()}:{client.model_name()}", user_id=user_id)
     db.add(ins)
     return ins

@@ -52,14 +52,28 @@ Phone numbers and bank accounts are personal data under Indonesia's Personal Dat
 Bank accounts link to [cekrekening.id](https://cekrekening.id/home) and wallets to a block explorer so an analyst can
 look them up by hand; JATMP does not query them (cekrekening.id sits behind a CAPTCHA).
 
+## Dashboard
+
+*Dashboard → Scams & fraud* (`/fraud`) works like the cyber threats dashboard, with the same period switch
+(7 days to 1 year) and International / National view:
+
+- **Scam reports over time**, stacked by the five most reported scam types of the period, and a **globe** of the
+  most targeted countries (provinces in the National view); click one for its scam reports.
+- **Tiles** with sparklines: scam reports against the period before, the largest reported loss (and victim count),
+  scam types reported (and how many are spreading this week), brands impersonated and scammer identifiers.
+- **Trending scam types** (the period against the one before, with the malware and brands seen alongside and a
+  *spreading* badge), **most impersonated brands** and the **latest scammer identifiers**.
+- Charts of reports **by scam type**, **by kind of impersonated brand** (banks, e-wallets, couriers, government…),
+  **by sector** ([IIV sectors](analysis.md#sectors-iiv)) and **per source**.
+- **Recent scam reports**, the **highest fraud scores** and the fraud sources with their status.
+
 ## Pages
 
-- **Overview**: scam reports this week, the largest reported loss and victim count, brands impersonated and
-  identifiers in the last 30 days, a scam-type table with this week against last week (and the malware and brands
-  seen with each type), the most impersonated brands, recent and highest-scoring reports, the latest identifiers and
-  the fraud sources with their status.
-- **Scam reports**: every scam report, filterable by scam type, brand, minimum fraud score, period and text,
-  sortable by fraud score, loss, victims and time.
+The detail pages are in the sidebar under *Intelligence → Scams & fraud*:
+
+- **Scam reports**: every scam report, filterable by scam type, brand, sector, minimum fraud score, period and
+  text (and by target country or province when opened from the globe), sortable by fraud score, loss, victims and
+  time.
 - **Scam types** and **Impersonated brands**: the usual entity tables (mentions, sources, trend, first / last seen)
   with the malware and brands or scam types seen alongside.
 - **Scammer identifiers**: phone numbers, bank accounts, e-wallets and wallets with the scam types and brands they
@@ -82,4 +96,14 @@ key, and Reddit's r/Scams is mostly victims' own posts (personal data).
 ## Re-running the analysis
 
 Existing items are analysed once in the background after an upgrade, and again whenever the rules change. To run it
-by hand: *Re-analyse items* on the overview or under Settings → Scam & fraud, or `python manage.py fraudtag`.
+by hand: *Re-analyse items* on the dashboard or under Settings → Scam & fraud, or `python manage.py fraudtag`.
+Re-analysis loads items in chunks and only touches the database for items that are, or were, about a scam, so it
+runs in about the time it takes to read the items.
+
+## Processing
+
+Collection and analysis are built to stay cheap as the blocklists grow: the indicators of an item are looked up and
+created with one query per indicator type (a ScamSniffer day with hundreds of domains costs a handful of queries),
+blocklist verdicts are written in bulk instead of waiting for the enrichment providers, and the spread velocity of a
+scam type is counted once per type and day for a whole collection batch. Fact-check feeds are filtered to scam
+reports before anything is stored.

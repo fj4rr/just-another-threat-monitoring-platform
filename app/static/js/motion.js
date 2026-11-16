@@ -68,10 +68,10 @@
   };
 
   // KPI sparklines from the daily timeline
-  J.tileSparks = async () => {
+  J.tileSparks = async (url = "/api/stats/kpi_series?days=14") => {
     const svgs = document.querySelectorAll("svg.spark[data-series]");
     if (!svgs.length) return;
-    const d = await getJSON("/api/stats/kpi_series?days=14");
+    const d = await getJSON(url);
     svgs.forEach((svg) => J.spark(svg, d[svg.dataset.series] || [], svg.dataset.color || "--series-1"));
   };
 
@@ -100,13 +100,15 @@
   };
   const iconSvg = (type, cls = "shape-ico") =>
     `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${glyph(type, css(RADAR_TYPES[type].color), "none", css("--text-primary"))}</svg>`;
-  J.radar = async (svg, legend) => {
+  // days: the trend window (the dashboard period)
+  J.radar = async (svg, legend, days = 7) => {
     if (!svg) return;
     const shown = new Set(Object.keys(RADAR_TYPES));
+    const span = days === 7 ? "this week" : `in ${days} days`;
     let rows = [];
     const load = async () => {
       const lists = await Promise.all(Object.entries(RADAR_TYPES).map(([t, spec]) =>
-        getJSON(`/api/stats/trending?type=${t}&limit=${spec.limit}`).then((l) => l.map((r) => ({ ...r, type: t }))).catch(() => [])));
+        getJSON(`/api/stats/trending?type=${t}&limit=${spec.limit}&days=${days}`).then((l) => l.map((r) => ({ ...r, type: t }))).catch(() => [])));
       rows = lists.flat().sort((a, b) => b.score - a.score);
     };
     await load();
@@ -175,7 +177,7 @@
         const r = vis[+b.dataset.i];
         b.addEventListener("mouseenter", () => {
           const kind = r.type === "malware" ? (r.category || "other") + " malware" : r.type === "actor" ? `${r.category || "unclassified"} actor` : "vulnerability";
-          tip.innerHTML = `<strong>${esc(r.name)}</strong>${r.is_new ? " · new this week" : ""}<br>${esc(kind)} · ${r.recent} mention(s) in 7d · ${r.sources} source(s)<br>trend score ${r.score}`;
+          tip.innerHTML = `<strong>${esc(r.name)}</strong>${r.is_new ? ` · new ${span}` : ""}<br>${esc(kind)} · ${r.recent} mention(s) in ${days}d · ${r.sources} source(s)<br>trend score ${r.score}`;
           tip.style.opacity = 1;
         });
         b.addEventListener("mousemove", (e) => { tip.style.left = e.clientX + 14 + "px"; tip.style.top = e.clientY + 14 + "px"; });
@@ -186,7 +188,7 @@
         const icon = (t) => iconSvg(t);
         legend.innerHTML =
           `<div class="key small">${Object.keys(RADAR_TYPES).map((t) => `<span>${icon(t)}${t === "cve" ? "CVE" : t === "actor" ? "actor" : "malware"}</span>`).join("")}` +
-          `<span><svg class="shape-ico" viewBox="-12 -12 24 24" aria-hidden="true"><circle r="9" class="new-ring" stroke="${ink}"/></svg>new this week</span></div>` +
+          `<span><svg class="shape-ico" viewBox="-12 -12 24 24" aria-hidden="true"><circle r="9" class="new-ring" stroke="${ink}"/></svg>new ${span}</span></div>` +
           `<div class="size-key small muted"><span class="dot" style="width:6px;height:6px"></span>` +
           `<span class="dot" style="width:12px;height:12px"></span>size = mentions</div>` +
           `<ol>${vis.slice(0, 8).map((r) => `<li>${icon(r.type)}<a href="/entities/${r.id}">${esc(r.name)}</a> <span class="muted small">${r.score}</span></li>`).join("")}</ol>`;
@@ -213,11 +215,11 @@
   };
 
   // refresh KPI numbers + radar periodically, with count-up between old and new values
-  J.live = (intervalMs = 60000) => {
+  J.live = (intervalMs = 60000, url = "/api/stats/overview?days=7") => {
     const stamp = document.querySelector("[data-live-stamp]");
     const tick = async () => {
       try {
-        const ov = await getJSON("/api/stats/overview?days=7");
+        const ov = await getJSON(url);
         document.querySelectorAll("[data-kpi]").forEach((el) => {
           const v = ov[el.dataset.kpi];
           if (v === undefined || String(v) === el.dataset.count) return;

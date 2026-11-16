@@ -17,6 +17,7 @@
     python manage.py geoip-update              download the offline GeoIP database (DB-IP Lite, or GeoLite2 with
                                                MAXMIND_LICENSE_KEY) into data/geoip/ and locate IP indicators
     python manage.py fraudtag                  re-run the scam & fraud analysis (scam types, brands, identifiers, score)
+    python manage.py sectortag                 re-detect the IIV sectors (government, finance, health...) of every item
     python manage.py telegram-login            sign in to Telegram once (MTProto, optional) and store the session
 """
 from __future__ import annotations
@@ -51,6 +52,8 @@ def main(argv: list[str]) -> int:
         print(jobs.run_geotag(force=True))
     elif cmd == "fraudtag":
         print(jobs.run_fraudtag(force=True))
+    elif cmd == "sectortag":
+        print(jobs.run_sectortag(force=True))
     elif cmd == "telegram-login":
         return telegram_login()
     elif cmd == "geoip-update":

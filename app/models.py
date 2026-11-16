@@ -121,6 +121,7 @@ class Entity(Base):
     type: Mapped[str] = mapped_column(String(16), index=True)
     # malware | actor | cve | ip | domain | url | md5 | sha1 | sha256 | technique
     # fraud (0.9): scam_type | brand | phone | bank_account | ewallet | crypto_wallet
+    # sector (0.10): IIV sector an item is about (app/processing/sectors.py)
     value: Mapped[str] = mapped_column(String(2048))  # normalized (lowercase etc.)
     display: Mapped[str] = mapped_column(String(2048), default="")
     category: Mapped[str] = mapped_column(String(32), default="")  # ransomware | stealer | rat ...
@@ -198,6 +199,8 @@ class Insight(Base):
     model: Mapped[str] = mapped_column(String(128), default="")
     user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # 0.10: the executive summary as structured fields (headline, level, points, actions); {} for older digests
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 class Watch(Base):

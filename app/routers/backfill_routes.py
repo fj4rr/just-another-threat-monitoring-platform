@@ -73,7 +73,8 @@ def stop(request: Request, user: User = Depends(require("admin")), db: Session =
     batch = jobs.active_batch(db, "backfill")
     if not batch:
         return {"ok": True, "message": "No backfill is running"}
-    jobs.cancel_backfill(batch)
+    aborted = jobs.cancel_backfill(batch, db)
     audit(db, user, "backfill_stopped", batch, request)
     db.commit()
-    return {"ok": True, "message": "Stopping after the current page"}
+    return {"ok": True, "message": "Stopping after the current page"
+            + (f"; {aborted} queued source(s) cancelled" if aborted else "")}

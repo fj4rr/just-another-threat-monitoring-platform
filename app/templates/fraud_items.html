@@ -2,21 +2,24 @@
 {% from "_macros.html" import th, pager, period_select, fraud_score %}
 {% block title %}Scam reports{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Scams & fraud</h1>
-  <p class="muted">{{ total }} scam report(s){% if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %} · click a title to preview, a column header to sort</p></div></div>
-{% include "_fraud_tabs.html" %}
+<div class="page-head"><div><h1>Scam reports</h1>
+  <p class="muted">{{ total }} scam report(s){% if f.country %} targeting {{ country_name(f.country) }}{% endif %}{% if f.province %} in {{ province_name(f.province) }}{% endif %}{% if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %} · click a title to preview, a column header to sort</p></div></div>
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content" aria-label="Search" maxlength="200">
   <select name="scam" aria-label="Scam type"><option value="0">All scam types</option>
     {% for e in scam_types %}<option value="{{ e.id }}" {{ 'selected' if f.scam == e.id }}>{{ e.display }}</option>{% endfor %}</select>
   <select name="brand" aria-label="Brand"><option value="0">All brands</option>
     {% for e in brand_list %}<option value="{{ e.id }}" {{ 'selected' if f.brand == e.id }}>{{ e.display }}</option>{% endfor %}</select>
+  {% if sector_list %}<select name="sector" aria-label="Sector"><option value="0">All sectors</option>
+    {% for e in sector_list %}<option value="{{ e.id }}" {{ 'selected' if f.sector == e.id }}>{{ e.display }}</option>{% endfor %}</select>{% endif %}
+  {% if f.country %}<input type="hidden" name="country" value="{{ f.country }}">{% endif %}
+  {% if f.province %}<input type="hidden" name="province" value="{{ f.province }}">{% endif %}
   <select name="min_score" aria-label="Minimum fraud score">{% for v, l in [(0,'Any fraud score'),(30,'Score ≥ 30'),(50,'Score ≥ 50'),(70,'Score ≥ 70')] %}
     <option value="{{ v }}" {{ 'selected' if f.min_score == v }}>{{ l }}</option>{% endfor %}</select>
   {{ period_select(f) }}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
   <button class="btn">Filter</button>
-  {% if f.q or f.scam or f.brand or f.min_score or f.days != 30 %}<a class="btn" href="/fraud/items">Reset</a>{% endif %}
+  {% if f.q or f.scam or f.brand or f.sector or f.min_score or f.country or f.province or f.days != 30 %}<a class="btn" href="/fraud/items">Reset</a>{% endif %}
 </form>
 <div class="card table-wrap data-table">
   <table>

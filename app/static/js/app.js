@@ -257,6 +257,7 @@
     return r.json();
   }
   const shortDate = (s) => { const d = new Date(s + "T00:00:00"); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
+  const weekOf = (s) => "wk of " + shortDate(s);
   const emptyNote = (el, msg) => { const p = el.parentElement; p.innerHTML = ""; const d = document.createElement("div"); d.className = "empty"; d.textContent = msg; p.appendChild(d); };
   // like emptyNote, but keeps the canvas so the chart can be drawn again (charts with a type switch)
   const chartNote = (el, msg) => {
@@ -418,6 +419,11 @@
       document.querySelectorAll(`[data-job-button="${name}"]`).forEach((b) => {
         if (b.getAttribute("aria-busy") === "true") return;
         b.disabled = !!j.running;
+      });
+      // controls that only make sense while the job runs (the backfill's Stop button)
+      document.querySelectorAll(`[data-job-running="${name}"]`).forEach((b) => {
+        if (b.getAttribute("aria-busy") === "true") return;
+        b.hidden = !j.running || !!j.stopping;
       });
       document.querySelectorAll(`[data-job-status="${name}"]`).forEach((el) => {
         el.textContent = "";
@@ -591,6 +597,7 @@
 
     timeline: guard(async (el, days = 30) => {
       const d = await getJSON(`/api/stats/timeline?days=${days}`);
+      const weekly = d.step > 1;
       const total = Object.values(d.series).flat().reduce((a, b) => a + b, 0);
       if (!total) return emptyNote(el, "No items collected yet – run the collectors from Settings.");
       const names = { news: "News", social: "Social", intel: "Threat intel" };
@@ -600,7 +607,7 @@
         const base = baseOptions();
         return {
           type: "bar",
-          data: { labels: d.labels.map(shortDate), datasets: ["news", "social", "intel"].map((k, i) => ({
+          data: { labels: d.labels.map(weekly ? weekOf : shortDate), datasets: ["news", "social", "intel"].map((k, i) => ({
             label: names[k], data: d.series[k], backgroundColor: S[i], borderColor: surface, borderWidth: { top: 2 },
             borderSkipped: false, borderRadius: 3, maxBarThickness: 18 })) },
           options: baseOptions({ scales: { x: { ...base.scales.x, stacked: true }, y: { ...base.scales.y, stacked: true } } }),
@@ -608,16 +615,16 @@
       });
     }),
 
-    trendLines: guard(async (el, limit = 5, days = 30, type = "malware") => {
-      const d = await getJSON(`/api/stats/trending_timeline?limit=${limit}&days=${days}&type=${encodeURIComponent(type)}`);
-      const what = { malware: "malware families", cve: "CVEs", actor: "threat actors" }[type] || "entities";
+    trendLines: guard(async (el, limit = 5, days = 30, type = "malware", scope = "") => {
+      const d = await getJSON(`/api/stats/trending_timeline?limit=${limit}&days=${days}&type=${encodeURIComponent(type)}&scope=${scope}`);
+      const what = { malware: "malware families", cve: "CVEs", actor: "threat actors", scam_type: "scam types", brand: "brands" }[type] || "entities";
       if (!d.series.length) return chartNote(el, `No ${what} mentioned in the last ${days} days.`);
       chartNote(el, "");
       make(el, () => {
         const S = SERIES();
         return {
           type: "line",
-          data: { labels: d.labels.map(shortDate), datasets: d.series.map((s, i) => ({
+          data: { labels: d.labels.map(d.step > 1 ? weekOf : shortDate), datasets: d.series.map((s, i) => ({
             label: s.name, data: s.data, borderColor: S[i], backgroundColor: S[i], borderWidth: 2,
             pointRadius: 0, pointHoverRadius: 5, pointHoverBorderColor: css("--surface-1"), pointHoverBorderWidth: 2, cubicInterpolationMode: "monotone" })) },
           options: baseOptions(),
@@ -636,6 +643,8 @@
         el.parentElement.after(n);
       }
       if (!rows.length) return emptyNote(el, empty);
+      // many bars: give each row room instead of squeezing them into a short card
+      if (rows.length > 7) el.parentElement.style.height = Math.max(200, rows.length * 22 + 50) + "px";
       make(el, () => {
         const base = baseOptions();
         return {
@@ -654,8 +663,8 @@
       });
     }),
 
-    sources: guard(async (el, days = 7, top = 12) => {
-      const all = await getJSON(`/api/stats/sources?days=${days}`);
+    sources: guard(async (el, days = 7, top = 12, scope = "") => {
+      const all = await getJSON(`/api/stats/sources?days=${days}&scope=${scope}`);
       if (!all.length) return emptyNote(el, "No items in this period.");
       const rows = all.slice(0, top);
       const rest = all.slice(top).reduce((a, r) => a + r.count, 0);
@@ -685,6 +694,24 @@
                            ticks: { color: css("--text-secondary"), autoSkip: false, font: { size: 11 },
                                     callback: (_v, i) => short(rows[i].name) } } },
           }),
+        };
+      });
+    }),
+
+    // scam reports per day / week, stacked by the most reported scam types of the period
+    scamTimeline: guard(async (el, days = 30) => {
+      const d = await getJSON(`/api/stats/fraud/timeline?days=${days}`);
+      if (!d.series.length) return emptyNote(el, `No scam reports in the last ${days} days.`);
+      make(el, () => {
+        const S = SERIES();
+        const surface = css("--surface-1");
+        const base = baseOptions();
+        return {
+          type: "bar",
+          data: { labels: d.labels.map(d.step > 1 ? weekOf : shortDate), datasets: d.series.map((s, i) => ({
+            label: s.name, data: s.data, backgroundColor: s.key === "_rest" ? css("--neutral-mark") : S[i],
+            borderColor: surface, borderWidth: { top: 2 }, borderSkipped: false, borderRadius: 3, maxBarThickness: 18 })) },
+          options: baseOptions({ scales: { x: { ...base.scales.x, stacked: true }, y: { ...base.scales.y, stacked: true } } }),
         };
       });
     }),

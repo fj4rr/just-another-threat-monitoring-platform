@@ -62,8 +62,8 @@ entities, related indicators and enrichment results.
 
 ## Trends
 
-The dashboard scores each family, CVE and threat actor by its recent mention rate against a 30-day
-baseline, weighted by how many sources and source types cover it, and shows the result on the threat radar (one
+The dashboard scores each family, CVE and threat actor by its mention rate in the chosen period against a
+baseline before it (30 days, or as long as the period when that is longer), weighted by how many sources and source types cover it, and shows the result on the threat radar (one
 icon per type), in a chart over time and in the *Trending malware*, *Trending CVEs* and *Trending threat
 actors* tables, which also list the families, actors and CVEs mentioned alongside each entry.
 
@@ -73,6 +73,22 @@ CVSS score and with a low EPSS, or not looked up yet, are counted under the char
 items per kind of actor: nation-state, ransomware, extortion (data theft and extortion crews such as
 ShinyHunters or Scattered Spider) and cybercrime. Actors from the built-in knowledge base are classified;
 others are *unclassified* unless `data/knowledge_extra.json` gives them a `category`.
+
+## Sectors (IIV)
+
+Each item is tagged with the sectors of Indonesia's vital information infrastructure (*Infrastruktur Informasi
+Vital*, Perpres 82/2022) it is about: government administration, energy & mineral resources, transportation,
+finance, health, ICT, food and defence. The rules (`app/processing/sectors.py`, English and Bahasa Indonesia) look
+for the organisations and services of each sector as targets or affected parties: *rumah sakit* and *hospital*,
+banks and e-wallets, airlines and *bandara*, telecom operators and data centres, ministries, *pemda* and `.go.id`
+sites, refineries and PLN, the military and TNI. A sector counts when the title names it or the body names it at
+least twice; newsletters and round-ups only count their title, and look-alikes are excluded (MITRE *defense
+evasion*, the hacktivist *IT Army*). A sector the feed states (the ransomware.live victim sector, OTX industries)
+counts on its own. An item gets at most three sectors.
+
+Sectors are entities like the others (type `sector`), so they appear as chips, filter the feed (click a bar in a
+*Sectors (IIV)* chart) and the scam reports list, and are exported as `sectors` in the REST API. They carry almost
+no weight in correlation. Rules changes re-tag stored items once; `python manage.py sectortag` does it by hand.
 
 ## Vulnerability context
 

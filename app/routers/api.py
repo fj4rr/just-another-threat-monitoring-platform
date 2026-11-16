@@ -22,6 +22,11 @@ def _days(n: int, lo: int = 1, hi: int = 365) -> int:
     return min(max(int(n), lo), hi)
 
 
+def _scope(scope: str):
+    """``scope=fraud`` limits a statistic to scam reports (the scam & fraud dashboard); anything else = all items."""
+    return Item.fraud_score > 0 if scope == "fraud" else None
+
+
 # --------------------------------------------------------------------------- stats (read)
 @router.get("/stats/overview")
 def stats_overview(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db),
@@ -32,13 +37,13 @@ def stats_overview(days: int = 7, _: User = Depends(current_user), db: Session =
 @router.get("/stats/kpi_series")
 def stats_kpi_series(days: int = 14, _: User = Depends(current_user), db: Session = Depends(get_db),
                      region: str = Depends(current_region)):
-    return trends.kpi_series(db, min(max(days, 7), 60), region)
+    return trends.kpi_series(db, _days(days, 7, 365), region)
 
 
 @router.get("/stats/timeline")
 def stats_timeline(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db),
                    region: str = Depends(current_region)):
-    return trends.timeline(db, min(max(days, 7), 180), region)
+    return trends.timeline(db, _days(days, 7, 365), region)
 
 
 @router.get("/stats/top")
@@ -48,36 +53,74 @@ def stats_top(type: str = "malware", days: int = 7, limit: int = 10, category: s
 
 
 @router.get("/stats/trending")
-def stats_trending(type: str = "malware", limit: int = 10, _: User = Depends(current_user),
-                   db: Session = Depends(get_db), region: str = Depends(current_region)):
-    return trends.trending(db, type, min(max(limit, 1), 50), region=region)
+def stats_trending(type: str = "malware", limit: int = 10, days: int = 7, scope: str = "",
+                   _: User = Depends(current_user), db: Session = Depends(get_db),
+                   region: str = Depends(current_region)):
+    return trends.trending(db, type, min(max(limit, 1), 50), window=_days(days), region=region, extra=_scope(scope))
 
 
-TREND_TYPES = ("malware", "cve", "actor")
+TREND_TYPES = ("malware", "cve", "actor", "scam_type", "brand")
 
 
 @router.get("/stats/trending_timeline")
-def stats_trending_timeline(limit: int = 5, days: int = 30, type: str = "malware", _: User = Depends(current_user),
-                            db: Session = Depends(get_db), region: str = Depends(current_region)):
+def stats_trending_timeline(limit: int = 5, days: int = 30, type: str = "malware", scope: str = "",
+                            _: User = Depends(current_user), db: Session = Depends(get_db),
+                            region: str = Depends(current_region)):
+    """Mentions over time of the top trending entities of the period (``days``: the window and the chart)."""
     etype = type if type in TREND_TYPES else "malware"
-    top = trends.trending(db, etype, limit=min(max(limit, 1), 8), region=region)
-    tl = trends.family_timeline(db, [t["id"] for t in top], _days(days, 7, 180), region)
-    return {"labels": tl["labels"], "series": [{"id": t["id"], "name": t["name"], "data": tl["series"][t["id"]]}
-                                               for t in top]}
+    days, extra = _days(days, 7, 365), _scope(scope)
+    top = trends.trending(db, etype, limit=min(max(limit, 1), 8), window=days, region=region, extra=extra)
+    tl = trends.family_timeline(db, [t["id"] for t in top], days, region, extra)
+    return {"labels": tl["labels"], "step": tl["step"],
+            "series": [{"id": t["id"], "name": t["name"], "data": tl["series"][t["id"]]} for t in top]}
 
 
 @router.get("/stats/categories")
-def stats_categories(days: int = 30, type: str = "malware", _: User = Depends(current_user),
+def stats_categories(days: int = 30, type: str = "malware", scope: str = "", _: User = Depends(current_user),
                      db: Session = Depends(get_db), region: str = Depends(current_region)):
-    """Malware by type, CVEs by exploitation risk, or actor mentions by kind of actor."""
+    """Malware by type, CVEs by exploitation risk, actor mentions by kind of actor, items per IIV sector,
+    or (scam & fraud) scam reports per scam type and per kind of impersonated brand."""
+    days = _days(days, 1, 3650)
+    if type == "sector":
+        return trends.sector_breakdown(db, days, region, _scope(scope))
+    if type in ("scam_type", "brand_category"):
+        from ..processing import fraudstats
+
+        fn = fraudstats.scam_type_breakdown if type == "scam_type" else fraudstats.brand_category_breakdown
+        return fn(db, days, region)
     fn = {"cve": trends.cve_breakdown, "actor": trends.actor_breakdown}.get(type, trends.category_breakdown)
-    return fn(db, _days(days, 1, 3650), region)
+    return fn(db, days, region)
 
 
 @router.get("/stats/sources")
-def stats_sources(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db),
+def stats_sources(days: int = 7, scope: str = "", _: User = Depends(current_user), db: Session = Depends(get_db),
                   region: str = Depends(current_region)):
-    return trends.source_breakdown(db, _days(days), region)
+    return trends.source_breakdown(db, _days(days), region, _scope(scope))
+
+
+@router.get("/stats/fraud/overview")
+def stats_fraud_overview(days: int = 7, _: User = Depends(current_user), db: Session = Depends(get_db),
+                         region: str = Depends(current_region)):
+    from ..processing import fraudstats
+
+    return fraudstats.kpis(db, region, _days(days))
+
+
+@router.get("/stats/fraud/kpi_series")
+def stats_fraud_kpi_series(days: int = 14, _: User = Depends(current_user), db: Session = Depends(get_db),
+                           region: str = Depends(current_region)):
+    from ..processing import fraudstats
+
+    return fraudstats.kpi_series(db, _days(days, 7, 365), region)
+
+
+@router.get("/stats/fraud/timeline")
+def stats_fraud_timeline(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db),
+                         region: str = Depends(current_region)):
+    """Scam reports per day (week) split by the most reported scam types of the period."""
+    from ..processing import fraudstats
+
+    return fraudstats.timeline(db, _days(days, 7, 365), region)
 
 
 @router.get("/stats/iocs")
@@ -279,7 +322,10 @@ def make_digest(user: User = Depends(require("analyst")), db: Session = Depends(
     except LLMError as e:
         raise HTTPException(400, str(e)) from e
     db.commit()
-    return {"ok": True, "id": ins.id, "html": str(md(ins.content))}
+    from ..web import templates
+
+    html = templates.get_template("_exec_summary.html").render(d=ins)
+    return {"ok": True, "id": ins.id, "html": html}
 
 
 @router.post("/insights/ask", dependencies=[Depends(verify_csrf)])
@@ -294,7 +340,10 @@ def ask(payload: dict = Body(...), user: User = Depends(require("analyst")), db:
     except LLMError as e:
         raise HTTPException(400, str(e)) from e
     db.commit()
-    return {"ok": True, "id": ins.id, "html": str(md(ins.content))}
+    from ..web import templates
+
+    html = templates.get_template("_exec_summary.html").render(d=ins)
+    return {"ok": True, "id": ins.id, "html": html}
 
 
 @router.post("/llm/test", dependencies=[Depends(verify_csrf)])

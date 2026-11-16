@@ -52,20 +52,46 @@ def _keep(days: int) -> str:
     return str(days)
 
 
+def dashboard_period(request: Request) -> int:
+    """Period of the dashboards (0.10): ``?days=`` picks one of trends.PERIODS and is remembered in the session,
+    so both dashboards open on the period the analyst chose last."""
+    has_session = "session" in request.scope
+    q = request.query_params.get("days")
+    if q is not None:
+        days = trends.norm_period(q)
+        if has_session:
+            request.session["period"] = days
+        return days
+    return trends.norm_period(request.session.get("period") if has_session else None)
+
+
+def coverage(db: Session, days: int) -> dict:
+    """What the period rests on: since when the live collectors run, and how many backfilled items it holds.
+    Drives the "not every source can be backfilled" note on the dashboards."""
+    since = utcnow() - timedelta(days=days)
+    live_since = db.scalar(select(func.min(Item.collected_at)).where(Item.origin == "live"))
+    backfilled = db.scalar(select(func.count(Item.id)).where(Item.origin == "backfill", Item.published_at >= since)) or 0
+    beyond_live = days > 7 or (live_since is not None and live_since > since + timedelta(hours=12))
+    return {"days": days, "live_since": live_since, "backfilled": backfilled, "warn": beyond_live,
+            "periods": trends.PERIODS}
+
+
 @router.get("/")
 def dashboard(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db),
               region: str = Depends(current_region)):
+    days = dashboard_period(request)
     digest = db.execute(select(Insight).where(Insight.kind == "digest").order_by(Insight.created_at.desc())
                         .limit(1)).scalar_one_or_none()
-    recent = db.execute(geo.scoped(select(Item).where(Item.severity >= 30), region)
+    since = utcnow() - timedelta(days=days)
+    recent = db.execute(geo.scoped(select(Item).where(Item.severity >= 30, Item.published_at >= since), region)
                         .order_by(Item.published_at.desc()).limit(12)).scalars().all()
     watch_ids = [w.entity_id for w in db.execute(select(Watch).where(Watch.user_id == user.id)).scalars()]
     return render(request, "dashboard.html", {
-        "user": user, "ov": trends.overview(db, 7, region),
-        "trending": trends.trending(db, "malware", limit=12, region=region),
-        "actors": trends.trending_actors(db, limit=15, region=region),
-        "cves": trends.trending_cves(db, limit=15, region=region),
-        "geo": trends.geo_stats(db, 30, region, families_per=3),
+        "user": user, "days": days, "cov": coverage(db, days), "ov": trends.overview(db, days, region),
+        "trending": trends.trending(db, "malware", limit=12, window=days, region=region),
+        "actors": trends.trending_actors(db, limit=15, region=region, window=days),
+        "cves": trends.trending_cves(db, limit=15, region=region, window=days),
+        "geo": trends.geo_stats(db, days, region, families_per=3),
         "recent": recent, "digest": digest, "llm_on": llm.is_configured(), "watch_ids": watch_ids,
     })
 
@@ -483,7 +509,7 @@ def item_preview(item_id: int, request: Request, user: User = Depends(current_us
         raise HTTPException(404, "Item not found")
     ents = sorted(item.entity_links, key=lambda link: (link.entity.type, link.entity.display))
     named = [link.entity for link in ents
-             if link.entity.type in ("malware", "actor", "cve", "technique", "scam_type", "brand")]
+             if link.entity.type in ("malware", "actor", "cve", "technique", "scam_type", "brand", "sector")]
     iocs = sorted((link.entity for link in ents if link.entity.type in trends.IOC_TYPES),
                   key=lambda e: ({"malicious": 0, "suspicious": 1}.get(e.verdict or "", 2), e.type))
     return render(request, "_preview_item.html", {

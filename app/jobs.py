@@ -117,8 +117,17 @@ def queue_backfill(db, source_ids: list[int], since: datetime, until: datetime) 
 _cancelled: set[str] = set()
 
 
-def cancel_backfill(batch_id: str) -> None:
+def cancel_backfill(batch_id: str, db=None) -> int:
+    """Stop a backfill: the source being crawled stops after its current page, the queued ones are aborted
+    right away (so the page shows the batch as stopping instead of waiting for the worker to reach them)."""
     _cancelled.add(batch_id)
+    if db is None:
+        return 0
+    queued = db.execute(select(CollectorRun).where(CollectorRun.batch_id == batch_id,
+                                                   CollectorRun.status == "queued")).scalars().all()
+    for run in queued:
+        run.status, run.finished_at, run.message = "aborted", utcnow(), "backfill stopped by a user"
+    return len(queued)
 
 
 def run_backfill(batch_id: str, since_iso: str, until_iso: str) -> str:
@@ -132,6 +141,9 @@ def run_backfill(batch_id: str, since_iso: str, until_iso: str) -> str:
         runs = db.execute(select(CollectorRun).where(CollectorRun.batch_id == batch_id, CollectorRun.status == "queued")
                           .order_by(CollectorRun.id)).scalars().all()
         for run in runs:
+            db.refresh(run)  # the Stop button aborts queued runs in the database
+            if run.status != "queued":
+                continue
             if batch_id in _cancelled:
                 _finish(db, run, "aborted", "backfill stopped by a user")
                 continue
@@ -504,6 +516,34 @@ def run_fraudtag(force: bool = False) -> str:
         db.close()
 
 
+def run_sectortag(force: bool = False) -> str:
+    """IIV sectors of every stored item (0.10). Runs once after an upgrade or a rules change
+    (``sectors.RULES_VERSION``), or on demand (``manage.py sectortag``)."""
+    from .processing import sectors
+
+    if not force and int(settings.get("sector_version") or 0) >= sectors.RULES_VERSION:
+        return "sectors are up to date"
+    db = SessionLocal()
+    run = _start_run(db, "sectortag")
+    try:
+        def progress(done: int, total: int) -> None:
+            run.progress_done, run.progress_total, run.phase = done, total, f"{done}/{total} items"
+            db.commit()
+
+        n = sectors.retag_all(db, progress)
+        settings.set("sector_version", sectors.RULES_VERSION)
+        msg = f"sector-tagged {n} item(s)"
+        _finish(db, run, "ok", msg)
+        return msg
+    except Exception as e:
+        db.rollback()
+        _finish(db, run, "error", str(e))
+        log.warning("sectortag failed: %s", e)
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
 def prune_identifiers(db) -> int:
     """UU PDP data minimisation: scammer phone numbers, bank accounts and e-wallets that no item has mentioned for
     ``fraud_identifier_days`` are deleted (crypto wallets are not personal data and stay)."""
@@ -751,9 +791,11 @@ def status(db) -> dict:
             with _live_lock:
                 live = dict(_live.get(cur.id) or {})
             new += live.get("done", 0)
-        bf.update(running=True, done=done, total=len(runs), batch=bbatch,
-                  label=f"Backfilling… {done}/{len(runs)} sources · {new} new"
-                        + (f" · {live['phase']}" if live.get("phase") else ""))
+        stopping = bbatch in _cancelled
+        bf.update(running=True, done=done, total=len(runs), batch=bbatch, stopping=stopping,
+                  label=(f"Stopping after the current page… {new} new" if stopping else
+                         f"Backfilling… {done}/{len(runs)} sources · {new} new"
+                         + (f" · {live['phase']}" if live.get("phase") else "")))
     lastb = _last_finished(db, CollectorRun.job.like("backfill:%"))
     if lastb:
         bf["last"] = {"finished_at": _iso(lastb.finished_at), "status": "ok", "summary": ""}
@@ -824,6 +866,9 @@ def start() -> None:
     scheduler.add_job(run_geotag, "date", run_date=_now() + timedelta(seconds=20), id="geotag", replace_existing=True)
     # same for the scam & fraud analysis (0.9)
     scheduler.add_job(run_fraudtag, "date", run_date=_now() + timedelta(seconds=40), id="fraudtag",
+                      replace_existing=True)
+    # and for the IIV sectors (0.10)
+    scheduler.add_job(run_sectortag, "date", run_date=_now() + timedelta(seconds=60), id="sectortag",
                       replace_existing=True)
     if settings.get("geoip_auto_update"):
         scheduler.add_job(run_geoip_update, "cron", day=5, hour=4, minute=0, id="geoip_update", replace_existing=True)

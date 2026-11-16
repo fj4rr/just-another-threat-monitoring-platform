@@ -5,8 +5,9 @@
 JATMP is a self-hosted platform for keeping track of new and emerging malware campaigns and scams. It collects
 **security news**, **social media** (X, Bluesky, Mastodon, Telegram) and **threat-intelligence platforms**,
 extracts the malware families, actors, CVEs and indicators in each item, checks the indicators against intel
-providers, correlates everything across sources and shows the result on a trend dashboard. Scam reports get their
-own section on the same entity graph. Every item is placed on the map, and the whole interface switches between an
+providers, correlates everything across sources and shows the result on a trend dashboard. Scam reports get a
+dashboard of their own on the same entity graph, and items are sorted into Indonesia's vital infrastructure (IIV)
+sectors. Every item is placed on the map, and the whole interface switches between an
 International and a National (Indonesia) view.
 
 It runs as a single process with SQLite by default. There is no JavaScript build step and nothing is loaded from
@@ -23,17 +24,18 @@ More in the [screenshot tour](docs/screenshots.md).
   feed, account or channel can be added. → [Sources](docs/sources.md)
 - **Analysis**: entity extraction with defang handling, an explainable 0–100 severity score, cross-provider
   verdict consensus (VirusTotal, OTX, abuse.ch, GreyNoise, AbuseIPDB and more), a relationship graph,
-  on-demand infrastructure context, trend scoring and CVE context from CISA KEV, FIRST EPSS and NVD.
+  on-demand infrastructure context, trend scoring over 7 days to a year, IIV sectors and CVE context from CISA KEV,
+  FIRST EPSS and NVD.
   → [Analysis](docs/analysis.md)
 - **Geography**: target, source and hosting countries kept apart, Indonesian provinces, an International /
   National (ID) switch and Bahasa Indonesia support. → [Geography and Indonesia](docs/geography.md)
 - **Scams and fraud**: scam types, impersonated banks, e-wallets and government bodies, scammer phone numbers,
   accounts and wallets (kept to a minimum under UU PDP), losses in rupiah and a separate fraud score, from news,
-  fact-checkers, FBI IC3 and the ScamSniffer blocklist. → [Scams and fraud](docs/fraud.md)
+  fact-checkers, FBI IC3 and the ScamSniffer blocklist, on their own dashboard. → [Scams and fraud](docs/fraud.md)
 - **Sharing**: REST API with API keys, IOC blocklist feeds, STIX 2.1 / TAXII 2.1, signed webhooks
   (Slack, Discord, Teams) and two-way MISP, all behind TLP sharing rules. → [Sharing and integrations](docs/integrations.md)
 - **Reporting and AI**: a *Threat Intel Findings* report as PDF, Word, Markdown or CSV, and optional summaries,
-  briefs, a daily digest and Q&A from a local or cloud LLM. → [Reporting and AI](docs/reporting-and-ai.md)
+  briefs, a daily executive summary and Q&A from a local or cloud LLM. → [Reporting and AI](docs/reporting-and-ai.md)
 - **History**: backfill up to a year back, retention tiers, full-text search and optional PostgreSQL.
   → [History and storage](docs/history-and-storage.md)
 - **Operation**: single-user or multi-user with roles, live job progress, a notification center, a side preview on

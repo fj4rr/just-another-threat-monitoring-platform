@@ -16,7 +16,14 @@ appended. The number of findings, families and indicators is adjustable.
 ## AI (optional)
 
 With an LLM configured, JATMP can summarise and analyse individual items, write a threat brief per family or
-actor, produce a daily digest at 06:00 UTC and answer questions over the collected data. Set-up is a three-way
+actor, write a daily executive summary at 06:00 UTC and answer questions over the collected data.
+
+The **executive summary** (dashboard card, *AI summary* button, history under AI insights) is short on purpose: a
+one-sentence headline, an overall threat level (low, elevated, high, critical), three or four key points and up to
+three actions for today, over the last 24 hours of items plus the week's trending malware, actors, CVEs, scam types
+and sectors. The model answers in JSON; JATMP checks it, strips any markdown or math notation, and renders it with
+the same components as the rest of the interface. If the model returns something unusable, the text is shown as
+it came. Set-up is a three-way
 choice between **Off**, **Local** and **Cloud**, followed by a vendor and a model picked from the live list the
 server or provider reports. Local runtimes: Ollama, LM Studio, llama.cpp, vLLM, Jan or any OpenAI-compatible
 server. Cloud providers: Anthropic, OpenAI, OpenRouter, Groq, Gemini, Mistral, DeepSeek, xAI, Together or any

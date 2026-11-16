@@ -1,5 +1,0 @@
-{# Section tabs of the scam & fraud pages. #}
-<nav class="tabs" aria-label="Scam and fraud sections">
-  {% for key, href, label in [('overview', '/fraud', 'Overview'), ('items', '/fraud/items', 'Scam reports'), ('scams', '/fraud/scams', 'Scam types'), ('brands', '/fraud/brands', 'Impersonated brands'), ('identifiers', '/fraud/identifiers', 'Scammer identifiers')] %}
-  <a href="{{ href }}" class="{{ 'active' if section == key }}" {% if section == key %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
-</nav>

@@ -32,7 +32,7 @@ IDENT_LABELS = {"phone": "Phone number", "bank_account": "Bank account", "ewalle
                 "crypto_wallet": "Crypto wallet"}
 
 # Bump when the rules change: the start-up job re-analyses stored items once per version.
-RULES_VERSION = 2
+RULES_VERSION = 3  # 3 (0.10): vendor listicles only count their title
 
 # --------------------------------------------------------------------------- scam types
 # (key, display name, weight, strong pattern, weak pattern). Weak patterns need a scam word elsewhere in the item.
@@ -119,7 +119,10 @@ _TYPES = [(k, n, w, re.compile(s, re.I), re.compile(wk, re.I) if wk else None) f
 
 # Newsletters and weekly round-ups mention every scam of the week in passing: only their title counts.
 ROUNDUP = re.compile(r"\b(?:week(?:ly)? in (?:review|security)|a week in|in review|round-?up|recap|digest|newsletter|"
-                     r"lessons from|podcast|episode|webinar|interview|this week in|rangkuman|sepekan)\b", re.I)
+                     r"lessons from|podcast|episode|webinar|interview|this week in|rangkuman|sepekan)\b"
+                     # vendor listicles ("Top 10 Best ASM Tools in 2026 [Ranked & Scored]") list fraud features
+                     r"|\btop \d{1,2} (?:best )?\w|\branked\b|\bbest [\w /()-]{0,60}\b(?:tools|platforms|software|solutions|"
+                     r"vendors|services)\b", re.I)
 
 
 def scam_types(title: str, body: str, topic: str = "") -> list[tuple[str, str, int]]:
@@ -474,11 +477,21 @@ class FraudResult:
     entities: list[Extracted] = field(default_factory=list)
 
 
-def velocity(db, key: str, at: datetime) -> tuple[int, int]:
-    """Items of scam type ``key`` in the 7 days up to ``at`` and in the 7 days before that."""
+def velocity(db, key: str, at: datetime, cache: dict | None = None) -> tuple[int, int]:
+    """Items of scam type ``key`` in the 7 days up to ``at`` and in the 7 days before that.
+
+    ``cache`` (a dict kept for one collection batch or one re-analysis run) holds the counts per scam type and day,
+    so a batch of 200 scam reports costs two queries per scam type and day instead of two per report."""
     from sqlalchemy import func, select
 
     from ..models import Entity, Item, ItemEntity
+
+    if cache is not None:
+        day = at.replace(hour=23, minute=59, second=59, microsecond=0)
+        hit = cache.get((key, day.date()))
+        if hit is None:
+            hit = cache[(key, day.date())] = velocity(db, key, day)
+        return hit
 
     def count(lo, hi):
         return db.scalar(
@@ -505,7 +518,8 @@ def _victim_points(n: int) -> int:
 
 
 def analyse(title: str, body: str, *, topic: str = "", db=None, at: datetime | None = None,
-            usd_rate: float | None = None, extract_identifiers: bool | None = None) -> FraudResult:
+            usd_rate: float | None = None, extract_identifiers: bool | None = None,
+            cache: dict | None = None) -> FraudResult:
     """Fraud score, reasons and fraud entities of one item. Items that are not about a scam get score 0."""
     from .. import settings
     from ..models import utcnow
@@ -549,7 +563,7 @@ def analyse(title: str, body: str, *, topic: str = "", db=None, at: datetime | N
     if OFFICIAL_SOURCE.search(text):
         reasons.append({"label": "official warning or law enforcement", "points": 8})
     if db is not None and key != "other":
-        now, before = velocity(db, key, at or utcnow())
+        now, before = velocity(db, key, at or utcnow(), cache)
         if now >= VELOCITY_MIN and now >= 2 * max(1, before):
             reasons.append({"label": f"spreading: {now} reports this week, {before} the week before", "points": 8})
     res.reasons = reasons
@@ -557,10 +571,10 @@ def analyse(title: str, body: str, *, topic: str = "", db=None, at: datetime | N
     return res
 
 
-def apply(db, item, topic: str = "") -> list[Extracted]:
+def apply(db, item, topic: str = "", cache: dict | None = None) -> list[Extracted]:
     """Analyse ``item`` and store its fraud fields. Returns the fraud entities to link."""
     body = f"{item.content or ''}\n{' '.join(item.tags or [])}"
-    r = analyse(item.title, body, topic=topic, db=db, at=item.published_at)
+    r = analyse(item.title, body, topic=topic, db=db, at=item.published_at, cache=cache)
     item.fraud_score, item.fraud_detail = r.score, r.reasons
     item.fraud_loss_idr, item.fraud_victims = r.loss_idr, r.victims
     return r.entities
@@ -581,39 +595,52 @@ def check_links(e) -> list[tuple[str, str]]:
     return []
 
 
-def retag_item(db, item) -> None:
+def retag_item(db, item, cache: dict | None = None) -> None:
     """Re-run the fraud analysis on a stored item, replacing its fraud entities (rules may have changed)."""
     from sqlalchemy import select
 
     from ..models import Entity, ItemEntity
     from .pipeline import link_entities
 
+    had = bool(item.fraud_score)  # fraud entities are only ever linked to items with a score
+    found = apply(db, item, (item.source.topic or "") if item.source else "", cache)
+    if not had and not found:
+        return  # most items: not about a scam before or after, nothing to rewrite
     old = db.execute(select(ItemEntity).join(Entity, Entity.id == ItemEntity.entity_id)
                      .where(ItemEntity.item_id == item.id, Entity.type.in_(FRAUD_TYPES))).scalars().all()
+    keep = {(f.type, f.value) for f in found}
+    kept: set[tuple[str, str]] = set()
     for link in old:
+        key = (link.entity.type, link.entity.value)
+        if key in keep:
+            kept.add(key)
+            continue
         link.entity.mention_count = max(0, (link.entity.mention_count or 0) - 1)
         db.delete(link)
     db.flush()
-    link_entities(db, item, apply(db, item, item.source.topic or "" if item.source else ""))
+    link_entities(db, item, [f for f in found if (f.type, f.value) not in kept])
 
 
 def retag_all(db, progress=None, batch: int = 500) -> int:
-    """Fraud analysis of every stored item, oldest first so the spread velocity sees earlier reports."""
-    from sqlalchemy import func, select
+    """Fraud analysis of every stored item, oldest first so the spread velocity sees earlier reports.
+    Items are loaded in chunks, and items that are not about a scam cost no extra query."""
+    from sqlalchemy import select
 
     from ..models import Item
 
-    total = db.scalar(select(func.count(Item.id))) or 0
     ids = [i for (i,) in db.execute(select(Item.id).order_by(Item.published_at, Item.id))]
-    for n, item_id in enumerate(ids, 1):
-        item = db.get(Item, item_id)
-        if item is not None:
-            retag_item(db, item)
-        if n % batch == 0:
-            db.commit()
-            if progress:
-                progress(n, total)
-    db.commit()
-    if progress:
-        progress(total, total)
+    total = len(ids)
+    cache: dict = {}
+    for n in range(0, total, batch):
+        chunk = ids[n:n + batch]
+        items = {i.id: i for i in db.execute(select(Item).where(Item.id.in_(chunk))).unique().scalars()}
+        for item_id in chunk:  # keep the chronological order inside the chunk
+            if item_id in items:
+                retag_item(db, items[item_id], cache)
+        db.commit()
+        cache.clear()  # the counts change as earlier reports are re-tagged
+        if progress:
+            progress(min(n + batch, total), total)
+    if progress and not total:
+        progress(0, 0)
     return total

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import Session
@@ -15,6 +16,47 @@ IOC_TYPES = ("md5", "sha1", "sha256", "ip", "domain", "url")
 
 def _since(days: int) -> datetime:
     return utcnow() - timedelta(days=days)
+
+
+# Dashboard periods (0.10): the live collectors cover the last days; longer periods rely on backfilled history.
+PERIODS = [(7, "7 days"), (15, "15 days"), (30, "30 days"), (90, "3 months"), (180, "6 months"), (365, "1 year")]
+PERIOD_DAYS = tuple(d for d, _ in PERIODS)
+WEEKLY_AFTER = 90  # charts switch from daily to weekly bars above this many days
+
+
+def norm_period(days, default: int = 7) -> int:
+    try:
+        d = int(days)
+    except (TypeError, ValueError):
+        return default
+    return d if d in PERIOD_DAYS else default
+
+
+def baseline_days(window: int) -> int:
+    """Trend baseline for a window: the 30 days before it, or as long as the window itself for long periods."""
+    return max(30, window)
+
+
+def buckets(days: int) -> tuple[list[str], int, Callable]:
+    """Chart labels for a period ending today: one per day, or one per week (the first day of each 7-day block)
+    once the period is longer than ``WEEKLY_AFTER`` days. Returns (labels, step in days, key(date))."""
+    start = (_since(days) + timedelta(days=1)).date()
+    step = 7 if days > WEEKLY_AFTER else 1
+    labels = [(start + timedelta(days=i)).isoformat() for i in range(0, days, step)]
+
+    def key(d) -> str:
+        day = d if isinstance(d, date) else date.fromisoformat(str(d)[:10])
+        off = (day - start).days
+        return (start + timedelta(days=off - off % step)).isoformat() if off >= 0 else ""
+
+    return labels, step, key
+
+
+def _series(rows, labels: list[str], key) -> list[int]:
+    m: dict[str, int] = defaultdict(int)
+    for d, n in rows:
+        m[key(d)] += n
+    return [m.get(lbl, 0) for lbl in labels]
 
 
 def _entities_in_region(region: str, since: datetime | None = None):
@@ -73,7 +115,7 @@ def overview(db: Session, days: int = 7, region: str = "") -> dict:
 
 
 def timeline(db: Session, days: int = 30, region: str = "") -> dict:
-    """Daily item counts split by source category."""
+    """Item counts per day (or week, for long periods) split by source category."""
     since = _since(days)
     day = func.date(Item.published_at)
     rows = db.execute(scoped(
@@ -82,28 +124,28 @@ def timeline(db: Session, days: int = 30, region: str = "") -> dict:
         .where(Item.published_at >= since), region)
         .group_by(day, Source.category)
     ).all()
-    labels = [(since + timedelta(days=i + 1)).strftime("%Y-%m-%d") for i in range(days)]
-    series: dict[str, dict[str, int]] = defaultdict(dict)
+    labels, step, key = buckets(days)
+    by_cat: dict[str, list] = defaultdict(list)
     for d, cat, n in rows:
-        series[cat][str(d)] = n
-    return {"labels": labels,
-            "series": {cat: [series[cat].get(lbl, 0) for lbl in labels] for cat in ("news", "social", "intel")}}
+        by_cat[cat].append((d, n))
+    return {"labels": labels, "step": step,
+            "series": {cat: _series(by_cat[cat], labels, key) for cat in ("news", "social", "intel")}}
 
 
-def family_timeline(db: Session, entity_ids: list[int], days: int = 30, region: str = "") -> dict:
+def family_timeline(db: Session, entity_ids: list[int], days: int = 30, region: str = "", extra=None) -> dict:
     since = _since(days)
     day = func.date(Item.published_at)
-    rows = db.execute(scoped(
-        select(ItemEntity.entity_id, day, func.count(Item.id))
-        .join(Item, Item.id == ItemEntity.item_id)
-        .where(ItemEntity.entity_id.in_(entity_ids), Item.published_at >= since), region)
-        .group_by(ItemEntity.entity_id, day)
-    ).all()
-    labels = [(since + timedelta(days=i + 1)).strftime("%Y-%m-%d") for i in range(days)]
-    m: dict[int, dict[str, int]] = defaultdict(dict)
+    q = (select(ItemEntity.entity_id, day, func.count(Item.id))
+         .join(Item, Item.id == ItemEntity.item_id)
+         .where(ItemEntity.entity_id.in_(entity_ids), Item.published_at >= since))
+    if extra is not None:
+        q = q.where(extra)
+    rows = db.execute(scoped(q, region).group_by(ItemEntity.entity_id, day)).all()
+    labels, step, key = buckets(days)
+    m: dict[int, list] = defaultdict(list)
     for eid, d, n in rows:
-        m[eid][str(d)] = n
-    return {"labels": labels, "series": {eid: [m[eid].get(lbl, 0) for lbl in labels] for eid in entity_ids}}
+        m[eid].append((d, n))
+    return {"labels": labels, "step": step, "series": {eid: _series(m[eid], labels, key) for eid in entity_ids}}
 
 
 def top_entities(db: Session, etype: str, days: int = 7, limit: int = 10, category: str | None = None,
@@ -182,14 +224,13 @@ def actor_breakdown(db: Session, days: int = 30, region: str = "") -> list[dict]
     return sorted(out, key=lambda d: (d["category"] == "unclassified", -d["count"]))
 
 
-def source_breakdown(db: Session, days: int = 7, region: str = "") -> list[dict]:
+def source_breakdown(db: Session, days: int = 7, region: str = "", extra=None) -> list[dict]:
     since = _since(days)
-    rows = db.execute(scoped(
-        select(Source.name, Source.category, func.count(Item.id))
-        .join(Item, Item.source_id == Source.id)
-        .where(Item.published_at >= since), region)
-        .group_by(Source.id).order_by(func.count(Item.id).desc())
-    ).all()
+    q = select(Source.name, Source.category, func.count(Item.id)).join(Item, Item.source_id == Source.id).where(
+        Item.published_at >= since)
+    if extra is not None:
+        q = q.where(extra)
+    rows = db.execute(scoped(q, region).group_by(Source.id).order_by(func.count(Item.id).desc())).all()
     return [{"name": n, "category": c, "count": k} for n, c, k in rows]
 
 
@@ -208,24 +249,25 @@ def ioc_breakdown(db: Session, days: int = 30, region: str = "") -> list[dict]:
     return sorted(out.values(), key=lambda d: -(d["malicious"] + d["suspicious"] + d["other"]))
 
 
-def trending(db: Session, etype: str = "malware", limit: int = 10, window: int = 7, baseline: int = 30,
-             region: str = "") -> list[dict]:
+def trending(db: Session, etype: str = "malware", limit: int = 10, window: int = 7, baseline: int | None = None,
+             region: str = "", extra=None) -> list[dict]:
     """Trend score = recent mention rate vs. baseline rate, weighted by cross-source spread.
     New entities (first seen inside the window) get flagged."""
+    baseline = baseline or baseline_days(window)
     now = utcnow()
     w_start, b_start = now - timedelta(days=window), now - timedelta(days=window + baseline)
     recent = func.count(distinct(Item.id)).filter(Item.published_at >= w_start)
     base = func.count(distinct(Item.id)).filter(and_(Item.published_at >= b_start, Item.published_at < w_start))
     srcs = func.count(distinct(Item.source_id)).filter(Item.published_at >= w_start)
     cats = func.count(distinct(Source.category)).filter(Item.published_at >= w_start)
-    rows = db.execute(scoped(
-        select(Entity.id, Entity.display, Entity.category, Entity.first_seen, recent, base, srcs, cats)
-        .join(ItemEntity, ItemEntity.entity_id == Entity.id)
-        .join(Item, Item.id == ItemEntity.item_id)
-        .join(Source, Source.id == Item.source_id)
-        .where(Entity.type == etype, Item.published_at >= b_start), region)
-        .group_by(Entity.id)
-    ).all()
+    q = (select(Entity.id, Entity.display, Entity.category, Entity.first_seen, recent, base, srcs, cats)
+         .join(ItemEntity, ItemEntity.entity_id == Entity.id)
+         .join(Item, Item.id == ItemEntity.item_id)
+         .join(Source, Source.id == Item.source_id)
+         .where(Entity.type == etype, Item.published_at >= b_start))
+    if extra is not None:
+        q = q.where(extra)
+    rows = db.execute(scoped(q, region).group_by(Entity.id)).all()
     out = []
     if etype == "actor":
         from ..knowledge import actor_category
@@ -259,26 +301,42 @@ def co_occurring(db: Session, entity_id: int, etypes: tuple[str, ...], limit: in
 
 
 def kpi_series(db: Session, days: int = 14, region: str = "") -> dict:
-    """Daily values behind the KPI tiles (for sparklines)."""
+    """Daily (weekly for long periods) values behind the KPI tiles (for sparklines)."""
     since = _since(days)
-    labels = [(since + timedelta(days=i + 1)).strftime("%Y-%m-%d") for i in range(days)]
+    labels, step, key = buckets(days)
     day = func.date(Item.published_at)
 
     def per_day(q) -> list[int]:
-        m = {str(d): n for d, n in db.execute(scoped(q, region)).all()}
-        return [m.get(lbl, 0) for lbl in labels]
+        return _series(db.execute(scoped(q, region)).all(), labels, key)
 
     base = (select(day, func.count(distinct(Entity.id)))
             .select_from(Item).join(ItemEntity, ItemEntity.item_id == Item.id)
             .join(Entity, Entity.id == ItemEntity.entity_id).where(Item.published_at >= since))
     return {
-        "labels": labels,
+        "labels": labels, "step": step,
         "items": per_day(select(day, func.count(Item.id)).where(Item.published_at >= since).group_by(day)),
         "families": per_day(base.where(Entity.type == "malware").group_by(day)),
         "iocs": per_day(base.where(Entity.type.in_(IOC_TYPES)).group_by(day)),
         "cves": per_day(base.where(Entity.type == "cve").group_by(day)),
         "actors": per_day(base.where(Entity.type == "actor").group_by(day)),
     }
+
+
+def sector_breakdown(db: Session, days: int = 30, region: str = "", extra=None) -> list[dict]:
+    """Items per IIV sector (app/processing/sectors.py) in the period, busiest first, all eight sectors."""
+    from .sectors import SECTOR_KEYS, SECTOR_NAMES, SECTOR_NAMES_ID
+
+    q = (select(Entity.id, Entity.value, func.count(distinct(Item.id)))
+         .join(ItemEntity, ItemEntity.entity_id == Entity.id).join(Item, Item.id == ItemEntity.item_id)
+         .where(Entity.type == "sector", Item.published_at >= _since(days)))
+    if extra is not None:
+        q = q.where(extra)
+    found = {v: (eid, n) for eid, v, n in db.execute(scoped(q, region).group_by(Entity.id)).all()}
+    out = []
+    for k in SECTOR_KEYS:
+        eid, n = found.get(k, (None, 0))
+        out.append({"category": k, "label": SECTOR_NAMES[k], "label_id": SECTOR_NAMES_ID[k], "id": eid, "count": n})
+    return sorted(out, key=lambda r: -r["count"])
 
 
 # --------------------------------------------------------------------------- correlation
@@ -289,6 +347,7 @@ CORRELATION_WEIGHT = {
     "malware": 2.5, "actor": 2.5, "cve": 1.5, "technique": 0.5,
     # scam & fraud (0.9): the same scammer number / account / wallet is strong evidence, a scam type or brand weak
     "crypto_wallet": 6.0, "bank_account": 5.0, "ewallet": 5.0, "phone": 4.0, "brand": 1.0, "scam_type": 0.5,
+    "sector": 0.2,  # 0.10: a shared sector is barely evidence of anything
 }
 # Entities mentioned in more items than this are too generic to generate candidates
 # (they still weigh in for candidates found through rarer entities).
@@ -344,12 +403,12 @@ def correlated_items(db: Session, item: Item, limit: int = 15) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- dashboard widgets
-def trending_cves(db: Session, limit: int = 8, region: str = "") -> list[dict]:
+def trending_cves(db: Session, limit: int = 8, region: str = "", window: int = 7) -> list[dict]:
     """Trending CVEs re-ranked by exploitation risk (CISA KEV, EPSS, CVSS from app/intel/cve.py),
     each with the families and actors mentioned alongside it."""
     from ..intel.cve import priority
 
-    rows = trending(db, "cve", limit=60, region=region)
+    rows = trending(db, "cve", limit=60, region=region, window=window)
     if not rows:
         return []
     metas = dict(db.execute(select(Entity.id, Entity.meta).where(Entity.id.in_([r["id"] for r in rows]))).all())
@@ -364,15 +423,16 @@ def trending_cves(db: Session, limit: int = 8, region: str = "") -> list[dict]:
     return out
 
 
-def trending_actors(db: Session, limit: int = 8, region: str = "") -> list[dict]:
-    rows = trending(db, "actor", limit=limit, region=region)
+def trending_actors(db: Session, limit: int = 8, region: str = "", window: int = 7) -> list[dict]:
+    rows = trending(db, "actor", limit=limit, region=region, window=window)
     for r in rows:
         r["related"] = co_occurring(db, r["id"], ("malware", "cve"), 5)
     return rows
 
 
 # --------------------------------------------------------------------------- geography (0.8)
-def geo_stats(db: Session, days: int = 30, region: str = "", families_per: int = 3) -> dict:
+def geo_stats(db: Session, days: int = 30, region: str = "", families_per: int = 3, extra=None,
+              related_types: tuple[str, ...] = ("malware", "actor")) -> dict:
     """Counts behind the Geography page and the dashboard map: target countries, Indonesian provinces,
     source countries, languages and infrastructure (hosting) countries. ``days`` 0 = all time."""
     from ..models import ItemGeo
@@ -381,6 +441,8 @@ def geo_stats(db: Session, days: int = 30, region: str = "", families_per: int =
 
     def window(stmt):
         stmt = scoped(stmt, region)
+        if extra is not None:
+            stmt = stmt.where(extra)
         return stmt if since is None else stmt.where(Item.published_at >= since)
 
     n_items = func.count(distinct(Item.id))
@@ -410,7 +472,7 @@ def geo_stats(db: Session, days: int = 30, region: str = "", families_per: int =
             select(ItemGeo.country, Entity.id, Entity.type, Entity.display, n_items)
             .join(Item, Item.id == ItemGeo.item_id).join(ItemEntity, ItemEntity.item_id == Item.id)
             .join(Entity, Entity.id == ItemEntity.entity_id)
-            .where(ItemGeo.country.in_(top_cc), Entity.type.in_(("malware", "actor"))))
+            .where(ItemGeo.country.in_(top_cc), Entity.type.in_(related_types)))
             .group_by(ItemGeo.country, Entity.id).order_by(n_items.desc())).all()
         for cc, eid, etype, name, n in rows:
             lst = fams.setdefault(cc, [])

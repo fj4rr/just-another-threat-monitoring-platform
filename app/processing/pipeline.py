@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from .. import geoip
 from ..models import Enrichment, Entity, Item, ItemEntity, Source, utcnow
 from ..sharing import norm_tlp
-from . import fraud
+from . import fraud, sectors
 from .extractor import Extracted, extract_all
 from .geo import tag_item
 from .severity import reasons_to_json, score_item
@@ -59,36 +59,74 @@ def safe_url(url: str | None) -> str:
     return u[:2000]
 
 
+def _apply_seen(ent: Entity, ex: Extracted, seen_at: datetime) -> None:
+    if seen_at > ent.last_seen:
+        ent.last_seen = seen_at
+    if seen_at < ent.first_seen:
+        ent.first_seen = seen_at
+    if ex.category and not ent.category:
+        ent.category = ex.category
+
+
+def _new_entity(db: Session, ex: Extracted, seen_at: datetime) -> Entity:
+    ent = Entity(
+        type=ex.type, value=ex.value, display=ex.display or ex.value, category=ex.category,
+        first_seen=seen_at, last_seen=seen_at, mention_count=0, meta={},
+        country=geoip.country(ex.value) if ex.type == "ip" else "",
+    )
+    db.add(ent)
+    return ent
+
+
 def get_or_create_entity(db: Session, ex: Extracted, seen_at: datetime | None = None) -> Entity:
     seen_at = seen_at or utcnow()
     ent = db.execute(
         select(Entity).where(Entity.type == ex.type, Entity.value == ex.value)
     ).scalar_one_or_none()
     if ent is None:
-        ent = Entity(
-            type=ex.type, value=ex.value, display=ex.display or ex.value, category=ex.category,
-            first_seen=seen_at, last_seen=seen_at, mention_count=0, meta={},
-            country=geoip.country(ex.value) if ex.type == "ip" else "",
-        )
-        db.add(ent)
+        ent = _new_entity(db, ex, seen_at)
         db.flush()
     else:
-        if seen_at > ent.last_seen:
-            ent.last_seen = seen_at
-        if seen_at < ent.first_seen:
-            ent.first_seen = seen_at
-        if ex.category and not ent.category:
-            ent.category = ex.category
+        _apply_seen(ent, ex, seen_at)
     return ent
 
 
+def _entities_for(db: Session, extracted: list[Extracted], seen_at: datetime) -> dict[tuple[str, str], Entity]:
+    """Entities for a batch of extractions: one lookup query per entity type and one flush for the new ones,
+    instead of a query (and a flush) per indicator. A blocklist item with 500 domains costs two queries."""
+    by_type: dict[str, set[str]] = {}
+    for ex in extracted:
+        by_type.setdefault(ex.type, set()).add(ex.value)
+    found: dict[tuple[str, str], Entity] = {}
+    for etype, values in by_type.items():
+        vals = list(values)
+        for n in range(0, len(vals), 500):
+            for ent in db.execute(select(Entity).where(Entity.type == etype, Entity.value.in_(vals[n:n + 500]))).scalars():
+                found[(ent.type, ent.value)] = ent
+    created = False
+    for ex in extracted:
+        key = (ex.type, ex.value)
+        ent = found.get(key)
+        if ent is None:
+            found[key] = _new_entity(db, ex, seen_at)
+            created = True
+        else:
+            _apply_seen(ent, ex, seen_at)
+    if created:
+        db.flush()
+    return found
+
+
 def link_entities(db: Session, item: Item, extracted: list[Extracted]) -> int:
+    if not extracted:
+        return 0
     existing = {
         eid for (eid,) in db.execute(select(ItemEntity.entity_id).where(ItemEntity.item_id == item.id))
-    }
+    } if item.id else set()
+    ents = _entities_for(db, extracted, item.published_at or utcnow())
     added = 0
     for ex in extracted:
-        ent = get_or_create_entity(db, ex, item.published_at)
+        ent = ents[(ex.type, ex.value)]
         if ent.id in existing:
             continue
         existing.add(ent.id)
@@ -101,20 +139,29 @@ def link_entities(db: Session, item: Item, extracted: list[Extracted]) -> int:
 def mark_listed(db: Session, indicators: list[Extracted], provider: str, summary: str, permalink: str = "") -> int:
     """Indicators from a curated blocklist (ScamSniffer…) are confirmed malicious by the list itself: record that as
     an enrichment result so they do not wait in the enrichment queue and spend provider quota."""
-    n = 0
+    if not indicators:
+        return 0
     now = utcnow()
+    ents: list[Entity] = []
+    by_type: dict[str, set[str]] = {}
     for ind in indicators:
-        ent = db.execute(select(Entity).where(Entity.type == ind.type, Entity.value == ind.value)).scalar_one_or_none()
-        if ent is None:
-            continue
-        if not db.execute(select(Enrichment.id).where(Enrichment.entity_id == ent.id,
-                                                      Enrichment.provider == provider)).first():
+        by_type.setdefault(ind.type, set()).add(ind.value)
+    for etype, values in by_type.items():
+        vals = list(values)
+        for n in range(0, len(vals), 500):
+            ents += db.execute(select(Entity).where(Entity.type == etype, Entity.value.in_(vals[n:n + 500]))).scalars()
+    if not ents:
+        return 0
+    ids = [e.id for e in ents]
+    done = {eid for (eid,) in db.execute(select(Enrichment.entity_id).where(Enrichment.entity_id.in_(ids),
+                                                                            Enrichment.provider == provider))}
+    for ent in ents:
+        if ent.id not in done:
             db.add(Enrichment(entity_id=ent.id, provider=provider, verdict="malicious", score=1.0,
                               summary=summary[:500], permalink=permalink, data={}, fetched_at=now))
         if not ent.enriched_at:
             ent.verdict, ent.enriched_at = "malicious", now
-        n += 1
-    return n
+    return len(ents)
 
 
 def _external_id(r: RawItem) -> str:
@@ -167,6 +214,7 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, orig
             select(Item.external_id).where(Item.source_id == source.id, Item.external_id.in_(wanted))
         )
     }
+    velocity_cache: dict = {}  # scam-type spread counts, once per type and day for the whole batch
     for n, r in enumerate(raws, 1):
         if progress and (n % 5 == 0 or n == len(raws)):
             progress(n, len(raws))
@@ -200,8 +248,10 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, orig
         uniq = {(e.type, e.value): e for e in extracted}
         item.severity, reasons = score_item(item.title, f"{content}\n{' '.join(item.tags)}", list(uniq.values()), item.kind)
         item.severity_detail = reasons_to_json(reasons)
-        for fx in fraud.apply(db, item, source.topic or ""):  # scam types, brands, scammer identifiers
+        for fx in fraud.apply(db, item, source.topic or "", cache=velocity_cache):  # scam types, brands, identifiers
             uniq.setdefault((fx.type, fx.value), fx)
+        for sx in sectors.apply(item):  # IIV sectors (0.10)
+            uniq.setdefault((sx.type, sx.value), sx)
         link_entities(db, item, list(uniq.values()))
         if (r.raw or {}).get("listed_by") and r.indicators:
             mark_listed(db, r.indicators, str(r.raw["listed_by"]), str(r.raw.get("listed_summary") or ""), item.url)

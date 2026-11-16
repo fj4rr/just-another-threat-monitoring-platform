@@ -1,0 +1,18 @@
+{# AI executive summary (0.10). d = Insight (kind "digest"); older digests without structured data show as text. #}
+{% if d.data and d.data.get('headline') %}
+<div class="exec-head">
+  {% if d.data.level %}<span class="level {{ d.data.level }}" title="Overall threat level the model assigned today">{{ d.data.level }}</span>{% endif %}
+  <p>{{ d.data.headline }}</p>
+</div>
+<div class="exec-grid">
+  <ol class="exec-points">
+    {% for p in d.data.points %}<li><span class="n">{{ loop.index }}</span><b>{{ p.title }}</b><span>{{ p.detail }}</span></li>{% endfor %}
+  </ol>
+  {% if d.data.actions %}
+  <div class="exec-actions"><h3>Actions today</h3>
+    <ul>{% for a in d.data.actions %}<li>{{ a }}</li>{% endfor %}</ul></div>
+  {% endif %}
+</div>
+{% else %}
+<div class="prose small">{{ d.content|md }}</div>
+{% endif %}

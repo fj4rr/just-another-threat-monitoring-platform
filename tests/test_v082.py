@@ -76,7 +76,7 @@ def test_breakdowns_and_overview(client, v082_items):
     assert all("category" in r for r in client.get("/api/stats/categories?days=30").json())
     for t in ("malware", "cve", "actor", "bogus"):
         d = client.get(f"/api/stats/trending_timeline?type={t}&limit=5&days=30").json()
-        assert set(d) == {"labels", "series"} and len(d["labels"]) == 30
+        assert {"labels", "series"} <= set(d) and len(d["labels"]) == 30
 
 
 def test_dashboard_layout(client, v082_items):

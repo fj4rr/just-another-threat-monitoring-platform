@@ -1,23 +1,23 @@
-"""Scam & fraud section (0.9): overview, scam reports, scam types, impersonated brands, scammer identifiers.
-
-Same items, entities and International / National switch as the rest of JATMP; only the lens differs.
+"""Scam & fraud (0.9; own dashboard since 0.10): dashboard, scam reports, scam types, impersonated brands, scammer
+identifiers. Same items, entities, International / National switch and period as the threat dashboard; only the
+lens differs. The aggregations live in app/processing/fraudstats.py.
 """
 from __future__ import annotations
 
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import distinct, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .. import settings
 from ..auth import current_user
 from ..db import get_db
 from ..models import Entity, Item, ItemEntity, Source, User, utcnow
-from ..processing import fraud, geo, trends
+from ..processing import fraud, fraudstats, geo, trends
 from ..search import item_text_clause
 from ..web import current_region, render
-from .pages import _clamp, _dir, _entity_list, _keep, _qs, related_chips
+from .pages import _clamp, _dir, _entity_list, _keep, _qs, coverage, dashboard_period, related_chips
 
 router = APIRouter(prefix="/fraud")
 PAGE = 40
@@ -29,94 +29,34 @@ def _since(days: int):
     return utcnow() - timedelta(days=days)
 
 
-def _fraud_items(region: str):
-    return geo.scoped(select(Item).where(Item.fraud_score > 0), region)
-
-
-def _count(db: Session, stmt) -> int:
-    return db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-
-
-def _type_counts(db: Session, etype: str, region: str, lo, hi=None) -> dict[int, int]:
-    q = (select(Entity.id, func.count(distinct(Item.id)))
-         .join(ItemEntity, ItemEntity.entity_id == Entity.id).join(Item, Item.id == ItemEntity.item_id)
-         .where(Entity.type == etype, Item.published_at > lo))
-    if hi is not None:
-        q = q.where(Item.published_at <= hi)
-    return dict(db.execute(geo.scoped(q, region).group_by(Entity.id)).all())
-
-
-def scam_type_table(db: Session, region: str) -> list[dict]:
-    """Every scam type with reports this week, the week before and in 30 days, plus the spread velocity."""
-    now = utcnow()
-    week = _type_counts(db, "scam_type", region, now - timedelta(days=7))
-    prev = _type_counts(db, "scam_type", region, now - timedelta(days=14), now - timedelta(days=7))
-    month = _type_counts(db, "scam_type", region, now - timedelta(days=30))
-    ents = {e.id: e for e in db.execute(select(Entity).where(Entity.type == "scam_type")).scalars()}
-    rows = []
-    for eid, n30 in month.items():
-        e = ents.get(eid)
-        if not e:
-            continue
-        w, p = week.get(eid, 0), prev.get(eid, 0)
-        # same rule as the "spreading" part of the fraud score; "Other scam" is a catch-all, not one scam
-        spreading = e.value != "other" and w >= fraud.VELOCITY_MIN and w >= 2 * max(1, p)
-        rows.append({"entity": e, "week": w, "prev": p, "month": n30, "spreading": spreading})
-    rows.sort(key=lambda r: (-r["week"], -r["month"]))
-    related = related_chips(db, [r["entity"].id for r in rows], ("malware", "brand"), per=5)
-    for r in rows:
-        r["related"] = related.get(r["entity"].id, [])
-    return rows
-
-
-def top_entities(db: Session, etype: str, region: str, days: int = 30, limit: int = 12) -> list[dict]:
-    counts = _type_counts(db, etype, region, _since(days))
-    if not counts:
-        return []
-    ents = {e.id: e for e in db.execute(select(Entity).where(Entity.id.in_(list(counts)))).scalars()}
-    out = [{"entity": ents[i], "count": n} for i, n in counts.items() if i in ents]
-    out.sort(key=lambda r: -r["count"])
-    return out[:limit]
-
-
-def kpis(db: Session, region: str) -> dict:
-    now = utcnow()
-    base = _fraud_items(region)
-    week = _count(db, base.where(Item.published_at >= now - timedelta(days=7)))
-    prev = _count(db, base.where(Item.published_at >= now - timedelta(days=14), Item.published_at < now - timedelta(days=7)))
-    month = base.where(Item.published_at >= now - timedelta(days=30)).subquery()
-    loss = db.scalar(select(func.max(month.c.fraud_loss_idr))) or 0
-    with_loss = db.scalar(select(func.count()).select_from(month).where(month.c.fraud_loss_idr > 0)) or 0
-    victims = db.scalar(select(func.max(month.c.fraud_victims))) or 0
-
-    def distinct_entities(types) -> int:
-        q = (select(func.count(distinct(Entity.id))).select_from(Item)
-             .join(ItemEntity, ItemEntity.item_id == Item.id).join(Entity, Entity.id == ItemEntity.entity_id)
-             .where(Entity.type.in_(types), Item.published_at >= now - timedelta(days=30)))
-        return db.scalar(geo.scoped(q, region)) or 0
-
-    return {"week": week, "prev": prev, "loss": loss, "with_loss": with_loss, "victims": victims,
-            "brands": distinct_entities(("brand",)), "identifiers": distinct_entities(fraud.IDENT_TYPES)}
+_fraud_items = fraudstats.fraud_items
+_count = fraudstats._count
 
 
 @router.get("")
-def overview(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db),
-             region: str = Depends(current_region)):
-    now = utcnow()
-    recent = db.execute(_fraud_items(region).where(Item.published_at >= now - timedelta(days=30))
-                        .order_by(Item.published_at.desc()).limit(12)).unique().scalars().all()
-    top = db.execute(_fraud_items(region).where(Item.published_at >= now - timedelta(days=30))
-                     .order_by(Item.fraud_score.desc(), Item.published_at.desc()).limit(8)).unique().scalars().all()
+def dashboard(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db),
+              region: str = Depends(current_region)):
+    days = dashboard_period(request)
+    since = _since(days)
+    in_period = _fraud_items(region).where(Item.published_at >= since)
+    recent = db.execute(in_period.order_by(Item.published_at.desc()).limit(12)).unique().scalars().all()
+    top = db.execute(in_period.order_by(Item.fraud_score.desc(), Item.published_at.desc()).limit(8)).unique().scalars().all()
     idents = db.execute(
         geo.scoped(select(Entity, func.max(Item.published_at).label("last"))
                    .join(ItemEntity, ItemEntity.entity_id == Entity.id).join(Item, Item.id == ItemEntity.item_id)
-                   .where(Entity.type.in_(fraud.IDENT_TYPES)), region)
+                   .where(Entity.type.in_(fraud.IDENT_TYPES), Item.published_at >= since), region)
         .group_by(Entity.id).order_by(func.max(Item.published_at).desc()).limit(10)).all()
+    types = fraudstats.scam_type_table(db, region, days)
+    related = related_chips(db, [r["entity"].id for r in types[:15]], ("malware", "brand"), per=4)
+    for r in types:
+        r["related"] = related.get(r["entity"].id, [])
     sources = db.execute(select(Source).where(Source.topic == "fraud").order_by(Source.name)).scalars().all()
     return render(request, "fraud.html", {
-        "user": user, "section": "overview", "k": kpis(db, region), "types": scam_type_table(db, region),
-        "brands": top_entities(db, "brand", region), "recent": recent, "top": top, "idents": idents,
-        "sources": sources, "labels": fraud.IDENT_LABELS,
+        "user": user, "days": days, "cov": coverage(db, days), "k": fraudstats.kpis(db, region, days),
+        "types": types, "brands": fraudstats.top_entities(db, "brand", region, days),
+        "recent": recent, "top": top, "idents": idents, "sources": sources, "labels": fraud.IDENT_LABELS,
+        "geo": trends.geo_stats(db, days, region, families_per=3, extra=fraudstats.FRAUD,
+                                related_types=("scam_type", "brand")),
     })
 
 
@@ -130,15 +70,23 @@ ITEM_SORTS = {
 
 
 @router.get("/items")
-def items(request: Request, q: str = "", scam: int = 0, brand: int = 0, min_score: int = 0, days: int = 30,
-          page: int = 1, sort: str = "time", dir: str = "", user: User = Depends(current_user),
-          db: Session = Depends(get_db), region: str = Depends(current_region)):
+def items(request: Request, q: str = "", scam: int = 0, brand: int = 0, sector: int = 0, min_score: int = 0,
+          days: int = 30, page: int = 1, sort: str = "time", dir: str = "", country: str = "", province: str = "",
+          user: User = Depends(current_user), db: Session = Depends(get_db), region: str = Depends(current_region)):
+    from ..models import ItemGeo
+    from .pages import _cc, _province
+
     days, min_score, page = _clamp(days, 0, 3650), _clamp(min_score, 0, 100), _clamp(page, 1, 100_000)
     q = q.strip()[:200]
     sort = sort if sort in ITEM_SORTS else "time"
     direction = _dir(dir, ITEM_SORTS[sort][1])
     stmt = _fraud_items(region)
-    for eid in (scam, brand):
+    country, province = _cc(country), _province(province)
+    if country:
+        stmt = stmt.where(Item.id.in_(select(ItemGeo.item_id).where(ItemGeo.country == country)))
+    if province:
+        stmt = stmt.where(Item.id.in_(select(ItemGeo.item_id).where(ItemGeo.region == province)))
+    for eid in (scam, brand, sector):
         if eid:
             stmt = stmt.where(Item.id.in_(select(ItemEntity.item_id).where(ItemEntity.entity_id == eid)))
     if min_score:
@@ -153,11 +101,15 @@ def items(request: Request, q: str = "", scam: int = 0, brand: int = 0, min_scor
     rows = db.execute(stmt.order_by(*order).offset((page - 1) * PAGE).limit(PAGE)).unique().scalars().all()
     scam_types = db.execute(select(Entity).where(Entity.type == "scam_type").order_by(Entity.display)).scalars().all()
     brand_list = db.execute(select(Entity).where(Entity.type == "brand").order_by(Entity.display)).scalars().all()
-    f = {"q": q, "scam": scam, "brand": brand, "min_score": min_score, "days": days, "sort": sort, "dir": direction,
-         "qs": _qs(q=q, scam=scam, brand=brand, min_score=min_score, days=_keep(days))}
+    f = {"q": q, "scam": scam, "brand": brand, "sector": sector, "min_score": min_score, "days": days, "sort": sort,
+         "dir": direction, "country": country, "province": province,
+         "qs": _qs(q=q, scam=scam, brand=brand, sector=sector, min_score=min_score, days=_keep(days), country=country,
+                   province=province)}
+    sector_list = db.execute(select(Entity).where(Entity.type == "sector").order_by(Entity.display)).scalars().all()
     return render(request, "fraud_items.html", {
         "user": user, "section": "items", "items": rows, "total": total, "page": page,
         "pages": max(1, -(-total // PAGE)), "f": f, "scam_types": scam_types, "brand_list": brand_list,
+        "sector_list": sector_list,
         "targets": geo.targets_for(db, [i.id for i in rows]),
     })
 
@@ -166,7 +118,7 @@ def items(request: Request, q: str = "", scam: int = 0, brand: int = 0, min_scor
 def scams(request: Request, q: str = "", days: int = 30, sort: str = "mentions", dir: str = "", page: int = 1,
           user: User = Depends(current_user), db: Session = Depends(get_db), region: str = Depends(current_region)):
     return _entity_list(request, user, db, "scam_type", "Scam types", "", q, days, sort, dir, page, region,
-                        related_types=("malware", "brand"), categories=[], section="scams")
+                        related_types=("malware", "brand", "sector"), categories=[], section="scams")
 
 
 @router.get("/brands")
@@ -175,7 +127,7 @@ def brands(request: Request, category: str = "", q: str = "", days: int = 30, so
            region: str = Depends(current_region)):
     category = category if category in BRAND_CATEGORIES else ""
     return _entity_list(request, user, db, "brand", "Impersonated brands", category, q, days, sort, dir, page, region,
-                        related_types=("scam_type", "malware"), categories=BRAND_CATEGORIES, section="brands")
+                        related_types=("scam_type", "sector"), categories=BRAND_CATEGORIES, section="brands")
 
 
 IDENT_SORTS = {

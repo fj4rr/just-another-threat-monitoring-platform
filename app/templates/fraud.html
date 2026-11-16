@@ -1,77 +1,161 @@
 {% extends "base.html" %}
-{% from "_macros.html" import dchip, fraud_score %}
+{% from "_macros.html" import dchip, fraud_score, period_bar %}
 {% block title %}Scams & fraud{% endblock %}
+{% block reveal %}{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div><h1>Scams & fraud</h1>
-    <p class="muted">Scam reports from news, fact-checkers, official warnings, Telegram and blocklists, on the same entity graph as the malware they use
-      {%- if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %}</p></div>
+{% set plabel = dict(cov.periods)[days] %}
+{% set national = region == 'id' %}
+{% macro icon(path, href, label) %}<a class="icon" href="{{ href }}" title="{{ label }}" aria-label="{{ label }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ path|safe }}</svg></a>{% endmacro %}
+<div class="ambient">
+<div class="page-head reveal" style="--i:0">
+  <div><h1>Scam &amp; fraud landscape</h1>
+    <p class="muted">Last {{ plabel }} of scam reports from news, fact-checkers, official warnings, Telegram and blocklists ·
+      {% if national %}<span class="region-note" title="Items that target Indonesia, plus Indonesian outlets that name no other target country">National view: Indonesia</span> ·{% endif %}
+      <span class="live"><span class="dot"></span><span data-live-stamp>live</span></span></p></div>
   {% if user.role == 'admin' %}<button class="btn" data-post="/api/items/fraudtag" data-busy="Queuing…" title="Re-run the scam & fraud analysis on every stored item (background job, no network)">⟳ Re-analyse items</button>{% endif %}
 </div>
-{% include "_fraud_tabs.html" %}
+<div class="reveal" style="--i:1">{{ period_bar(cov, user, '/fraud') }}</div>
 
-{% set d = k.week - k.prev %}
-<div class="grid tiles-row">
-  <div class="card tile"><div class="label">Scam reports</div>
-    <div class="value">{{ k.week }}</div>
-    <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous 7 days · <a href="/fraud/items?days=7">list</a></div></div>
-  <div class="card tile"><div class="label">Largest reported loss</div>
-    <div class="value long">{{ k.loss|idr if k.loss else '–' }}</div>
-    <div class="delta">{{ k.with_loss }} report(s) with a loss figure · 30 days</div></div>
-  <div class="card tile"><div class="label">Largest victim count</div>
-    <div class="value">{{ '{:,}'.format(k.victims) if k.victims else '–' }}</div>
-    <div class="delta">in a single report · 30 days</div></div>
-  <div class="card tile"><div class="label">Brands impersonated</div>
-    <div class="value">{{ k.brands }}</div>
-    <div class="delta"><a href="/fraud/brands">brands</a> · 30 days</div></div>
-  <div class="card tile"><div class="label">Scammer identifiers</div>
-    <div class="value">{{ k.identifiers }}</div>
-    <div class="delta">phones, accounts, wallets · <a href="/fraud/identifiers?days=30">list</a></div></div>
+{% if recent %}
+<div class="ticker reveal" style="--i:2">
+  <div class="tag"><span class="dot"></span>Latest</div>
+  <div class="ticker-mask">
+    <div class="track" style="--dur:{{ [recent|length * 7, 40]|max }}s">
+      {% for _ in range(2) %}{% for i in recent %}
+      <a href="/items/{{ i.id }}" data-preview="/items/{{ i.id }}/preview" {% if _ == 1 %}aria-hidden="true" tabindex="-1"{% endif %}><span class="src">{{ i.source.name }}</span>{{ i.title|truncate(110) }}</a>
+      {% endfor %}{% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% set rows = geo.provinces if national else geo.targets %}
+<div class="grid g-2 hero" data-reveal="3">
+  <div class="card lift fill-card">
+    <div class="card-head"><h2 id="scam-tl-title">Scam reports over time</h2><span class="muted small">per {{ 'week' if days > 90 else 'day' }}, by scam type</span></div>
+    <div class="chart-wrap fill"><canvas id="c-scam-tl" aria-labelledby="scam-tl-title"></canvas></div>
+  </div>
+  <div class="card lift globe-card">
+    <div class="card-head"><h2>{{ 'Most targeted provinces' if national else 'Most targeted countries' }}</h2>
+      <a class="small" href="/geo">geography →</a></div>
+    <div class="globe {{ 'warm' if national }}" data-globe="{{ 'indonesia' if national else 'world' }}" data-values="v-fraud-geo" data-top="v-fraud-top"
+         data-link="{{ '/fraud/items?province={code}&days=' ~ days if national else '/fraud/items?country={code}&days=' ~ days }}"
+         aria-label="{{ 'Globe of Indonesian provinces' if national else 'Globe of target countries' }} by number of scam reports in the last {{ plabel }}">
+      <div class="geo-loading muted small">Loading globe…</div></div>
+    <script type="application/json" id="v-fraud-geo">{{ (geo.id_values if national else geo.world_values)|tojson }}</script>
+    <script type="application/json" id="v-fraud-top">{{ globe_top(rows, national)|tojson }}</script>
+  </div>
 </div>
 
-<div class="grid g-21" style="margin-top:16px">
-  <div class="card table-wrap data-table">
-    <div class="card-head"><h2>Scam types</h2><span class="muted small">reports this week vs the week before; spreading = at least 5 and doubled</span></div>
-    <table>
-      <thead><tr><th class="col-title">Scam type</th><th class="num col-narrow">7 d</th><th class="num col-narrow">prev 7 d</th><th class="num col-narrow">30 d</th></tr></thead>
+{% set d = k.reports - k.prev %}
+<div class="grid tiles-row" style="margin-top:16px" data-reveal="5">
+  <div class="card lift tile">
+    {{ icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>', '/fraud/items?days=' ~ days, 'Open the scam reports') }}
+    <div class="label">Scam reports</div>
+    <div class="value count-up" data-count="{{ k.reports }}" data-kpi="reports">0</div>
+    <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous {{ plabel }}</div>
+    <svg class="spark" data-series="reports" data-color="--series-5"></svg>
+  </div>
+  <div class="card lift tile">
+    {{ icon('<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', '/fraud/items?sort=loss&days=' ~ days, 'Reports by reported loss') }}
+    <div class="label">Largest reported loss</div>
+    <div class="value long">{{ k.loss|idr if k.loss else '–' }}</div>
+    <div class="delta">{{ k.with_loss }} report(s) with a loss figure{% if k.victims %} · up to {{ '{:,}'.format(k.victims) }} victims{% endif %}</div>
+    <svg class="spark" data-series="losses" data-color="--series-8"></svg>
+  </div>
+  <div class="card lift tile">
+    {{ icon('<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.5"/>', '/fraud/scams?days=' ~ days, 'Open scam types') }}
+    <div class="label">Scam types reported</div>
+    <div class="value count-up" data-count="{{ k.scam_types }}" data-kpi="scam_types">0</div>
+    <div class="delta {{ 'up' if k.spreading }}">{{ k.spreading }} spreading this week</div>
+    <svg class="spark" data-series="scam_types" data-color="--series-2"></svg>
+  </div>
+  <div class="card lift tile">
+    {{ icon('<path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/>', '/fraud/brands?days=' ~ days, 'Open impersonated brands') }}
+    <div class="label">Brands impersonated</div>
+    <div class="value count-up" data-count="{{ k.brands }}" data-kpi="brands">0</div>
+    {% set db_ = k.brands - k.brands_prev %}
+    <div class="delta {{ 'up' if db_ > 0 else 'down' if db_ < 0 else '' }}">{{ db_|abs }} vs previous {{ plabel }}</div>
+    <svg class="spark" data-series="brands" data-color="--series-4"></svg>
+  </div>
+  <div class="card lift tile">
+    {{ icon('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>', '/fraud/identifiers?days=' ~ (days if days in (7, 30, 90, 365) else 0), 'Open scammer identifiers') }}
+    <div class="label">Scammer identifiers</div>
+    <div class="value count-up" data-count="{{ k.identifiers }}" data-kpi="identifiers">0</div>
+    <div class="delta">phones, accounts, wallets</div>
+    <svg class="spark" data-series="identifiers" data-color="--series-3"></svg>
+  </div>
+</div>
+
+<div class="grid g-3 trend-row" style="margin-top:16px" data-reveal="7">
+  <div class="card lift">
+    <div class="card-head"><h2>Trending scam types</h2><a class="small" href="/fraud/scams?days={{ days }}">all →</a></div>
+    {% if types %}
+    {% set topn = types[0].count %}
+    <div class="trend-scroll"><table class="widget-table">
+      <thead><tr><th>Scam type</th><th class="num" title="Scam reports in the last {{ plabel }}">{{ days }}d</th><th class="num" title="The {{ plabel }} before">prev</th></tr></thead>
       <tbody>
       {% for r in types %}
-      <tr><td class="col-title"><a class="title" href="/fraud/items?scam={{ r.entity.id }}" data-preview="/entities/{{ r.entity.id }}/preview">{{ r.entity.display }}</a>
-          {% if r.spreading %} <span class="badge crit" title="{{ r.week }} reports this week, {{ r.prev }} the week before">spreading</span>{% endif %}
-          {% if r.related %}<div class="ent-row">{% for c in r.related %}{{ dchip(c) }}{% endfor %}</div>{% endif %}</td>
-        <td class="num col-narrow">{{ r.week }}</td><td class="num col-narrow muted">{{ r.prev }}</td><td class="num col-narrow">{{ r.month }}</td></tr>
-      {% else %}<tr><td colspan="4" class="empty">No scam reports in the last 30 days{{ ' for Indonesia' if region == 'id' }}. Fraud sources are under Settings → Sources (topic “fraud”); existing items are analysed in the background after an upgrade.</td></tr>{% endfor %}
-      </tbody>
-    </table>
+      <tr><td><a href="/fraud/items?scam={{ r.entity.id }}&days={{ days }}" data-preview="/entities/{{ r.entity.id }}/preview">{{ r.entity.display }}</a>
+          {% if r.spreading %}<span class="badge crit" title="{{ r.week }} reports this week, {{ r.week_prev }} the week before">spreading</span>{% endif %}
+          {% if r.related %}<div class="ent-row">{% for c in r.related %}{{ dchip(c) }}{% endfor %}</div>{% endif %}
+          <div class="meter"><span class="{{ 'new' if r.spreading }}" data-w="{{ (100 * r.count / topn)|round(1) }}"></span></div></td>
+        <td class="num">{{ r.count }}</td><td class="num muted">{{ r.prev }}</td></tr>
+      {% endfor %}
+      </tbody></table></div>
+    {% else %}<div class="empty">No scam reports in the last {{ plabel }}{{ ' for Indonesia' if national }}. Fraud sources are under Settings → Sources (topic “fraud”).</div>{% endif %}
   </div>
-  <div class="card" style="align-self:start">
-    <div class="card-head"><h2>Most impersonated brands</h2><span class="muted small">30 days</span></div>
+  <div class="card lift">
+    <div class="card-head"><h2>Most impersonated brands</h2><a class="small" href="/fraud/brands?days={{ days }}">all →</a></div>
+    <div class="trend-scroll">
     {% set maxb = (brands|map(attribute='count')|max) if brands else 1 %}
     {% for b in brands %}
-    <div class="brand-row"><a href="/fraud/items?brand={{ b.entity.id }}" data-preview="/entities/{{ b.entity.id }}/preview">{{ b.entity.display }}</a>
+    <div class="brand-bar"><a href="/fraud/items?brand={{ b.entity.id }}&days={{ days }}" data-preview="/entities/{{ b.entity.id }}/preview">{{ b.entity.display }}</a>
       <span class="muted small">{{ b.entity.category }}</span><span class="num">{{ b.count }}</span>
       <div class="bar-inline" style="width:{{ (100 * b.count / maxb)|round(0) }}%"></div></div>
-    {% else %}<p class="muted">No impersonated brands yet.</p>{% endfor %}
+    {% else %}<div class="empty">No impersonated brands in this period.</div>{% endfor %}
+    </div>
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>Latest scammer identifiers</h2><a class="small" href="/fraud/identifiers">all →</a></div>
+    <div class="trend-scroll">
+    {% for e, last in idents %}
+    <div class="mini-row"><span class="badge">{{ labels.get(e.type, e.type) }}</span><a class="mono" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview">{{ e.display|truncate(46, True) }}</a><span class="muted small">{{ last|timeago }}</span></div>
+    {% else %}<div class="empty">None published in scam reports in this period.</div>{% endfor %}
+    </div>
   </div>
 </div>
 
-<div class="grid g-21" style="margin-top:16px">
+<div class="grid g-3" style="margin-top:16px" data-reveal="9">
+  <div class="card lift">
+    <div class="card-head"><h2>Reports by scam type</h2><span class="muted small">{{ plabel }}</span></div>
+    <div class="chart-wrap short"><canvas id="c-scam-type"></canvas></div>
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>Impersonated brands by kind</h2><span class="muted small">{{ plabel }}</span></div>
+    <div class="chart-wrap short"><canvas id="c-brand-cat"></canvas></div>
+  </div>
+  <div class="card lift">
+    <div class="card-head"><h2>Sectors (IIV)</h2><span class="muted small">scam reports, {{ plabel }}</span></div>
+    <div class="chart-wrap short"><canvas id="c-fraud-sector"></canvas></div>
+  </div>
+</div>
+
+<div class="grid g-21" style="margin-top:16px;align-items:start" data-reveal="11">
   <div class="card">
-    <div class="card-head"><h2>Recent scam reports</h2><a class="small" href="/fraud/items">all →</a></div>
-    {% for i in recent %}{% include "_fraud_row.html" %}{% else %}<p class="muted">Nothing in the last 30 days.</p>{% endfor %}
+    <div class="card-head"><h2>Recent scam reports</h2><a class="small" href="/fraud/items?days={{ days }}">all →</a></div>
+    {% for i in recent %}{% include "_fraud_row.html" %}{% else %}<div class="empty">Nothing in the last {{ plabel }}.</div>{% endfor %}
   </div>
   <div class="grid" style="align-content:start">
-    <div class="card">
-      <div class="card-head"><h2>Highest fraud score</h2><span class="muted small">30 days</span></div>
+    <div class="card lift">
+      <div class="card-head"><h2>Highest fraud score</h2><span class="muted small has-tip" data-tip="fraud" tabindex="0">{{ plabel }}</span></div>
       {% for i in top %}
       <div class="mini-row">{{ fraud_score(i.fraud_score) }}<a href="/items/{{ i.id }}" data-preview="/items/{{ i.id }}/preview">{{ i.title|truncate(90) }}</a></div>
       {% else %}<p class="muted">–</p>{% endfor %}
     </div>
-    <div class="card">
-      <div class="card-head"><h2>Latest scammer identifiers</h2><a class="small" href="/fraud/identifiers">all →</a></div>
-      {% for e, last in idents %}
-      <div class="mini-row"><span class="badge">{{ labels.get(e.type, e.type) }}</span><a class="mono" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview">{{ e.display|truncate(46, True) }}</a><span class="muted small">{{ last|timeago }}</span></div>
-      {% else %}<p class="muted">None published in scam reports yet.</p>{% endfor %}
+    <div class="card lift">
+      <div class="card-head"><h2>Scam reports per source</h2><span class="muted small">{{ plabel }} · top 10</span></div>
+      <div class="chart-wrap short"><canvas id="c-fraud-src"></canvas></div>
     </div>
     <div class="card">
       <div class="card-head"><h2>Fraud sources</h2>{% if user.role == 'admin' %}<a class="small" href="/settings?tab=sources">manage →</a>{% endif %}</div>
@@ -83,4 +167,27 @@
   </div>
 </div>
 <p class="muted small" style="margin-top:12px">Scammer identifiers are only taken from scam reports, only where the text marks them as the scammer's, never when it marks them as official or as a victim's, and without account holder names (UU PDP / Law 27/2022). Losses are converted to rupiah; the figure is the largest one a report states, not a total.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/globe.js?v={{ version }}" defer></script>
+<script nonce="{{ nonce }}">
+document.addEventListener("DOMContentLoaded", () => {
+  const J = window.JATMP, days = {{ days }};
+  J.tileSparks(`/api/stats/fraud/kpi_series?days=${Math.max(days, 14)}`);
+  J.live(60000, `/api/stats/fraud/overview?days=${days}`);
+  J.scamTimeline(document.getElementById("c-scam-tl"), days);
+  J.hbar(document.getElementById("c-scam-type"), `/api/stats/categories?type=scam_type&days=${days}`,
+         { labelKey: "label", color: 5, label: "Reports", empty: "No scam reports in this period.",
+           link: (r) => `/fraud/items?scam=${r.id}&days=${days}` });
+  J.hbar(document.getElementById("c-brand-cat"), `/api/stats/categories?type=brand_category&days=${days}`,
+         { labelKey: "label", color: 4, label: "Reports", empty: "No impersonated brands in this period.",
+           link: (r) => `/fraud/brands?category=${r.category}&days=${days}` });
+  J.hbar(document.getElementById("c-fraud-sector"), `/api/stats/categories?type=sector&scope=fraud&days=${days}`,
+         { labelKey: "label", color: 6, label: "Reports", empty: "No sector named in this period.",
+           keep: (r) => r.count > 0, note: (rest) => "None in this period: " + rest.map((r) => r.label).join(", ") + ".",
+           link: (r) => `/fraud/items?sector=${r.id}&days=${days}` });
+  J.sources(document.getElementById("c-fraud-src"), days, 10, "fraud");
+});
+</script>
 {% endblock %}

@@ -34,16 +34,18 @@ app/
                 geo (language, target countries and provinces, source country, International / National filter)
                 severity (explainable 0–100 score) · enrichment (cross-source, consensus, re-checks)
                 fraud (scam types, impersonated brands, scammer identifiers, losses / victims, fraud score)
-                trends (dashboard aggregations, weighted correlation) · graph (capped relationship graphs)
+                sectors (IIV sectors of Perpres 82/2022) · fraudstats (scam & fraud dashboard aggregations)
+                trends (dashboard aggregations, periods and weekly buckets, weighted correlation)
+                graph (capped relationship graphs)
   intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox, MalwareBazaar, URLhaus, GreyNoise,
                 AbuseIPDB (rate limits, budgets, connection tests) · darkweb (ransomware.live, Hudson Rock)
                 misp (pull mapping, push, auto-push) · context (Shodan, Censys, CrowdSec, Pulsedive,
                 Hybrid Analysis, IPinfo; on demand)
                 cve (CISA KEV, FIRST EPSS, NVD CVSS → Entity.meta; risk-weighted CVE priority)
   llm/          client (Ollama / OpenAI-compatible / Anthropic, live model list) · presets (local and cloud vendors)
-                insights (summary, brief, digest, Q&A)
+                insights (summary, brief, executive summary, Q&A)
   reports.py    Threat Intel Findings: gather() plus PDF / Word / Markdown / CSV exporters
-  routers/      pages, fraud_pages (scam & fraud section), api (JSON and actions), api_v1 (REST API + IOC feeds +
+  routers/      pages, fraud_pages (scam & fraud dashboard and pages), api (JSON and actions), api_v1 (REST API + IOC feeds +
                 offline docs), apikeys, webhooks,
                 taxii (read-only TAXII 2.1), settings, reports, admin, auth and setup
   gazetteer.py  countries (English and Indonesian names, demonyms), 38 Indonesian provinces, cities, institutions
@@ -54,7 +56,7 @@ app/
   search.py     FTS5 full-text search with a LIKE fallback · dbcopy.py (copy-db)
   apikeys.py    API key creation, verification, scopes and rate limiting
   webhooks.py   events, Slack / Discord / Teams formats, HMAC signing, SSRF guard, retries
-  jobs.py       APScheduler: one job per source, enrichment every N minutes, CVE intel every 6 h, daily digest,
+  jobs.py       APScheduler: one job per source, enrichment every N minutes, CVE intel every 6 h, daily summary,
                 housekeeping; manual runs as batches with live progress (status() feeds /api/jobs/status)
   notify.py     notification center (de-duplicated by key, per-user read watermark, 30-day retention)
   templates/    pages, plus _preview_item.html / _preview_entity.html (partial HTML for the side preview)

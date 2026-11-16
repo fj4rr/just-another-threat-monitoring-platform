@@ -4,6 +4,18 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.10
+
+- New column `insights.data` (the structured executive summary) is created on start-up.
+- About a minute after the first start, a background job tags every existing item with its IIV sectors (no
+  network requests; `python manage.py sectortag` does the same).
+- The scam & fraud rules changed (vendor listicles), so the start-up job re-analyses stored items once, as after
+  0.9.
+- The dashboard at `/` is now *Cyber threats*; the scam & fraud overview at `/fraud` became a dashboard of its
+  own, and the scam pages moved from tabs into the sidebar. Bookmarks keep working.
+- The daily AI digest is now a short executive summary. Nothing to configure; the next scheduled or manual run
+  writes the new format.
+
 ## Upgrading to 0.9.1
 
 - New built-in sources are added automatically on start-up from now on (a notification lists them). The first start

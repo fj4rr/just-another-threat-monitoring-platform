@@ -60,7 +60,7 @@
         <div style="min-width:0"><a class="title" href="/items/{{ r.item.id }}" data-preview="/items/{{ r.item.id }}/preview" data-preview-nav>{{ r.item.title }}</a>
           <div class="meta"><span class="badge cat-{{ r.item.source.category }}">{{ r.item.source.name }}</span><span>{{ r.item.published_at|timeago }}</span>
             {% if r.item.source_id != item.source_id %}<span class="badge new">other source</span>{% endif %}</div>
-          <div class="muted small" style="margin-top:2px">shares: {% for t, n in r.entities %}<span class="{{ 'mono' if t not in ('malware','actor','cve','technique','scam_type','brand') }}">{{ n|truncate(40, True) }}</span>{{ ', ' if not loop.last }}{% endfor %}</div></div></div>
+          <div class="muted small" style="margin-top:2px">shares: {% for t, n in r.entities %}<span class="{{ 'mono' if t not in ('malware','actor','cve','technique','scam_type','brand','sector') }}">{{ n|truncate(40, True) }}</span>{{ ', ' if not loop.last }}{% endfor %}</div></div></div>
       {% else %}<div class="empty">No correlated items yet.</div>{% endfor %}
     </div>
   </div>
@@ -70,7 +70,7 @@
     {% for type, links in groups %}
       <h3 style="margin-top:12px">{{ type }} ({{ links|length }})</h3>
       {% for l in links %}
-        {% if type in ('malware','actor','cve','technique','scam_type','brand') %}{{ chip(l.entity) }}
+        {% if type in ('malware','actor','cve','technique','scam_type','brand','sector') %}{{ chip(l.entity) }}
         {% else %}
         <div class="row" style="justify-content:space-between;margin:4px 0;flex-wrap:nowrap">
           <a class="mono" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview" style="word-break:break-all">{{ l.entity.display|truncate(70, True) }}</a>

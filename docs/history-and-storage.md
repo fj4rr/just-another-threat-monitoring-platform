@@ -14,8 +14,13 @@ group sources return their full victim lists, and ThreatFox reaches 7 days. *Est
 of items per source first (exact for WordPress sites). The backfill runs in the background, one source at a time,
 with the usual progress bar, a stop button and a summary notification.
 
-Backfilled items keep their original publication dates and are marked *history*, so they never show up as
-trending now or as newly seen; their indicators are not sent to the enrichment providers unless you enable it
+*Start backfill* and *Stop* sit under the page description; *Stop* only shows while a backfill runs. Stopping
+cancels the queued sources at once and lets the source being crawled finish its current page.
+
+Backfilled items keep their original publication dates and are marked *history*, so they do not show up as
+trending in the last 7 days or as newly seen; they do count when you pick a longer dashboard period (15 days to
+1 year), which is what they are for. Sources that cannot be backfilled have gaps in those periods, and the
+dashboards say so; their indicators are not sent to the enrichment providers unless you enable it
 (free quotas stay with live data), and no webhooks, MISP pushes or AI summaries fire for them.
 
 ## Retention tiers

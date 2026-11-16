@@ -2,10 +2,9 @@
 {% from "_macros.html" import th, pager, period_select, dchip %}
 {% block title %}Scammer identifiers{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Scams & fraud</h1>
+<div class="page-head"><div><h1>Scammer identifiers</h1>
   <p class="muted">{{ total }} scammer identifier(s){% if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %}</p></div>
   {% if rows %}<button type="button" class="btn sm" data-copy-selector="#ident-list .ioc-val" data-copy-label="identifier" title="Copy the identifiers on this page">Copy</button>{% endif %}</div>
-{% include "_fraud_tabs.html" %}
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Number, account or wallet" aria-label="Search" maxlength="100">
   <select name="type" aria-label="Type"><option value="">All types</option>

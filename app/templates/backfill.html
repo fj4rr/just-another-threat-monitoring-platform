@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Backfill{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Historical backfill</h1>
-  <p class="muted">Crawl further back than the live collectors. Backfilled items keep their original dates, so they never count as trending now{{ '' if enrich_backfill else ', and their indicators are not enriched (Settings → Enrichment)' }}.</p></div>
-  <div class="job">
-    <div class="row"><button class="btn primary" id="bf-start" data-job-button="backfill">⤓ Start backfill</button>
-      {% if active %}<button class="btn" data-post="/api/backfill/stop" data-busy="Stopping…">■ Stop</button>{% endif %}</div>
+<div class="page-head stacked"><div><h1>Historical backfill</h1>
+  <p class="muted">Crawl further back than the live collectors. Backfilled items keep their original dates, so they only show up on the dashboards when you pick a period that reaches back to them{{ '' if enrich_backfill else ', and their indicators are not enriched (Settings → Enrichment)' }}.</p>
+  <div class="job-bar">
+    <button class="btn primary" id="bf-start" data-job-button="backfill" {{ 'disabled' if active }}>⤓ Start backfill</button>
+    <button class="btn" data-post="/api/backfill/stop" data-busy="Stopping…" data-job-running="backfill" {{ '' if active else 'hidden' }}>■ Stop</button>
     <div class="job-status muted" data-job-status="backfill" aria-live="polite"></div>
-  </div>
+  </div></div>
 </div>
 
 <div class="grid g-21" style="align-items:start">

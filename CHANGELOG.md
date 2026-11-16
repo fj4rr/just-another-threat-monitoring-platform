@@ -2,6 +2,46 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.10.0
+
+- **Two dashboards.** The sidebar now opens with *Dashboard → Cyber threats* (the former dashboard) and
+  *Dashboard → Scams & fraud*, a full dashboard of its own: scam reports over time stacked by scam type, a globe of
+  the most targeted countries or provinces, KPI tiles with sparklines (reports, largest loss, scam types, brands,
+  identifiers), trending scam types, impersonated brands, the latest scammer identifiers, charts by scam type, by
+  kind of brand, by sector and by source, recent and highest-scoring reports. The scam pages moved from tabs into
+  the sidebar under *Intelligence → Scams & fraud* (Scam reports, Scam types, Impersonated brands, Scammer
+  identifiers), next to the cyber pages.
+- **Dashboard period**: 7 or 15 days, 30 days, 3 or 6 months, or 1 year, on both dashboards; every tile, table,
+  chart, the radar and the globe follow it, and the choice is remembered. Charts switch to weekly bars above 90 days.
+  Periods that reach past the live collectors show a note that older days come from the historical backfill, that
+  not every source can be backfilled, how many backfilled items the period holds, and (for admins) a link to the
+  Backfill page.
+- **Sectors (IIV)**: every item is tagged with the vital information infrastructure sectors of Perpres 82/2022 it
+  is about (government administration, energy & mineral resources, transportation, finance, health, ICT, food,
+  defence), from the organisations and services it names as targets, or from the sector a feed states
+  (ransomware.live, OTX industries). Shown as a *Sectors (IIV)* chart on both dashboards (click a bar for its
+  items), as chips on items, as a filter on the scam reports list and as `sectors` in the REST API. Existing items
+  are tagged once in the background after the upgrade (`python manage.py sectortag`).
+- **Executive summary** instead of the long AI digest: a one-line headline, an overall threat level, three or four
+  key points and up to three actions for today, asked from the model as JSON and shown with the platform's own
+  components (no more stray markdown rules or LaTeX such as `$\le$`). The data it gets now includes scam types and
+  sectors. Older digests still display as text.
+- **Backfill page**: *Start backfill* and *Stop* sit under the description instead of jumping around in the page
+  header while a backfill reports progress. *Stop* only shows while a backfill runs, hides itself once the
+  backfill stops, and cancels the queued sources right away; the status reads *Stopping after the current page*
+  until the source being crawled finishes its page.
+- **Faster scam and blocklist processing**: indicators of an item are looked up and created in one query per type
+  instead of one per indicator, and blocklist verdicts are recorded in bulk (a ScamSniffer day with 500 domains went
+  from about 2,000 queries to a handful, which matters most for its backfill back to 2022); the scam-type spread
+  counts are computed once per type and day per batch; *Re-analyse items* loads items in chunks and skips the
+  database work for items that are not about a scam before or after (about 40% faster on a 2,300-item test copy).
+- Scam detection: vendor listicles ("Top 10 Best … Tools [Ranked & Scored]") only count their title, so a list of
+  fraud-detection products is no longer filed as a scam report. Stored items are re-analysed once after the upgrade.
+- Fix: the scam overview's brand list styled the sidebar's logo row too (shared class name).
+- API: `/api/stats/*` take periods up to 365 days; `scope=fraud` limits trending, trending timelines, sources and
+  sectors to scam reports; new `/api/stats/fraud/overview`, `/fraud/kpi_series` and `/fraud/timeline`; timelines
+  return `step` (1 = daily, 7 = weekly).
+
 ## 0.9.2
 
 - Fix: switching the AI settings from Off or a local runtime to a cloud provider kept the previous preset's server

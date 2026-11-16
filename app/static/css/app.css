@@ -681,9 +681,6 @@ th.has-tip, .has-tip > a { text-decoration: underline dotted; text-underline-off
 .sev.fraud { border: 1px dashed var(--border-strong, var(--border)); }
 .sev.fraud.s-high { background: var(--series-5, var(--critical)); color: #fff; border-color: transparent; }
 .sev.fraud.s-med { background: var(--serious); color: #111; border-color: transparent; }
-.brand-row { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; align-items: baseline; padding: 6px 0; font-size: 13px; }
-.brand-row .bar-inline { grid-column: 1 / -1; background: var(--series-5, var(--series-1)); }
-.brand-row .num { font-variant-numeric: tabular-nums; }
 .mini-row { display: flex; gap: 8px; align-items: center; padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border); min-width: 0; }
 .mini-row:last-child { border-bottom: 0; }
 .mini-row > a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -691,3 +688,41 @@ th.has-tip, .has-tip > a { text-decoration: underline dotted; text-underline-off
 .fraud-reasons li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; color: var(--text-secondary); }
 .fraud-reasons li b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .tile .value.long { font-size: 22px; line-height: 1.35; }
+
+/* 0.10: dashboard periods, backfill job bar, sidebar sub-sections, executive summary */
+.btn[hidden] { display: none; }
+.period-bar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin: -6px 0 16px; }
+.period-switch a { padding: 5px 11px; }
+.period-note { display: flex; gap: 8px; align-items: flex-start; margin: 0; flex: 1 1 380px; color: var(--text-secondary);
+  line-height: 1.45; }
+.period-note .ico { flex: none; display: grid; place-items: center; width: 17px; height: 17px; margin-top: 1px; border-radius: 50%;
+  background: color-mix(in srgb, var(--warning) 22%, transparent); color: var(--warning); font: 700 11px var(--font); }
+.page-head.stacked > div { flex: 1 1 100%; }
+.page-head.stacked p { max-width: 920px; }
+.job-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.job-bar .job-status { flex: 0 1 380px; min-width: 220px; }
+.nav .sep.sub { margin: 8px 10px 4px; font-size: 10.5px; text-transform: none; letter-spacing: 0; }
+.brand-bar { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; align-items: baseline; padding: 6px 0; font-size: 13px; }
+.brand-bar .bar-inline { grid-column: 1 / -1; background: var(--series-5, var(--series-1)); }
+.brand-bar .num { font-variant-numeric: tabular-nums; }
+.exec-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.exec-head p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-primary); }
+.level { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border: 1px solid var(--border); color: var(--text-primary); }
+.level::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--neutral-mark); }
+.level.low::before { background: var(--good); } .level.elevated::before { background: var(--warning); }
+.level.high::before { background: var(--serious); } .level.critical::before { background: var(--critical); }
+.exec-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 1100px) { .exec-grid { grid-template-columns: 1fr; } }
+.exec-points { list-style: none; margin: 0; padding: 0; }
+.exec-points li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.exec-points li:last-child { border-bottom: 0; }
+.exec-points .n { grid-row: span 2; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px;
+  background: var(--surface-3); color: var(--text-secondary); font: 600 11px var(--font); }
+.exec-points b { color: var(--text-primary); font-weight: 600; }
+.exec-points span { color: var(--text-secondary); line-height: 1.45; }
+.exec-actions h3 { margin: 4px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+.exec-actions ul { list-style: none; margin: 0; padding: 0; }
+.exec-actions li { position: relative; padding: 7px 0 7px 22px; font-size: 13px; line-height: 1.45; border-bottom: 1px solid var(--border); }
+.exec-actions li:last-child { border-bottom: 0; }
+.exec-actions li::before { content: "→"; position: absolute; left: 2px; color: var(--accent); }
