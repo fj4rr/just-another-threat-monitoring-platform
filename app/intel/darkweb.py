@@ -6,7 +6,7 @@
 * Hudson Rock Cavalier: infostealer exposure *statistics* for a domain (how many employees / users were
   infected, when, which sensitive apps). Never credentials or personal data. Needs a free API key.
 
-Hard rules (README): no forum logins, no CAPTCHA solving, no downloading leaked data, no purchases.
+Hard rules (docs/integrations.md): no forum logins, no CAPTCHA solving, no downloading leaked data, no purchases.
 """
 from __future__ import annotations
 
