@@ -2,6 +2,15 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.9.2
+
+- Fix: switching the AI settings from Off or a local runtime to a cloud provider kept the previous preset's server
+  address and model (Ollama's `http://localhost:11434` and `llama3.1`), so calls to the provider failed. Both the
+  form and the server now replace values that belong to another vendor's preset; values you typed yourself are
+  kept. Re-save the AI settings if you configured a cloud provider this way.
+- Gemini suggestions follow Google's current free tier: `gemini-3.8-flash` (default), `gemini-3.5-flash-lite`,
+  `gemini-3.6-flash`, `gemini-4-hydrogen`. The 2.5 models are retired on 1 December 2026.
+
 ## 0.9.1
 
 - **15 Indonesian general news sections** for the National view: Detik News, CNN Indonesia Nasional and Ekonomi,

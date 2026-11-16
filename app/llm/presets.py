@@ -40,7 +40,11 @@ CLOUD: dict[str, dict] = {
              "key_url": "https://console.groq.com/keys"},
     "gemini": {"label": "Google Gemini", "provider": "openai_compatible",
                "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
-               "models": ["gemini-2.5-pro", "gemini-2.5-flash"], "key_url": "https://aistudio.google.com/apikey"},
+               # free tier as of 2026-11: 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite, 4 Hydrogen (2.5 retires 2026-12-01)
+               "models": ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-4-hydrogen"],
+               "key_url": "https://aistudio.google.com/apikey",
+               "hint": "The free tier covers Gemini 3.8 Flash, 3.6 Flash, 3.5 Flash-Lite and 4 Hydrogen; Google uses "
+                       "free-tier prompts to improve its products. Limits per model are shown in Google AI Studio."},
     "mistral": {"label": "Mistral", "provider": "openai_compatible", "base_url": "https://api.mistral.ai/v1",
                 "models": ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
                 "key_url": "https://console.mistral.ai/api-keys"},
@@ -66,6 +70,14 @@ def spec(mode: str, vendor: str) -> dict | None:
     return vendors(mode).get(vendor)
 
 
+def _preset_urls() -> set[str]:
+    return {sp["base_url"].rstrip("/") for sp in (*LOCAL.values(), *CLOUD.values()) if sp["base_url"]}
+
+
+def _preset_models() -> set[str]:
+    return {m for sp in (*LOCAL.values(), *CLOUD.values()) for m in sp.get("models") or []}
+
+
 def default_model(mode: str, vendor: str) -> str:
     sp = spec(mode, vendor) or {}
     return (sp.get("models") or [""])[0]
@@ -79,10 +91,17 @@ def resolve(mode: str, vendor: str, base_url: str = "", model: str = "") -> dict
     if not sp:
         return {"llm_provider": "none"}
     out = {"llm_provider": sp["provider"]}
-    url = (base_url or "").strip() or sp["base_url"]
+    url, mdl = (base_url or "").strip(), (model or "").strip()
+    # a value that belongs to another preset is left over from the previous choice (e.g. Ollama's
+    # localhost:11434 and llama3.1 after switching to Gemini): take this vendor's preset instead
+    if url and url != sp["base_url"] and url.rstrip("/") in _preset_urls():
+        url = ""
+    if mdl and mdl not in (sp.get("models") or []) and mdl in _preset_models():
+        mdl = ""
+    url = url or sp["base_url"]
     if url:
         out["llm_base_url"] = url
-    mdl = (model or "").strip() or default_model(mode, vendor)
+    mdl = mdl or default_model(mode, vendor)
     if mdl:
         out["llm_model"] = mdl
     return out

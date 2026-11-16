@@ -68,6 +68,20 @@ def test_auto_seed_adds_new_builtins_once(installed, monkeypatch):
             db.delete(s)
 
 
+def test_switching_ai_vendor_drops_leftover_preset_values():
+    from app.llm import presets
+
+    gemini = "https://generativelanguage.googleapis.com/v1beta/openai"
+    # Off -> Cloud / Gemini with Ollama's defaults still in the form
+    r = presets.resolve("cloud", "gemini", "http://localhost:11434", "llama3.1")
+    assert r == {"llm_provider": "openai_compatible", "llm_base_url": gemini, "llm_model": "gemini-3.8-flash"}
+    # values the user typed themselves are kept
+    r = presets.resolve("cloud", "gemini", "https://proxy.example/v1", "gemini-3.5-flash-lite")
+    assert r["llm_base_url"] == "https://proxy.example/v1" and r["llm_model"] == "gemini-3.5-flash-lite"
+    assert presets.resolve("cloud", "gemini", "", "my-tuned-model")["llm_model"] == "my-tuned-model"
+    assert "gemini-2.5-flash" not in presets.CLOUD["gemini"]["models"]  # retired on 2026-12-01
+
+
 def test_first_run_after_upgrade_adds_missing(installed, monkeypatch):
     spec = {"name": "Zz upgrade builtin", "kind": "rss", "category": "news", "interval_minutes": 60,
             "config": {"url": "https://zz-upgrade.example/rss"}}

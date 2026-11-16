@@ -186,6 +186,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const keyLink = document.getElementById("key-link"), note = document.getElementById("model-note");
   const vendorSel = { local: document.getElementById("vendor-local"), cloud: document.getElementById("vendor-cloud") };
   let lastPreset = { url: "", model: "" };
+  const allPresets = [...Object.values(AI.catalog.local || {}), ...Object.values(AI.catalog.cloud || {})];
+  const presetUrls = new Set(allPresets.map((p) => (p.base_url || "").replace(/\/+$/, "")).filter(Boolean));
+  const presetModels = new Set(allPresets.flatMap((p) => p.models || []));
   const mode = () => (form.querySelector("input[name=llm_mode]:checked") || {}).value || "none";
   const vendor = () => (mode() === "none" ? "" : vendorSel[mode()].value);
   const spec = () => (AI.catalog[mode()] || {})[vendor()] || null;
@@ -202,11 +205,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!sp) return;
     hint.textContent = sp.hint || "";
     keyLink.hidden = !sp.key_url; if (sp.key_url) keyLink.href = sp.key_url;
-    // keep user-entered values; replace values that still equal the previous preset
-    if (!base.disabled && (!init || !base.value) && (base.value === "" || base.value === lastPreset.url)) base.value = sp.base_url || "";
+    // keep user-entered values; replace values that still equal the previous preset, or that belong to another
+    // vendor's preset (e.g. Ollama's localhost URL and llama3.1 left over after switching to Gemini)
+    const otherUrl = (v) => !!v && v !== (sp.base_url || "") && presetUrls.has(v.replace(/\/+$/, ""));
+    const otherModel = (v) => !!v && !(sp.models || []).includes(v) && presetModels.has(v);
+    if (!base.disabled && (!init || !base.value) && (base.value === "" || base.value === lastPreset.url || otherUrl(base.value))) base.value = sp.base_url || "";
     if (!base.value && sp.base_url === "") document.getElementById("adv").open = true;
     const def = (sp.models || [])[0] || "";
-    if (!modelInput.disabled && (!init || !modelInput.value) && (modelInput.value === "" || modelInput.value === lastPreset.model)) modelInput.value = def;
+    if (!modelInput.disabled && (!init || !modelInput.value) && (modelInput.value === "" || modelInput.value === lastPreset.model || otherModel(modelInput.value))) modelInput.value = def;
     lastPreset = { url: sp.base_url || "", model: def };
     fillModels(sp.models || [], false);
   };
