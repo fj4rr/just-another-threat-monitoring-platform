@@ -39,12 +39,29 @@ class RawItem:
 _TAG_RE = re.compile(r"(?s)<[^>]+>")
 _SCRIPT_RE = re.compile(r"(?is)<(script|style).*?</\1>")
 _WS_RE = re.compile(r"\s+")
+# Stylesheet text some WordPress plugins print into the post body outside a <style> tag (Kadence blocks in the
+# Malwarebytes feed): ".kb-btns97520 .kt-button{font-weight:normal;}" and "@media (...){...{...}}". A rule only
+# counts when its body is nothing but "property: value;" declarations, so code and JSON in articles stay.
+# A selector is made of real simple selectors (".kt-button", "ul.menu", "a:hover", "[data-x]"), never plain words.
+_CSS_SIMPLE = r"(?:[a-z][a-z0-9]*)?(?:[.#][\w-]+|::?[\w-]+(?:\([^(){}]{0,40}\))?|\[[^\]{}]{0,60}\])+"
+_CSS_SEL = rf"{_CSS_SIMPLE}(?:\s*[>+~]?\s*{_CSS_SIMPLE})*(?:\s*,\s*{_CSS_SIMPLE}(?:\s*[>+~]?\s*{_CSS_SIMPLE})*)*"
+_CSS_DECLS = r"\{(?:\s*-{0,2}[a-z][a-z-]*\s*:\s*[^;{}<>]{1,300};)+\s*\}"
+_CSS_RULE = re.compile(rf"@media[^{{}}]{{0,200}}\{{\s*(?:{_CSS_SEL}\s*{_CSS_DECLS}\s*)+\}}|{_CSS_SEL}\s*{_CSS_DECLS}",
+                       re.I)
+_CSS_HINT = re.compile(r"\{[^{}]{0,300}:[^{}]{0,300};")
+
+
+def strip_css(text: str) -> str:
+    """Drop stylesheet rules that ended up in the text (see _CSS_RULE)."""
+    if not text or not _CSS_HINT.search(text):
+        return text or ""
+    return _CSS_RULE.sub(" ", text)
 
 
 def strip_html(text: str) -> str:
     text = _SCRIPT_RE.sub(" ", text or "")
     text = _TAG_RE.sub(" ", text)
-    text = html.unescape(text)
+    text = strip_css(html.unescape(text))
     return _WS_RE.sub(" ", text).strip()
 
 

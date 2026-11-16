@@ -9,8 +9,9 @@ Schema changes are applied automatically on start-up (new tables and columns; th
 - New column `insights.data` (the structured executive summary) is created on start-up.
 - About a minute after the first start, a background job tags every existing item with its critical infrastructure sectors (no
   network requests; `python manage.py sectortag` does the same).
-- The scam & fraud rules changed (vendor listicles), so the start-up job re-analyses stored items once, as after
-  0.9.
+- The scam & fraud rules changed (vendor listicles, criminal-charge names), so the start-up job re-analyses stored
+  items once, as after 0.9.
+- A one-off start-up job removes stylesheet text that some feeds printed into stored items (no network requests).
 - The dashboard at `/` is now *Cyber threats*; the scam & fraud overview at `/fraud` became a dashboard of its
   own, and the scam pages moved from tabs into the sidebar. Bookmarks keep working.
 - The daily AI digest is now a short executive summary. Nothing to configure; the next scheduled or manual run

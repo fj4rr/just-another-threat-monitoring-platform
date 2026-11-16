@@ -32,7 +32,7 @@ IDENT_LABELS = {"phone": "Phone number", "bank_account": "Bank account", "ewalle
                 "crypto_wallet": "Crypto wallet"}
 
 # Bump when the rules change: the start-up job re-analyses stored items once per version.
-RULES_VERSION = 3  # 3 (0.10): vendor listicles only count their title
+RULES_VERSION = 4  # 3 (0.10): vendor listicles only count their title; 4: charge names ("wire fraud") are no scam cue
 
 # --------------------------------------------------------------------------- scam types
 # (key, display name, weight, strong pattern, weak pattern). Weak patterns need a scam word elsewhere in the item.
@@ -107,12 +107,16 @@ OTHER = ("other", "Other scam", 10)
 SCAM_NAMES = {k: n for k, n, *_ in SCAM_TYPES} | {OTHER[0]: OTHER[1]}
 
 # A word that makes the item *about* a scam. Weak scam-type phrases and "Other scam" need one.
+# "fraud" as the name of a criminal charge ("pleaded guilty to wire fraud", "bank fraud") says nothing about a scam:
+# an insider stealing from wallets is charged with wire fraud too.
+_NOT_CHARGE = ("(?<!wire )(?<!mail )(?<!bank )(?<!tax )(?<!securities )(?<!computer )(?<!insurance )(?<!accounting )"
+               "(?<!health care )(?<!healthcare )(?<!visa )(?<!benefits )")
 FRAUD_CUE = re.compile(
-    r"\bscam(?:s|mer|mers|med|ming)?\b|\bfraud(?:s|ster|sters)?\b|\bpenipuan\b|\bpenipu\b|\bmenipu\b|\bditipu\b|"
-    r"\btertipu\b|\bdefraud(?:ed|ing)?\b|\bswindl\w*|\bcon artists?\b|\bmodus (?:baru|penipuan|operandi)\b|"
-    r"\bkorban penipuan\b|\bpenipuan online\b", re.I)
-_STRONG_CUE = re.compile(r"\bscam(?:s|mer|mers)?\b|\bpenipuan\b|\bpenipu\b|\bfraud(?:ster|sters)?\b|\bditipu\b|"
-                         r"\btertipu\b|\bdefraud", re.I)
+    r"\bscam(?:s|mer|mers|med|ming)?\b|" + _NOT_CHARGE + r"\bfraud(?:s|ster|sters)?\b|\bpenipuan\b|\bpenipu\b|"
+    r"\bmenipu\b|\bditipu\b|\btertipu\b|\bdefraud(?:ed|ing)?\b|\bswindl\w*|\bcon artists?\b|"
+    r"\bmodus (?:baru|penipuan|operandi)\b|\bkorban penipuan\b|\bpenipuan online\b", re.I)
+_STRONG_CUE = re.compile(r"\bscam(?:s|mer|mers)?\b|\bpenipuan\b|\bpenipu\b|" + _NOT_CHARGE + r"\bfraud(?:ster|sters)?\b|"
+                         r"\bditipu\b|\btertipu\b|\bdefraud", re.I)
 
 _TYPES = [(k, n, w, re.compile(s, re.I), re.compile(wk, re.I) if wk else None) for k, n, w, s, wk in SCAM_TYPES]
 

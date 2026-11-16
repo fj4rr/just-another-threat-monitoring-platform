@@ -516,6 +516,49 @@ def run_fraudtag(force: bool = False) -> str:
         db.close()
 
 
+CONTENT_VERSION = 1  # 1 (0.10): stylesheet text printed into WordPress posts (pipeline.strip_css)
+
+
+def run_content_cleanup(force: bool = False) -> str:
+    """Clean text that was stored before a cleaning rule existed (0.10: CSS rules some feeds print into the post
+    body), then re-run the scam and sector analysis of the items that changed. Runs once after an upgrade."""
+    from .processing import fraud, sectors
+    from .processing.pipeline import _CSS_HINT, strip_css
+
+    if not force and int(settings.get("content_version") or 0) >= CONTENT_VERSION:
+        return "stored content is up to date"
+    db = SessionLocal()
+    try:
+        changed = 0
+        # only rows with a "{ ...: ...; }" in them can hold CSS; the regex check is done in Python
+        ids = [i for (i,) in db.execute(select(Item.id).where(Item.content.like("%{%:%;%}%")))]
+        for n in range(0, len(ids), 200):
+            for item in db.execute(select(Item).where(Item.id.in_(ids[n:n + 200]))).unique().scalars():
+                if not _CSS_HINT.search(item.content or ""):
+                    continue
+                clean = " ".join(strip_css(item.content).split())
+                if clean == item.content:
+                    continue
+                item.content = clean
+                fraud.retag_item(db, item)
+                keep = set(sectors.detect(item.title, f"{clean}\n{' '.join(item.tags or [])}",
+                                          sectors._feed_value(item.raw)))
+                for link in list(item.entity_links):
+                    if link.entity.type == "sector" and link.entity.value not in keep:
+                        link.entity.mention_count = max(0, (link.entity.mention_count or 0) - 1)
+                        db.delete(link)
+                changed += 1
+            db.commit()
+        settings.set("content_version", CONTENT_VERSION)
+        return f"cleaned {changed} item(s)"
+    except Exception as e:
+        db.rollback()
+        log.warning("content cleanup failed: %s", e)
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
 def run_sectortag(force: bool = False) -> str:
     """Critical infrastructure sectors of every stored item (0.10). Runs once after an upgrade or a rules change
     (``sectors.RULES_VERSION``), or on demand (``manage.py sectortag``)."""
@@ -866,6 +909,9 @@ def start() -> None:
     scheduler.add_job(run_geotag, "date", run_date=_now() + timedelta(seconds=20), id="geotag", replace_existing=True)
     # same for the scam & fraud analysis (0.9)
     scheduler.add_job(run_fraudtag, "date", run_date=_now() + timedelta(seconds=40), id="fraudtag",
+                      replace_existing=True)
+    # stored text that predates a cleaning rule (0.10: CSS printed into posts), before the re-analysis below
+    scheduler.add_job(run_content_cleanup, "date", run_date=_now() + timedelta(seconds=15), id="content_cleanup",
                       replace_existing=True)
     # and for the critical infrastructure sectors (0.10)
     scheduler.add_job(run_sectortag, "date", run_date=_now() + timedelta(seconds=60), id="sectortag",

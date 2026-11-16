@@ -39,9 +39,17 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 - Scam detection: vendor listicles ("Top 10 Best … Tools [Ranked & Scored]") only count their title, so a list of
   fraud-detection products is no longer filed as a scam report. Stored items are re-analysed once after the upgrade.
 - Fix: the scam overview's brand list styled the sidebar's logo row too (shared class name).
+- Fix: stylesheet rules that some WordPress sites print into the post text (Malwarebytes' Kadence blocks) showed up
+  as the item's text and snippet. They are now removed when items are collected, and a one-off job cleans the
+  items stored before (only rules made of real selectors and `property: value;` declarations count, so code and
+  JSON in articles stay).
+- Scam detection: "fraud" as the name of a criminal charge ("pleaded guilty to wire fraud", bank, mail,
+  securities, tax fraud…) no longer counts as a scam word, so an FBI agent stealing from seized crypto wallets is
+  not filed as a crypto scam.
 - **Documentation site**: the `docs/` pages also build a searchable MkDocs (Material) site with light and dark
   themes, published to GitHub Pages from `main` (`.github/workflows/docs.yml`, strict: broken links and anchors
-  fail the build). The Markdown still reads on GitHub; see [Development](docs/development.md#documentation-site).
+  fail the build), where screenshots open full size on click. The Markdown still reads on GitHub; see
+  [Development](docs/development.md#documentation-site).
   Every screenshot is retaken for 0.10, and the remaining "digest" labels (AI settings, report appendix,
   notifications) now say executive summary.
 - API: `/api/stats/*` take periods up to 365 days; `scope=fraud` limits trending, trending timelines, sources and

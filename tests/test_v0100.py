@@ -196,3 +196,44 @@ def test_velocity_cache_and_fast_retag(client):
         assert db.scalar(select(func.count(Item.id)).where(Item.fraud_score > 0)) == scams_before
         assert db.scalar(select(func.count(ItemEntity.id)).join(Entity)
                          .where(Entity.type.in_(fraud.FRAUD_TYPES))) == links_before
+
+
+# --------------------------------------------------------------------------- stray CSS, charge names
+KADENCE = (".kadence-column487659_4668c2-bd > .kt-inside-inner-col{padding-top:20px;padding-right:20px;}"
+           ".kadence-column487659_4668c2-bd{position:relative;}@media all and (max-width: 1024px){"
+           ".kadence-column487659_4668c2-bd > .kt-inside-inner-col{flex-direction:column;justify-content:center;}}")
+
+
+def test_strip_css_keeps_code_and_prose():
+    from app.processing.pipeline import strip_css, strip_html
+
+    assert strip_html(f"<p>{KADENCE} In this article A former FBI supervisor</p>") == \
+        "In this article A former FBI supervisor"
+    assert strip_html("We’ll update. .kb-btn .kt-button{font-weight:normal;font-style:normal;} Next.") == \
+        "We’ll update. Next."
+    for keep in ('Use {"user": "x", "pass": "y"} as payload.', "if (x) { y = 1; }", "function f(){ return a; }",
+                 "unsafe { String::from_utf8_unchecked(result) }", "time: 10:30; then {note: ok;} fine"):
+        assert strip_css(keep) == keep
+
+
+def test_charge_names_are_no_scam_cue():
+    body = ("A former FBI supervisor pleaded guilty to wire fraud and money laundering after stealing crypto. "
+            "He memorised wallet seed phrases from FBI systems, including a dark web marketplace case.")
+    assert fraud.scam_types("FBI agent stole $2.47m in crypto from criminal wallets", body) == []
+    assert fraud.scam_types("Romance scam ring charged with wire fraud", "")[0][0] == "romance"
+    assert fraud.scam_types("Seed phrase phishing", "He defrauded victims through a fake wallet page.")
+
+
+def test_content_cleanup_job(client):
+    from app import settings as st
+
+    with session_scope() as db:
+        src = db.execute(select(Source).where(Source.kind == "rss")).scalars().first()
+        db.add(Item(source_id=src.id, external_id="v0100-css-1", title="Store-added reviews",
+                    content=f"{KADENCE} Countdowns that keep resetting make products look scarce.", published_at=utcnow()))
+    st.set("content_version", 0)
+    assert jobs.run_content_cleanup() == "cleaned 1 item(s)"
+    with session_scope() as db:
+        item = db.execute(select(Item).where(Item.external_id == "v0100-css-1")).scalar_one()
+        assert item.content == "Countdowns that keep resetting make products look scarce."
+    assert jobs.run_content_cleanup() == "stored content is up to date"
