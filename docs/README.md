@@ -17,7 +17,7 @@
 |---|---|
 | [Sources](sources.md) | Built-in news, Indonesian news, Bluesky, Mastodon, X, Telegram, scam & fraud and threat-intel sources, and the topic filters |
 | [Using JATMP](using-jatmp.md) | Install modes and roles, the two dashboards and their period, tables and the side preview, job status and notifications |
-| [Analysis](analysis.md) | Entity extraction, severity scoring, enrichment and consensus, the relationship graph, infrastructure context, correlation, trends, IIV sectors, CVE context |
+| [Analysis](analysis.md) | Entity extraction, severity scoring, enrichment and consensus, the relationship graph, infrastructure context, correlation, trends, critical infrastructure sectors, CVE context |
 | [Geography and Indonesia](geography.md) | Target / source / hosting countries, Indonesian provinces, the International / National switch, Bahasa Indonesia |
 | [Scams and fraud](fraud.md) | Scam types, impersonated brands, scammer identifiers and personal data (UU PDP), the fraud score, the scam & fraud dashboard and pages |
 | [Sharing and integrations](integrations.md) | REST API, IOC feeds, STIX 2.1 / TAXII 2.1, webhooks, MISP, sharing rules (TLP), dark web tier 1 |

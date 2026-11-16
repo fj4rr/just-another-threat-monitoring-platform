@@ -1,4 +1,4 @@
-"""0.10: dashboard periods with the backfill note, IIV sectors, the scam & fraud dashboard, the backfill page's
+"""0.10: dashboard periods with the backfill note, critical infrastructure sectors, the scam & fraud dashboard, the backfill page's
 Stop button, the executive summary, and the faster scam / blocklist processing."""
 from datetime import timedelta
 

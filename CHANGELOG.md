@@ -16,10 +16,11 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
   Periods that reach past the live collectors show a note that older days come from the historical backfill, that
   not every source can be backfilled, how many backfilled items the period holds, and (for admins) a link to the
   Backfill page.
-- **Sectors (IIV)**: every item is tagged with the vital information infrastructure sectors of Perpres 82/2022 it
+- **Critical infrastructure sectors**: every item is tagged with the critical information infrastructure sectors of
+  Indonesia's Perpres 82/2022 it
   is about (government administration, energy & mineral resources, transportation, finance, health, ICT, food,
   defence), from the organisations and services it names as targets, or from the sector a feed states
-  (ransomware.live, OTX industries). Shown as a *Sectors (IIV)* chart on both dashboards (click a bar for its
+  (ransomware.live, OTX industries). Shown as a *Critical infrastructure sectors* chart on both dashboards (click a bar for its
   items), as chips on items, as a filter on the scam reports list and as `sectors` in the REST API. Existing items
   are tagged once in the background after the upgrade (`python manage.py sectortag`).
 - **Executive summary** instead of the long AI digest: a one-line headline, an overall threat level, three or four

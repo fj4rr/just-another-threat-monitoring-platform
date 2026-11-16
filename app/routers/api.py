@@ -78,7 +78,7 @@ def stats_trending_timeline(limit: int = 5, days: int = 30, type: str = "malware
 @router.get("/stats/categories")
 def stats_categories(days: int = 30, type: str = "malware", scope: str = "", _: User = Depends(current_user),
                      db: Session = Depends(get_db), region: str = Depends(current_region)):
-    """Malware by type, CVEs by exploitation risk, actor mentions by kind of actor, items per IIV sector,
+    """Malware by type, CVEs by exploitation risk, actor mentions by kind of actor, items per critical infrastructure sector,
     or (scam & fraud) scam reports per scam type and per kind of impersonated brand."""
     days = _days(days, 1, 3650)
     if type == "sector":

@@ -64,7 +64,7 @@ look them up by hand; JATMP does not query them (cekrekening.id sits behind a CA
 - **Trending scam types** (the period against the one before, with the malware and brands seen alongside and a
   *spreading* badge), **most impersonated brands** and the **latest scammer identifiers**.
 - Charts of reports **by scam type**, **by kind of impersonated brand** (banks, e-wallets, couriers, government…),
-  **by sector** ([IIV sectors](analysis.md#sectors-iiv)) and **per source**.
+  **by sector** ([critical infrastructure sectors](analysis.md#critical-infrastructure-sectors)) and **per source**.
 - **Recent scam reports**, the **highest fraud scores** and the fraud sources with their status.
 
 ## Pages

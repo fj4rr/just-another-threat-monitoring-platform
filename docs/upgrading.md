@@ -7,7 +7,7 @@ Schema changes are applied automatically on start-up (new tables and columns; th
 ## Upgrading to 0.10
 
 - New column `insights.data` (the structured executive summary) is created on start-up.
-- About a minute after the first start, a background job tags every existing item with its IIV sectors (no
+- About a minute after the first start, a background job tags every existing item with its critical infrastructure sectors (no
   network requests; `python manage.py sectortag` does the same).
 - The scam & fraud rules changed (vendor listicles), so the start-up job re-analyses stored items once, as after
   0.9.

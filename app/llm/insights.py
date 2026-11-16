@@ -211,7 +211,7 @@ Trending malware: {json.dumps(trend, default=str)}
 Trending threat actors: {json.dumps(actors, default=str)}
 Trending CVEs (kev = in CISA KEV): {json.dumps(cves, default=str)}
 Scam & fraud: {json.dumps(scams, default=str)}
-Most affected sectors (Indonesian IIV sectors): {json.dumps(sectors, default=str)}
+Most affected critical infrastructure sectors: {json.dumps(sectors, default=str)}
 Top items of the last 24 hours:
 {lines or 'none'}
 

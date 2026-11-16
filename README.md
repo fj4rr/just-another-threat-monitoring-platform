@@ -6,7 +6,7 @@ JATMP is a self-hosted platform for keeping track of new and emerging malware ca
 **security news**, **social media** (X, Bluesky, Mastodon, Telegram) and **threat-intelligence platforms**,
 extracts the malware families, actors, CVEs and indicators in each item, checks the indicators against intel
 providers, correlates everything across sources and shows the result on a trend dashboard. Scam reports get a
-dashboard of their own on the same entity graph, and items are sorted into Indonesia's vital infrastructure (IIV)
+dashboard of their own on the same entity graph, and items are sorted into critical infrastructure
 sectors. Every item is placed on the map, and the whole interface switches between an
 International and a National (Indonesia) view.
 
@@ -24,7 +24,7 @@ More in the [screenshot tour](docs/screenshots.md).
   feed, account or channel can be added. → [Sources](docs/sources.md)
 - **Analysis**: entity extraction with defang handling, an explainable 0–100 severity score, cross-provider
   verdict consensus (VirusTotal, OTX, abuse.ch, GreyNoise, AbuseIPDB and more), a relationship graph,
-  on-demand infrastructure context, trend scoring over 7 days to a year, IIV sectors and CVE context from CISA KEV,
+  on-demand infrastructure context, trend scoring over 7 days to a year, critical infrastructure sectors and CVE context from CISA KEV,
   FIRST EPSS and NVD.
   → [Analysis](docs/analysis.md)
 - **Geography**: target, source and hosting countries kept apart, Indonesian provinces, an International /

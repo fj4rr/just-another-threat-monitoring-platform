@@ -16,7 +16,7 @@ python manage.py slim             # apply the retention tier now (trim the text 
 python manage.py geotag           # re-run geo attribution (targets, provinces, language, source country)
 python manage.py geoip-update     # download the offline GeoIP database and locate IP indicators
 python manage.py fraudtag         # re-run the scam & fraud analysis on every item (also a button on the fraud pages)
-python manage.py sectortag        # re-detect the IIV sectors of every item
+python manage.py sectortag        # re-detect the critical infrastructure sectors of every item
 python manage.py telegram-login   # sign in to Telegram once for MTProto (optional; needs requirements-telegram.txt)
 python manage.py vacuum           # give freed space back to the disk
 python manage.py copy-db postgresql+psycopg://jatmp:secret@localhost:5432/jatmp   # copy into an empty database

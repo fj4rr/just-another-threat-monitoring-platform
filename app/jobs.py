@@ -517,7 +517,7 @@ def run_fraudtag(force: bool = False) -> str:
 
 
 def run_sectortag(force: bool = False) -> str:
-    """IIV sectors of every stored item (0.10). Runs once after an upgrade or a rules change
+    """Critical infrastructure sectors of every stored item (0.10). Runs once after an upgrade or a rules change
     (``sectors.RULES_VERSION``), or on demand (``manage.py sectortag``)."""
     from .processing import sectors
 
@@ -867,7 +867,7 @@ def start() -> None:
     # same for the scam & fraud analysis (0.9)
     scheduler.add_job(run_fraudtag, "date", run_date=_now() + timedelta(seconds=40), id="fraudtag",
                       replace_existing=True)
-    # and for the IIV sectors (0.10)
+    # and for the critical infrastructure sectors (0.10)
     scheduler.add_job(run_sectortag, "date", run_date=_now() + timedelta(seconds=60), id="sectortag",
                       replace_existing=True)
     if settings.get("geoip_auto_update"):

@@ -122,7 +122,7 @@ def _item_dict(i: Item, full: bool = False, targets: list | None = None) -> dict
         # scammer identifiers (phone numbers, bank accounts...) are personal data and never leave JATMP
         "entities": [{"id": link.entity.id, "type": link.entity.type, "value": link.entity.value}
                      for link in i.entity_links if link.entity.type not in fraud.IDENT_TYPES],
-        # 0.10: IIV sectors (government, energy, transportation, finance, health, ict, food, defense)
+        # 0.10: critical infrastructure sectors (government, energy, transportation, finance, health, ict, food, defense)
         "sectors": [link.entity.value for link in i.entity_links if link.entity.type == "sector"],
     }
     if i.fraud_score:

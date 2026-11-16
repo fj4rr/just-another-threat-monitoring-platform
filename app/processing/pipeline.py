@@ -250,7 +250,7 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, orig
         item.severity_detail = reasons_to_json(reasons)
         for fx in fraud.apply(db, item, source.topic or "", cache=velocity_cache):  # scam types, brands, identifiers
             uniq.setdefault((fx.type, fx.value), fx)
-        for sx in sectors.apply(item):  # IIV sectors (0.10)
+        for sx in sectors.apply(item):  # critical infrastructure sectors (0.10)
             uniq.setdefault((sx.type, sx.value), sx)
         link_entities(db, item, list(uniq.values()))
         if (r.raw or {}).get("listed_by") and r.indicators:

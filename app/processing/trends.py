@@ -323,7 +323,7 @@ def kpi_series(db: Session, days: int = 14, region: str = "") -> dict:
 
 
 def sector_breakdown(db: Session, days: int = 30, region: str = "", extra=None) -> list[dict]:
-    """Items per IIV sector (app/processing/sectors.py) in the period, busiest first, all eight sectors."""
+    """Items per critical infrastructure sector (app/processing/sectors.py) in the period, busiest first, all eight sectors."""
     from .sectors import SECTOR_KEYS, SECTOR_NAMES, SECTOR_NAMES_ID
 
     q = (select(Entity.id, Entity.value, func.count(distinct(Item.id)))

@@ -39,8 +39,8 @@ The cyber threats dashboard, from top to bottom:
 - **Collection volume** per day (or week) and source type.
 - **Trending malware**, **Trending CVEs** and **Trending threat actors**, each scrolling on its own. Hover the
   CVSS, EPSS and priority headers for what they mean.
-- **Top 5 trending over time**, with a dropdown for families, CVEs or actors, next to **Sectors (IIV)**: items per
-  vital information infrastructure sector ([Analysis](analysis.md#sectors-iiv)); click a bar for its items.
+- **Top 5 trending over time**, with a dropdown for families, CVEs or actors, next to **Critical infrastructure sectors**: items
+  per sector ([Analysis](analysis.md#critical-infrastructure-sectors)); click a bar for its items.
 - **Malware by type**, **CVEs by exploitation risk** and **Threat actors by type**.
 - **Notable recent items** (severity 30 and up), next to **Items per source** and **IOC verdicts**.
 

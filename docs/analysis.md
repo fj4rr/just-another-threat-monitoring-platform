@@ -74,10 +74,10 @@ items per kind of actor: nation-state, ransomware, extortion (data theft and ext
 ShinyHunters or Scattered Spider) and cybercrime. Actors from the built-in knowledge base are classified;
 others are *unclassified* unless `data/knowledge_extra.json` gives them a `category`.
 
-## Sectors (IIV)
+## Critical infrastructure sectors
 
-Each item is tagged with the sectors of Indonesia's vital information infrastructure (*Infrastruktur Informasi
-Vital*, Perpres 82/2022) it is about: government administration, energy & mineral resources, transportation,
+Each item is tagged with the critical information infrastructure sectors it is about, as Indonesia's Perpres
+82/2022 defines them (*Infrastruktur Informasi Vital*): government administration, energy & mineral resources, transportation,
 finance, health, ICT, food and defence. The rules (`app/processing/sectors.py`, English and Bahasa Indonesia) look
 for the organisations and services of each sector as targets or affected parties: *rumah sakit* and *hospital*,
 banks and e-wallets, airlines and *bandara*, telecom operators and data centres, ministries, *pemda* and `.go.id`
@@ -87,7 +87,7 @@ evasion*, the hacktivist *IT Army*). A sector the feed states (the ransomware.li
 counts on its own. An item gets at most three sectors.
 
 Sectors are entities like the others (type `sector`), so they appear as chips, filter the feed (click a bar in a
-*Sectors (IIV)* chart) and the scam reports list, and are exported as `sectors` in the REST API. They carry almost
+*Critical infrastructure sectors* chart) and the scam reports list, and are exported as `sectors` in the REST API. They carry almost
 no weight in correlation. Rules changes re-tag stored items once; `python manage.py sectortag` does it by hand.
 
 ## Vulnerability context

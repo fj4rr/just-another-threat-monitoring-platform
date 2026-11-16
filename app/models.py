@@ -121,7 +121,7 @@ class Entity(Base):
     type: Mapped[str] = mapped_column(String(16), index=True)
     # malware | actor | cve | ip | domain | url | md5 | sha1 | sha256 | technique
     # fraud (0.9): scam_type | brand | phone | bank_account | ewallet | crypto_wallet
-    # sector (0.10): IIV sector an item is about (app/processing/sectors.py)
+    # sector (0.10): critical infrastructure sector an item is about (app/processing/sectors.py)
     value: Mapped[str] = mapped_column(String(2048))  # normalized (lowercase etc.)
     display: Mapped[str] = mapped_column(String(2048), default="")
     category: Mapped[str] = mapped_column(String(32), default="")  # ransomware | stealer | rat ...

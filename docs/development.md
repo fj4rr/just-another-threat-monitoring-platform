@@ -34,7 +34,7 @@ app/
                 geo (language, target countries and provinces, source country, International / National filter)
                 severity (explainable 0–100 score) · enrichment (cross-source, consensus, re-checks)
                 fraud (scam types, impersonated brands, scammer identifiers, losses / victims, fraud score)
-                sectors (IIV sectors of Perpres 82/2022) · fraudstats (scam & fraud dashboard aggregations)
+                sectors (critical infrastructure sectors, Perpres 82/2022) · fraudstats (scam & fraud dashboard aggregations)
                 trends (dashboard aggregations, periods and weekly buckets, weighted correlation)
                 graph (capped relationship graphs)
   intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox, MalwareBazaar, URLhaus, GreyNoise,

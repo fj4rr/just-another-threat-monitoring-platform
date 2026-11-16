@@ -1,6 +1,6 @@
-"""Sectors (0.10): which sector of Indonesia's vital information infrastructure (IIV) an item is about.
+"""Sectors (0.10): which critical information infrastructure sector an item is about.
 
-The eight sectors are the ones Perpres 82/2022 on the protection of vital information infrastructure lists
+The eight sectors are the ones Indonesia's Perpres 82/2022 on critical information infrastructure lists
 (Pasal 4): government administration, energy & mineral resources, transportation, finance, health, ICT, food and
 defence. An item gets a sector when the text names organisations or services of that sector as a target or an
 affected party ("rumah sakit", "hospital", "bank", "maskapai", ".go.id" sites…), or when the feed states one
@@ -148,7 +148,7 @@ def detect(title: str, body: str, feed_sector=None) -> list[str]:
 
 
 def entities(keys: list[str]) -> list[Extracted]:
-    return [Extracted("sector", k, SECTOR_NAMES[k], "iiv", "kb") for k in keys]
+    return [Extracted("sector", k, SECTOR_NAMES[k], "cii", "kb") for k in keys]
 
 
 def _feed_value(raw: dict | None):
