@@ -5,7 +5,7 @@
   <div class="pv-meta">
     <span class="badge">{{ ent.type }}</span>
     {% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
-    {% if is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
+    {% if is_ident %}<span class="badge warn">scammer identifier</span>{% elif is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
     {% if ent.type == 'cve' %}{{ cve_badges(m) }}{% endif %}
     {% if trend and trend.is_new %}<span class="badge new">new</span>{% endif %}
   </div>

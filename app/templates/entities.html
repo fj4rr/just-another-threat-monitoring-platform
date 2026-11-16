@@ -4,10 +4,12 @@
 {% block content %}
 {% set period = (f.days ~ 'd') if f.days else 'all time' %}
 <div class="page-head"><div><h1>{{ title }}</h1><p class="muted">{{ total }} tracked · mentions {{ 'in the last ' ~ f.days ~ ' days' if f.days else 'over all time' }} · click a name to preview, a column header to sort</p></div>
+  {% if section %}<a class="btn" href="/fraud/items">Scam reports →</a>{% endif %}
   {% if etype == 'cve' and user.role in ('admin','analyst') %}<div class="job">
     <button class="btn" data-post="/api/cves/refresh" data-busy="Queuing…" data-job-button="cve_intel" title="Look up CISA KEV, FIRST EPSS and NVD CVSS for recently mentioned CVEs">⟳ Refresh CVE intel</button>
     <div class="job-status small muted" data-job-status="cve_intel" aria-live="polite"></div></div>{% endif %}
 </div>
+{% if section %}{% include "_fraud_tabs.html" %}{% endif %}
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Filter by name" aria-label="Filter by name" maxlength="100">
   {% if categories %}<select name="category" aria-label="Type"><option value="">All types</option>

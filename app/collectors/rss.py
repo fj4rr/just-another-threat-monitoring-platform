@@ -40,10 +40,16 @@ class RSSCollector(Collector):
     category = "news"
     label = "RSS / Atom feed"
     fields = [("url", "Feed URL", "https://example.com/feed/"),
-              ("filter", "Topic filter (optional): 'security' keeps only security-related entries", "security")]
+              ("filter", "Topic filter (optional): 'security' keeps only security-related entries, 'fraud' only scam "
+                         "reports", "security")]
 
     def _keep(self, raws: list[RawItem]) -> list[RawItem]:
-        if str(self.cfg.get("filter") or "").strip().lower() != "security":
+        topic = str(self.cfg.get("filter") or "").strip().lower()
+        if topic == "fraud":  # fact-check and consumer-alert feeds: keep only entries about a scam
+            from ..processing.fraud import scam_types
+
+            return [r for r in raws if scam_types(r.title, f"{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}")]
+        if topic != "security":
             return raws
         return [r for r in raws if SECURITY_RE.search(f"{r.title}\n{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}")]
 

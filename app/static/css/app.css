@@ -676,3 +676,18 @@ th.has-tip, .has-tip > a { text-decoration: underline dotted; text-underline-off
   .list-fill { min-height: 0; }
   .list-fill > .geo-list { position: static; max-height: 420px; }
 }
+
+/* scam & fraud section (0.9) */
+.sev.fraud { border: 1px dashed var(--border-strong, var(--border)); }
+.sev.fraud.s-high { background: var(--series-5, var(--critical)); color: #fff; border-color: transparent; }
+.sev.fraud.s-med { background: var(--serious); color: #111; border-color: transparent; }
+.brand-row { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; align-items: baseline; padding: 6px 0; font-size: 13px; }
+.brand-row .bar-inline { grid-column: 1 / -1; background: var(--series-5, var(--series-1)); }
+.brand-row .num { font-variant-numeric: tabular-nums; }
+.mini-row { display: flex; gap: 8px; align-items: center; padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border); min-width: 0; }
+.mini-row:last-child { border-bottom: 0; }
+.mini-row > a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fraud-reasons { margin: 6px 0 0; padding: 0; list-style: none; font-size: 12.5px; }
+.fraud-reasons li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; color: var(--text-secondary); }
+.fraud-reasons li b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.tile .value.long { font-size: 22px; line-height: 1.35; }

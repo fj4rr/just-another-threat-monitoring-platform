@@ -1,0 +1,13 @@
+{# One scam report in a list (expects ``i``). #}
+{% from "_macros.html" import fraud_score %}
+<div class="feed-item">
+  <div class="feed-side">{{ fraud_score(i.fraud_score) }}<time class="muted small" datetime="{{ i.published_at.isoformat() }}Z" title="{{ i.published_at }} UTC">{{ i.published_at|timeago }}</time></div>
+  <div style="min-width:0">
+    <a class="title" href="/items/{{ i.id }}" data-preview="/items/{{ i.id }}/preview" data-preview-nav>{{ i.title or '(untitled)' }}</a>
+    <div class="meta"><span class="badge cat-{{ i.source.category }}">{{ i.source.name }}</span>
+      {% if i.fraud_loss_idr %}<span class="badge warn" title="Largest loss the report states">{{ i.fraud_loss_idr|idr }}</span>{% endif %}
+      {% if i.fraud_victims %}<span class="badge" title="Largest victim count the report states">{{ '{:,}'.format(i.fraud_victims) }} victims</span>{% endif %}</div>
+    {% set fx = i.entity_links|selectattr('entity.type', 'in', ['scam_type', 'brand', 'malware'])|list %}
+    {% if fx %}<div class="ent-row">{% for l in fx[:8] %}<a class="chip" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview"><span class="t">{{ l.entity.type|replace('scam_type', 'scam') }}</span>{{ l.entity.display|truncate(32, True) }}</a>{% endfor %}</div>{% endif %}
+  </div>
+</div>

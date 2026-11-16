@@ -2,30 +2,34 @@
 
 [![CI](https://github.com/fj4rr/just-another-threat-monitoring-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/fj4rr/just-another-threat-monitoring-platform/actions/workflows/ci.yml)
 
-JATMP is a self-hosted platform for keeping track of new and emerging malware campaigns. It collects **security
-news**, **social media** (X, Bluesky, Mastodon) and **threat-intelligence platforms**, extracts the malware
-families, actors, CVEs and indicators in each item, checks the indicators against intel providers, correlates
-everything across sources and shows the result on a trend dashboard. Every item is placed on the map, and the
-whole interface switches between an International and a National (Indonesia) view.
+JATMP is a self-hosted platform for keeping track of new and emerging malware campaigns and scams. It collects
+**security news**, **social media** (X, Bluesky, Mastodon, Telegram) and **threat-intelligence platforms**,
+extracts the malware families, actors, CVEs and indicators in each item, checks the indicators against intel
+providers, correlates everything across sources and shows the result on a trend dashboard. Scam reports get their
+own section on the same entity graph. Every item is placed on the map, and the whole interface switches between an
+International and a National (Indonesia) view.
 
 It runs as a single process with SQLite by default. There is no JavaScript build step and nothing is loaded from
 a CDN at runtime, so it works on an isolated network.
 
-![Dashboard](docs/screenshots/dashboard-full.png)
+![Dashboard](docs/screenshots/dashboard-overview.png)
 
 More in the [screenshot tour](docs/screenshots.md).
 
 ## Features
 
-- **Collection** from 14 English and 10 Indonesian news feeds, about 30 Bluesky and Mastodon accounts, X, OTX,
-  urlscan.io, ANY.RUN, ThreatFox, MISP and ransomware.live. Any RSS feed or account can be added.
-  → [Sources](docs/sources.md)
+- **Collection** from 14 English and 10 Indonesian news feeds, about 30 Bluesky and Mastodon accounts, X, public
+  Telegram channels (no account needed), OTX, urlscan.io, ANY.RUN, ThreatFox, MISP and ransomware.live. Any RSS
+  feed, account or channel can be added. → [Sources](docs/sources.md)
 - **Analysis**: entity extraction with defang handling, an explainable 0–100 severity score, cross-provider
   verdict consensus (VirusTotal, OTX, abuse.ch, GreyNoise, AbuseIPDB and more), a relationship graph,
   on-demand infrastructure context, trend scoring and CVE context from CISA KEV, FIRST EPSS and NVD.
   → [Analysis](docs/analysis.md)
 - **Geography**: target, source and hosting countries kept apart, Indonesian provinces, an International /
   National (ID) switch and Bahasa Indonesia support. → [Geography and Indonesia](docs/geography.md)
+- **Scams and fraud**: scam types, impersonated banks, e-wallets and government bodies, scammer phone numbers,
+  accounts and wallets (kept to a minimum under UU PDP), losses in rupiah and a separate fraud score, from news,
+  fact-checkers, FBI IC3 and the ScamSniffer blocklist. → [Scams and fraud](docs/fraud.md)
 - **Sharing**: REST API with API keys, IOC blocklist feeds, STIX 2.1 / TAXII 2.1, signed webhooks
   (Slack, Discord, Teams) and two-way MISP, all behind TLP sharing rules. → [Sharing and integrations](docs/integrations.md)
 - **Reporting and AI**: a *Threat Intel Findings* report as PDF, Word, Markdown or CSV, and optional summaries,
@@ -62,7 +66,7 @@ before exposing the port to a network. See [Getting started](docs/getting-starte
 | | |
 |---|---|
 | **Set up** | [Getting started](docs/getting-started.md) · [Configuration](docs/configuration.md) · [Upgrading](docs/upgrading.md) · [Maintenance commands](docs/maintenance.md) |
-| **Use** | [Sources](docs/sources.md) · [Using JATMP](docs/using-jatmp.md) · [Analysis](docs/analysis.md) · [Geography](docs/geography.md) · [Integrations](docs/integrations.md) · [Reporting and AI](docs/reporting-and-ai.md) · [History and storage](docs/history-and-storage.md) |
+| **Use** | [Sources](docs/sources.md) · [Using JATMP](docs/using-jatmp.md) · [Analysis](docs/analysis.md) · [Geography](docs/geography.md) · [Scams and fraud](docs/fraud.md) · [Integrations](docs/integrations.md) · [Reporting and AI](docs/reporting-and-ai.md) · [History and storage](docs/history-and-storage.md) |
 | **Reference** | [Security](docs/security.md) · [Development and architecture](docs/development.md) · [Changelog](CHANGELOG.md) |
 
 The full index is in [docs/](docs/README.md).

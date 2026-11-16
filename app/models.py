@@ -64,6 +64,9 @@ class Source(Base):
     # geography (app/processing/geo.py): the outlet's country (ISO2) and language; "" = unknown / detect
     country: Mapped[str] = mapped_column(String(2), default="")
     language: Mapped[str] = mapped_column(String(8), default="")
+    # "" = general; "fraud" = scam / fraud source (app/processing/fraud.py): a generic scam word is enough to
+    # file an entry under "Other scam", and the source shows in the fraud section
+    topic: Mapped[str] = mapped_column(String(16), default="")
 
 
 class Item(Base):
@@ -97,6 +100,11 @@ class Item(Base):
     slimmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     lang: Mapped[str] = mapped_column(String(8), default="")  # detected language: en | id | ""
     src_country: Mapped[str] = mapped_column(String(2), default="", index=True)  # outlet country (or ID for Bahasa)
+    # scam & fraud (app/processing/fraud.py): separate 0-100 score with its reasons; 0 = not about a scam
+    fraud_score: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    fraud_detail: Mapped[list] = mapped_column(JSON, default=list)
+    fraud_loss_idr: Mapped[float] = mapped_column(Float, default=0.0)  # largest reported loss, in rupiah
+    fraud_victims: Mapped[int] = mapped_column(Integer, default=0)  # largest reported victim count
 
     source: Mapped[Source] = relationship(lazy="joined")
     entity_links: Mapped[list[ItemEntity]] = relationship(
@@ -112,6 +120,7 @@ class Entity(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     type: Mapped[str] = mapped_column(String(16), index=True)
     # malware | actor | cve | ip | domain | url | md5 | sha1 | sha256 | technique
+    # fraud (0.9): scam_type | brand | phone | bank_account | ewallet | crypto_wallet
     value: Mapped[str] = mapped_column(String(2048))  # normalized (lowercase etc.)
     display: Mapped[str] = mapped_column(String(2048), default="")
     category: Mapped[str] = mapped_column(String(32), default="")  # ransomware | stealer | rat ...

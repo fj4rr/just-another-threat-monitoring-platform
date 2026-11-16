@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import th, pager, period_select, dchip %}
+{% block title %}Scammer identifiers{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Scams & fraud</h1>
+  <p class="muted">{{ total }} scammer identifier(s){% if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %}</p></div>
+  {% if rows %}<button type="button" class="btn sm" data-copy-selector="#ident-list .ioc-val" data-copy-label="identifier" title="Copy the identifiers on this page">Copy</button>{% endif %}</div>
+{% include "_fraud_tabs.html" %}
+<form class="filters" method="get">
+  <input type="search" name="q" value="{{ f.q }}" placeholder="Number, account or wallet" aria-label="Search" maxlength="100">
+  <select name="type" aria-label="Type"><option value="">All types</option>
+    {% for t, l in labels.items() %}<option value="{{ t }}" {{ 'selected' if f.type == t }}>{{ l }}</option>{% endfor %}</select>
+  {{ period_select(f, [(7,'Seen in 7 days'),(30,'Seen in 30 days'),(90,'Seen in 90 days'),(365,'Seen in 1 year'),(0,'All time')]) }}
+  <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
+  <button class="btn">Filter</button>
+  {% if f.q or f.type or f.days %}<a class="btn" href="/fraud/identifiers">Reset</a>{% endif %}
+</form>
+<div class="card table-wrap data-table">
+  <table id="ident-list">
+    <thead><tr>
+      {{ th('Type', 'type', f, 'col-narrow', default='asc') }}
+      {{ th('Identifier', 'value', f, 'col-title', default='asc') }}
+      {{ th('Mentions', 'mentions', f, 'num col-narrow') }}
+      {{ th('First seen', 'first_seen', f, 'col-time') }}
+      {{ th('Last seen', 'last_seen', f, 'col-time') }}
+    </tr></thead>
+    <tbody>
+    {% for e in rows %}
+    <tr>
+      <td class="col-narrow"><span class="badge">{{ labels.get(e.type, e.type) }}</span>{% if e.category %}<div class="muted small">{{ e.category }}</div>{% endif %}</td>
+      <td class="col-title"><a class="title mono ioc-val" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview" data-preview-nav style="word-break:break-all">{{ e.display }}</a>
+        <div class="ent-row">{% for c in related.get(e.id, []) %}{{ dchip(c) }}{% endfor %}
+          {% for name, url in links.get(e.id, []) %}<a class="chip" href="{{ url }}" target="_blank" rel="noopener noreferrer" title="Look it up yourself on {{ name }}"><span class="t">check</span>{{ name }} ↗</a>{% endfor %}</div>
+        {% if seen.get(e.id) %}<div class="muted small">via {{ seen[e.id][:3]|join(', ') }}{% if seen[e.id]|length > 3 %} +{{ seen[e.id]|length - 3 }}{% endif %}</div>{% endif %}</td>
+      <td class="num col-narrow">{{ e.mention_count }}</td>
+      <td class="col-time muted small" title="{{ e.first_seen }} UTC">{{ e.first_seen.strftime('%Y-%m-%d') }}</td>
+      <td class="col-time muted small" title="{{ e.last_seen }} UTC">{{ e.last_seen|timeago }}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty">No scammer identifiers yet. They come from scam reports that publish a scammer's number, account or wallet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ pager(page, pages, f, total) }}
+<p class="muted small" style="margin-top:12px">Taken only from scam reports, where the text marks them as the scammer's; official and victims' numbers and account holder names are skipped (UU PDP / Law 27/2022).
+  {% if retention %}Phone numbers, bank accounts and e-wallets not mentioned for {{ retention }} days are deleted.{% endif %}
+  They are not shared through the REST API, exports, webhooks or MISP.</p>
+{% endblock %}

@@ -5,7 +5,8 @@
 <div class="page-head">
   <div style="min-width:0">
     <div class="row small muted"><span class="badge">{{ ent.type }}</span>{% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
-      {% if is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
+      {% if is_ident %}<span class="badge warn" title="Published in a scam report as the scammer's">scammer identifier</span>
+      {% elif is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
       {% set geo = (ent.meta or {}).get('geo') %}{% if geo and geo.country %}<span class="badge" title="{{ geo.as_name or '' }} ({{ geo.source }})">{{ geo.country }}{% if geo.asn %} · {{ geo.asn if (geo.asn|string).startswith('AS') else 'AS' ~ geo.asn }}{% endif %}</span>{% endif %}
       {% if ent.country %}<a class="badge" href="/iocs?type=ip&country={{ ent.country }}" title="Hosting country (offline GeoIP or the intel providers); not a target">hosted in {{ country_name(ent.country) }}</a>{% endif %}
       {% set gn = (ent.meta or {}).get('greynoise') %}{% if gn and gn.riot %}<span class="badge good" title="GreyNoise RIOT: known benign business service">benign service</span>{% elif gn and gn.noise %}<span class="badge warn" title="GreyNoise: seen mass-scanning the internet (opportunistic, not targeted)">mass scanner</span>{% endif %}
@@ -14,7 +15,9 @@
   </div>
   <div class="row">
     <button class="btn" data-post="/api/watch/{{ ent.id }}" data-watching="{{ 'true' if watching else 'false' }}" aria-pressed="{{ 'true' if watching else 'false' }}">{{ '★ Watching' if watching else '☆ Watch' }}</button>
-    {% if user.role in ('admin','analyst') and (is_ioc or ent.type == 'malware') %}
+    {% for name, url in check_links %}<a class="btn" href="{{ url }}" target="_blank" rel="noopener noreferrer" title="Look it up yourself on {{ name }}">Check on {{ name }} ↗</a>{% endfor %}
+    {% if ent.type in ('scam_type', 'brand') %}<a class="btn" href="/fraud/items?{{ 'scam' if ent.type == 'scam_type' else 'brand' }}={{ ent.id }}&days=0">Scam reports →</a>{% endif %}
+    {% if user.role in ('admin','analyst') and ((is_ioc and not is_ident) or ent.type == 'malware') %}
     <button class="btn" data-post="/api/entities/{{ ent.id }}/enrich" data-busy="Enriching…" data-reload>⇄ Enrich now</button>{% endif %}
     {% if context_ok and user.role in ('admin','analyst') %}
     <button class="btn" data-post="/api/entities/{{ ent.id }}/context" data-busy="Looking up…" data-reload title="Ports, services, ASN, reputation and sandbox results from the configured context providers">🛰 Context lookup</button>{% endif %}
@@ -24,7 +27,7 @@
     {% if misp_configured() and user.role in ('admin','analyst') and ent.type in ('malware','actor') %}
     {% set mp = (ent.meta or {}).get('misp_pushed') %}
     <button class="btn" data-post="/api/misp/push/entity/{{ ent.id }}" data-busy="Sending…" title="{{ 'Already sent as MISP event #' ~ mp.id if mp else 'Create a MISP event with the shareable indicators' }}">⇪ {{ 'In MISP #' ~ mp.id if mp else 'Send to MISP' }}</button>{% endif %}
-    <a class="btn" href="/api/v1/stix/entities/{{ ent.id }}" download="jatmp-{{ ent.type }}-{{ ent.id }}.stix.json" title="STIX 2.1 bundle, subject to the sharing rules">⇩ STIX</a>
+    {% if not is_ident %}<a class="btn" href="/api/v1/stix/entities/{{ ent.id }}" download="jatmp-{{ ent.type }}-{{ ent.id }}.stix.json" title="STIX 2.1 bundle, subject to the sharing rules">⇩ STIX</a>{% endif %}
     <a class="btn" href="/feed?entity={{ ent.id }}&days=0">All items →</a>
   </div>
 </div>
@@ -79,7 +82,7 @@
     {% endif %}
 
     {% include "_darkweb_cards.html" %}
-    {% if is_ioc %}{% include "_context_card.html" %}{% endif %}
+    {% if is_ioc and not is_ident %}{% include "_context_card.html" %}{% endif %}
     {% if enrichments %}
     <div class="card">
       <h2>Threat-intel enrichment</h2>
@@ -98,7 +101,7 @@
             <td class="muted small">{{ e.fetched_at|timeago }}</td></tr>{% endfor %}
         </tbody></table></div>
     </div>
-    {% elif is_ioc or ent.type == 'malware' %}
+    {% elif (is_ioc and not is_ident) or ent.type == 'malware' %}
     <div class="card"><h2>Threat-intel enrichment</h2><p class="muted">Not enriched yet. It runs automatically in the background, or press “Enrich now”.</p></div>
     {% endif %}
 

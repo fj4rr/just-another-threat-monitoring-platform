@@ -22,7 +22,7 @@ from .. import __version__, apikeys, settings, sharing
 from ..auth import LoginRequired, audit, current_user
 from ..db import get_db
 from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, ItemGeo, Source, User, utcnow
-from ..processing import geo, trends
+from ..processing import fraud, geo, trends
 from ..search import item_text_clause
 from ..web import render
 
@@ -119,9 +119,16 @@ def _item_dict(i: Item, full: bool = False, targets: list | None = None) -> dict
         "origin": i.origin or "live",
         "geo": {"targets": [{"country": t["code"], "provinces": t["provinces"]} for t in targets or []],
                 "source_country": i.src_country or None, "language": i.lang or None},
+        # scammer identifiers (phone numbers, bank accounts...) are personal data and never leave JATMP
         "entities": [{"id": link.entity.id, "type": link.entity.type, "value": link.entity.value}
-                     for link in i.entity_links],
+                     for link in i.entity_links if link.entity.type not in fraud.IDENT_TYPES],
     }
+    if i.fraud_score:
+        out["fraud"] = {"score": i.fraud_score, "loss_idr": i.fraud_loss_idr or None, "victims": i.fraud_victims or None,
+                        "scam_types": [link.entity.value for link in i.entity_links if link.entity.type == "scam_type"],
+                        "brands": [link.entity.display for link in i.entity_links if link.entity.type == "brand"]}
+        if full:
+            out["fraud"]["detail"] = i.fraud_detail or []
     if full:
         out.update(content=i.content, tags=i.tags or [], severity_detail=i.severity_detail or [])
     return out
@@ -400,7 +407,7 @@ def stix_entity(entity_id: int, _: User = Depends(principal("export")), db: Sess
     from .. import stix
 
     e = db.get(Entity, entity_id)
-    if not e or (e.type in trends.IOC_TYPES and not db.execute(
+    if not e or e.type in fraud.IDENT_TYPES or (e.type in trends.IOC_TYPES and not db.execute(
             select(Entity.id).where(Entity.id == e.id, sharing.shareable_entity_clause())).first()):
         raise HTTPException(404, "entity not found")
     return _stix(stix.entity_bundle(db, e))

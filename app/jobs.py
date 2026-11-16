@@ -472,6 +472,49 @@ def run_geotag(force: bool = False) -> str:
         db.close()
 
 
+def run_fraudtag(force: bool = False) -> str:
+    """Scam & fraud analysis of every stored item. Runs once after an upgrade or a rules change
+    (``fraud.RULES_VERSION``), or on demand (Settings -> Scam & fraud, ``manage.py fraudtag``)."""
+    from .processing import fraud
+
+    if not force and int(settings.get("fraud_version") or 0) >= fraud.RULES_VERSION:
+        return "fraud analysis is up to date"
+    db = SessionLocal()
+    run = _start_run(db, "fraudtag")
+    try:
+        def progress(done: int, total: int) -> None:
+            run.progress_done, run.progress_total, run.phase = done, total, f"{done}/{total} items"
+            db.commit()
+
+        n = fraud.retag_all(db, progress)
+        found = db.scalar(select(func.count(Item.id)).where(Item.fraud_score > 0)) or 0
+        settings.set("fraud_version", fraud.RULES_VERSION)
+        msg = f"analysed {n} item(s), {found} about a scam"
+        _finish(db, run, "ok", msg)
+        if force:
+            notify.notify(db, "success", "Scam & fraud analysis finished", msg, "/fraud", key=f"fraudtag:{run.id}")
+            db.commit()
+        return msg
+    except Exception as e:
+        db.rollback()
+        _finish(db, run, "error", str(e))
+        log.warning("fraudtag failed: %s", e)
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
+def prune_identifiers(db) -> int:
+    """UU PDP data minimisation: scammer phone numbers, bank accounts and e-wallets that no item has mentioned for
+    ``fraud_identifier_days`` are deleted (crypto wallets are not personal data and stay)."""
+    days = int(settings.get("fraud_identifier_days") or 0)
+    if days <= 0:
+        return 0
+    res = db.execute(delete(Entity).where(Entity.type.in_(("phone", "bank_account", "ewallet")),
+                                          Entity.last_seen < utcnow() - timedelta(days=days)))
+    return res.rowcount or 0
+
+
 def run_geoip_update() -> str:
     """Refresh the offline GeoIP database (monthly) and locate IP indicators again."""
     from . import geoip
@@ -624,8 +667,9 @@ def run_housekeeping() -> str:
             db.execute(delete(Entity).where(Entity.mention_count == 0, Entity.id.not_in(linked),
                                             Entity.type.in_(("md5", "sha1", "sha256", "ip", "domain", "url"))))
         db.execute(delete(Insight).where(Insight.kind == "answer", Insight.created_at < utcnow() - timedelta(days=90)))
+        pruned = prune_identifiers(db)
         db.commit()
-        return f"removed {n} old item(s), slimmed {slimmed}"
+        return f"removed {n} old item(s), slimmed {slimmed}, pruned {pruned} scammer identifier(s)"
     finally:
         db.close()
 
@@ -778,6 +822,9 @@ def start() -> None:
     scheduler.add_job(run_housekeeping, "cron", hour=3, minute=30, id="housekeeping", replace_existing=True)
     # one-off geo attribution of existing items after an upgrade (no-op when up to date)
     scheduler.add_job(run_geotag, "date", run_date=_now() + timedelta(seconds=20), id="geotag", replace_existing=True)
+    # same for the scam & fraud analysis (0.9)
+    scheduler.add_job(run_fraudtag, "date", run_date=_now() + timedelta(seconds=40), id="fraudtag",
+                      replace_existing=True)
     if settings.get("geoip_auto_update"):
         scheduler.add_job(run_geoip_update, "cron", day=5, hour=4, minute=0, id="geoip_update", replace_existing=True)
     scheduler.start()

@@ -33,3 +33,17 @@
   `0600`.
 - When exposing the platform beyond localhost, run it behind a TLS-terminating reverse proxy and set
   `JATMP_SECURE_COOKIES=1`.
+
+## Personal data in scam reports
+
+Scam reports can contain phone numbers and bank accounts. JATMP takes them only from scam reports and only where the
+text marks them as the scammer's, skips official and victims' numbers, never stores account holder names, deletes
+them after a year without mentions, and never shares them through the API, feeds, STIX / TAXII, webhooks or MISP.
+Details in [Scams and fraud](fraud.md#scammer-identifiers-and-personal-data-uu-pdp).
+
+## Telegram session
+
+The optional MTProto session string (`telegram_session`) gives full access to the Telegram account it was created
+with. It is stored like the other secrets (never shown in the UI, never logged); prefer `TELEGRAM_SESSION` in the
+environment on shared hosts, use a separate account, and end the session from Telegram's *Active sessions* list if
+the database leaks. The web-preview mode needs no account at all.

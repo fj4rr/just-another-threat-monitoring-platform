@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import sev, verdict, chip, geo_chips %}
+{% from "_macros.html" import sev, verdict, chip, geo_chips, fraud_score %}
 {% block title %}{{ item.title|truncate(60) }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -15,6 +15,12 @@
         {% else %}<p class="muted small">No breakdown stored for this item (scored by an older version). <code>python manage.py rescore</code> recomputes every score.</p>{% endif %}
         <p class="muted small" style="margin:8px 0 0">Signals are keyword groups (strongest term per group, runner-up at half weight, title matches ×1.5) plus extracted entities; patch notes, roundups and routine leak-site posts are damped. Enrichment raises the score when an indicator is confirmed malicious.</p>
       </div></details>
+    {% if item.fraud_score %}
+    <details class="pop"><summary class="sev-why" title="Scam report: why this fraud score?">{{ fraud_score(item.fraud_score) }}</summary>
+      <div class="card pop-card"><div class="card-head"><h2>Fraud score {{ item.fraud_score }} / 100</h2><button type="button" class="btn sm" data-pop-close aria-label="Close">✕</button></div>
+        <table class="small"><tbody>{% for d in item.fraud_detail or [] %}<tr><td>{{ d.label }}</td><td class="num">{{ '%+d'|format(d.points) }}</td></tr>{% endfor %}</tbody></table>
+        <p class="muted small" style="margin:8px 0 0">Separate from the threat severity. Losses are the largest figure the report states, in rupiah. <a href="/fraud">Scams & fraud →</a></p>
+      </div></details>{% endif %}
     {% if misp_configured() and user.role in ('admin','analyst') and item.source.kind != 'misp' %}
     {% set mp = (item.raw or {}).get('misp_pushed') %}
     <button class="btn" data-post="/api/misp/push/item/{{ item.id }}" data-busy="Sending…" title="{{ 'Already sent as MISP event #' ~ mp.id if mp else 'Create a MISP event with this item and its indicators' }}">⇪ {{ 'In MISP #' ~ mp.id if mp else 'Send to MISP' }}</button>{% endif %}
@@ -54,7 +60,7 @@
         <div style="min-width:0"><a class="title" href="/items/{{ r.item.id }}" data-preview="/items/{{ r.item.id }}/preview" data-preview-nav>{{ r.item.title }}</a>
           <div class="meta"><span class="badge cat-{{ r.item.source.category }}">{{ r.item.source.name }}</span><span>{{ r.item.published_at|timeago }}</span>
             {% if r.item.source_id != item.source_id %}<span class="badge new">other source</span>{% endif %}</div>
-          <div class="muted small" style="margin-top:2px">shares: {% for t, n in r.entities %}<span class="{{ 'mono' if t not in ('malware','actor','cve','technique') }}">{{ n|truncate(40, True) }}</span>{{ ', ' if not loop.last }}{% endfor %}</div></div></div>
+          <div class="muted small" style="margin-top:2px">shares: {% for t, n in r.entities %}<span class="{{ 'mono' if t not in ('malware','actor','cve','technique','scam_type','brand') }}">{{ n|truncate(40, True) }}</span>{{ ', ' if not loop.last }}{% endfor %}</div></div></div>
       {% else %}<div class="empty">No correlated items yet.</div>{% endfor %}
     </div>
   </div>
@@ -64,11 +70,11 @@
     {% for type, links in groups %}
       <h3 style="margin-top:12px">{{ type }} ({{ links|length }})</h3>
       {% for l in links %}
-        {% if type in ('malware','actor','cve','technique') %}{{ chip(l.entity) }}
+        {% if type in ('malware','actor','cve','technique','scam_type','brand') %}{{ chip(l.entity) }}
         {% else %}
         <div class="row" style="justify-content:space-between;margin:4px 0;flex-wrap:nowrap">
           <a class="mono" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview" style="word-break:break-all">{{ l.entity.display|truncate(70, True) }}</a>
-          {{ verdict(l.entity.verdict if l.entity.enriched_at else '') }}
+          {% if type in ('md5','sha1','sha256','ip','domain','url') %}{{ verdict(l.entity.verdict if l.entity.enriched_at else '') }}{% else %}<span class="badge" title="Scammer identifier from this scam report">scammer</span>{% endif %}
         </div>
         {% for e in enr.get(l.entity.id, []) %}<div class="muted small" style="margin-left:8px">{{ e.provider }}: {{ e.summary|truncate(90) }}</div>{% endfor %}
         {% endif %}

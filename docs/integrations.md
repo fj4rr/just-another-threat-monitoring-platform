@@ -12,6 +12,10 @@ incrementally. Authentication is a personal API key (`Authorization: Bearer jatm
 API keys** with scopes (`read`, `export`), an expiry, a per-key rate limit and revocation; only a hash of the key
 is stored. Browser sessions work too.
 
+Items that are scam reports carry a `fraud` object (`score`, `loss_idr`, `victims`, `scam_types`, `brands`, and
+`detail` on single items). Scammer identifiers (phone numbers, bank accounts, e-wallets, crypto wallets) are never
+part of the API, the feeds, STIX / TAXII, webhooks or MISP pushes; see [Scams and fraud](fraud.md).
+
 ## IOC export feeds
 
 `/api/v1/feeds/iocs.csv`, `.json` and `.txt`, filtered by type, verdict (default

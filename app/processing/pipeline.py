@@ -11,8 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import geoip
-from ..models import Entity, Item, ItemEntity, Source, utcnow
+from ..models import Enrichment, Entity, Item, ItemEntity, Source, utcnow
 from ..sharing import norm_tlp
+from . import fraud
 from .extractor import Extracted, extract_all
 from .geo import tag_item
 from .severity import reasons_to_json, score_item
@@ -95,6 +96,25 @@ def link_entities(db: Session, item: Item, extracted: list[Extracted]) -> int:
         ent.mention_count = (ent.mention_count or 0) + 1
         added += 1
     return added
+
+
+def mark_listed(db: Session, indicators: list[Extracted], provider: str, summary: str, permalink: str = "") -> int:
+    """Indicators from a curated blocklist (ScamSniffer…) are confirmed malicious by the list itself: record that as
+    an enrichment result so they do not wait in the enrichment queue and spend provider quota."""
+    n = 0
+    now = utcnow()
+    for ind in indicators:
+        ent = db.execute(select(Entity).where(Entity.type == ind.type, Entity.value == ind.value)).scalar_one_or_none()
+        if ent is None:
+            continue
+        if not db.execute(select(Enrichment.id).where(Enrichment.entity_id == ent.id,
+                                                      Enrichment.provider == provider)).first():
+            db.add(Enrichment(entity_id=ent.id, provider=provider, verdict="malicious", score=1.0,
+                              summary=summary[:500], permalink=permalink, data={}, fetched_at=now))
+        if not ent.enriched_at:
+            ent.verdict, ent.enriched_at = "malicious", now
+        n += 1
+    return n
 
 
 def _external_id(r: RawItem) -> str:
@@ -180,7 +200,11 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, orig
         uniq = {(e.type, e.value): e for e in extracted}
         item.severity, reasons = score_item(item.title, f"{content}\n{' '.join(item.tags)}", list(uniq.values()), item.kind)
         item.severity_detail = reasons_to_json(reasons)
+        for fx in fraud.apply(db, item, source.topic or ""):  # scam types, brands, scammer identifiers
+            uniq.setdefault((fx.type, fx.value), fx)
         link_entities(db, item, list(uniq.values()))
+        if (r.raw or {}).get("listed_by") and r.indicators:
+            mark_listed(db, r.indicators, str(r.raw["listed_by"]), str(r.raw.get("listed_summary") or ""), item.url)
         tag_item(db, item, source, replace=False)
         new_ids.append(item.id)
     source.items_count = (source.items_count or 0) + len(new_ids)

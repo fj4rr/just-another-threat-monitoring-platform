@@ -2,6 +2,10 @@
 <span class="sev {{ 's-high' if n >= 60 else 's-med' if n >= 35 else '' }}" title="Severity score {{ n }} / 100">{{ n }}</span>
 {%- endmacro %}
 
+{% macro fraud_score(n) -%}
+<span class="sev fraud {{ 's-high' if n >= 60 else 's-med' if n >= 35 else '' }}" title="Fraud score {{ n }} / 100">{{ n }}</span>
+{%- endmacro %}
+
 {% macro verdict(v) -%}
 {% if v %}<span class="badge {{ verdict_class(v) }}">{{ v }}</span>{% else %}<span class="badge">pending</span>{% endif %}
 {%- endmacro %}

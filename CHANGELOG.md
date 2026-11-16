@@ -2,6 +2,38 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.9.0
+
+- **Telegram collector** (`app/collectors/telegram.py`): public channels through their web preview
+  (`t.me/s/<channel>`), no account needed, with links, forwarded-from names, file names and view counts, and a
+  backfill of up to 3,000 posts per run. Optional MTProto through Telethon (`requirements-telegram.txt`, api_id /
+  api_hash under Settings → Social, `python manage.py telegram-login` once) for channels without a preview and
+  deeper history; both produce the same item ids. Built in: vx-underground (enabled), The Hacker News,
+  BleepingComputer and CVE Notify (disabled). Channels run by threat actors are left to the analyst.
+- **Scams & fraud section** (`app/processing/fraud.py`, `/fraud`): every item is also checked as a possible scam
+  report, on the same pipeline and entity graph. New entity types: scam type (19 types in English and Bahasa
+  Indonesia, from *investasi bodong* and *pinjol ilegal* to APK wedding invitations, QRIS fraud and crypto
+  drainers), impersonated brand (about 70 Indonesian and global banks, e-wallets, marketplaces, couriers,
+  government bodies and platforms), and scammer identifiers (phone numbers, bank accounts, e-wallets, crypto
+  wallets).
+- **Fraud score** (0–100, explained like the severity): scam type, losses converted to rupiah, victim count,
+  impersonated brand, published identifiers, an official warning or arrest, and spread velocity (reports of the
+  same scam type doubling week on week). Shown on the item page, in the preview, in the feed and the API.
+- **Pages**: overview (KPIs, scam types this week against last week with the malware and brands seen alongside,
+  most impersonated brands, recent and top reports, latest identifiers, fraud sources), scam reports, scam types,
+  impersonated brands and scammer identifiers, all with the International / National switch.
+- **UU PDP data minimisation**: identifiers only from scam reports and only where the text marks them as the
+  scammer's; official and victims' numbers and account holder names are skipped; phone numbers, accounts and
+  e-wallets unseen for a year are deleted; identifiers never leave through the API, feeds, STIX / TAXII, webhooks
+  or MISP. Extraction can be turned off.
+- **Fraud sources** (topic *scam & fraud*): FBI IC3 announcements, CekFakta.com and Liputan6 Cek Fakta (new RSS
+  topic filter `fraud`), and ScamSniffer's crypto phishing blocklist as a new collector (one item per day, domains
+  marked malicious on arrival so they spend no enrichment quota, backfill to 2022). Any source can get the topic.
+- REST API v1 items carry a `fraud` object; scam types and brands appear in the relationship graph and weigh into
+  item correlation (a shared scammer account or wallet is strong evidence).
+- `manage.py fraudtag` and *Re-analyse items*; a one-off analysis of existing items after the upgrade.
+- README: the dashboard screenshot now stops at the KPI tiles.
+
 ## 0.8.3
 
 - Threat radar icons: a bug for malware families, a broken shield for CVEs and a hooded hacker for threat actors,

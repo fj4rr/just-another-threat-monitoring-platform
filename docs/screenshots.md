@@ -2,7 +2,7 @@
 
 [← Documentation index](README.md)
 
-A tour of the interface as of 0.8.2.
+A tour of the interface as of 0.8.2 (the scam & fraud pages as of 0.9.0).
 
 Dashboard: International / National (ID) switch, *Collect now* / *Enrich now* with last and next run,
 notification bell, headline ticker, threat radar with families, CVEs and actors, the globe of the top 10 target
@@ -21,6 +21,10 @@ countries, and the KPI tiles.
 | Geography: target countries on a world map, with the families and actors named per country | National (ID) view: the dashboard limited to Indonesia, with the globe on the provinces |
 |---|---|
 | ![Geography](screenshots/geography.png) | ![National view](screenshots/dashboard-national.png) |
+
+| Scams & fraud (0.9): scam reports this week, losses, impersonated brands, scam types against last week with the malware seen alongside | Scam reports ranked by fraud score, with losses in rupiah, scam types and brands |
+|---|---|
+| ![Scams & fraud](screenshots/fraud.png) | ![Scam reports](screenshots/fraud-items.png) |
 
 | Malware family page: timeline, coverage per source, Deep dive, graph, co-mentioned entities | IOC table with verdicts, hosting countries, attributed families and where each indicator was seen |
 |---|---|

@@ -287,6 +287,8 @@ def kpi_series(db: Session, days: int = 14, region: str = "") -> dict:
 CORRELATION_WEIGHT = {
     "sha256": 6.0, "sha1": 6.0, "md5": 6.0, "url": 5.0, "domain": 4.0, "ip": 3.0,
     "malware": 2.5, "actor": 2.5, "cve": 1.5, "technique": 0.5,
+    # scam & fraud (0.9): the same scammer number / account / wallet is strong evidence, a scam type or brand weak
+    "crypto_wallet": 6.0, "bank_account": 5.0, "ewallet": 5.0, "phone": 4.0, "brand": 1.0, "scam_type": 0.5,
 }
 # Entities mentioned in more items than this are too generic to generate candidates
 # (they still weigh in for candidates found through rarer entities).

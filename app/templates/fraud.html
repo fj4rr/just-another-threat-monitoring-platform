@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_macros.html" import dchip, fraud_score %}
+{% block title %}Scams & fraud{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Scams & fraud</h1>
+    <p class="muted">Scam reports from news, fact-checkers, official warnings, Telegram and blocklists, on the same entity graph as the malware they use
+      {%- if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %}</p></div>
+  {% if user.role == 'admin' %}<button class="btn" data-post="/api/items/fraudtag" data-busy="Queuing…" title="Re-run the scam & fraud analysis on every stored item (background job, no network)">⟳ Re-analyse items</button>{% endif %}
+</div>
+{% include "_fraud_tabs.html" %}
+
+{% set d = k.week - k.prev %}
+<div class="grid tiles-row">
+  <div class="card tile"><div class="label">Scam reports</div>
+    <div class="value">{{ k.week }}</div>
+    <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous 7 days · <a href="/fraud/items?days=7">list</a></div></div>
+  <div class="card tile"><div class="label">Largest reported loss</div>
+    <div class="value long">{{ k.loss|idr if k.loss else '–' }}</div>
+    <div class="delta">{{ k.with_loss }} report(s) with a loss figure · 30 days</div></div>
+  <div class="card tile"><div class="label">Largest victim count</div>
+    <div class="value">{{ '{:,}'.format(k.victims) if k.victims else '–' }}</div>
+    <div class="delta">in a single report · 30 days</div></div>
+  <div class="card tile"><div class="label">Brands impersonated</div>
+    <div class="value">{{ k.brands }}</div>
+    <div class="delta"><a href="/fraud/brands">brands</a> · 30 days</div></div>
+  <div class="card tile"><div class="label">Scammer identifiers</div>
+    <div class="value">{{ k.identifiers }}</div>
+    <div class="delta">phones, accounts, wallets · <a href="/fraud/identifiers?days=30">list</a></div></div>
+</div>
+
+<div class="grid g-21" style="margin-top:16px">
+  <div class="card table-wrap data-table">
+    <div class="card-head"><h2>Scam types</h2><span class="muted small">reports this week vs the week before; spreading = at least 5 and doubled</span></div>
+    <table>
+      <thead><tr><th class="col-title">Scam type</th><th class="num col-narrow">7 d</th><th class="num col-narrow">prev 7 d</th><th class="num col-narrow">30 d</th></tr></thead>
+      <tbody>
+      {% for r in types %}
+      <tr><td class="col-title"><a class="title" href="/fraud/items?scam={{ r.entity.id }}" data-preview="/entities/{{ r.entity.id }}/preview">{{ r.entity.display }}</a>
+          {% if r.spreading %} <span class="badge crit" title="{{ r.week }} reports this week, {{ r.prev }} the week before">spreading</span>{% endif %}
+          {% if r.related %}<div class="ent-row">{% for c in r.related %}{{ dchip(c) }}{% endfor %}</div>{% endif %}</td>
+        <td class="num col-narrow">{{ r.week }}</td><td class="num col-narrow muted">{{ r.prev }}</td><td class="num col-narrow">{{ r.month }}</td></tr>
+      {% else %}<tr><td colspan="4" class="empty">No scam reports in the last 30 days{{ ' for Indonesia' if region == 'id' }}. Fraud sources are under Settings → Sources (topic “fraud”); existing items are analysed in the background after an upgrade.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card" style="align-self:start">
+    <div class="card-head"><h2>Most impersonated brands</h2><span class="muted small">30 days</span></div>
+    {% set maxb = (brands|map(attribute='count')|max) if brands else 1 %}
+    {% for b in brands %}
+    <div class="brand-row"><a href="/fraud/items?brand={{ b.entity.id }}" data-preview="/entities/{{ b.entity.id }}/preview">{{ b.entity.display }}</a>
+      <span class="muted small">{{ b.entity.category }}</span><span class="num">{{ b.count }}</span>
+      <div class="bar-inline" style="width:{{ (100 * b.count / maxb)|round(0) }}%"></div></div>
+    {% else %}<p class="muted">No impersonated brands yet.</p>{% endfor %}
+  </div>
+</div>
+
+<div class="grid g-21" style="margin-top:16px">
+  <div class="card">
+    <div class="card-head"><h2>Recent scam reports</h2><a class="small" href="/fraud/items">all →</a></div>
+    {% for i in recent %}{% include "_fraud_row.html" %}{% else %}<p class="muted">Nothing in the last 30 days.</p>{% endfor %}
+  </div>
+  <div class="grid" style="align-content:start">
+    <div class="card">
+      <div class="card-head"><h2>Highest fraud score</h2><span class="muted small">30 days</span></div>
+      {% for i in top %}
+      <div class="mini-row">{{ fraud_score(i.fraud_score) }}<a href="/items/{{ i.id }}" data-preview="/items/{{ i.id }}/preview">{{ i.title|truncate(90) }}</a></div>
+      {% else %}<p class="muted">–</p>{% endfor %}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Latest scammer identifiers</h2><a class="small" href="/fraud/identifiers">all →</a></div>
+      {% for e, last in idents %}
+      <div class="mini-row"><span class="badge">{{ labels.get(e.type, e.type) }}</span><a class="mono" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview">{{ e.display|truncate(46, True) }}</a><span class="muted small">{{ last|timeago }}</span></div>
+      {% else %}<p class="muted">None published in scam reports yet.</p>{% endfor %}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Fraud sources</h2>{% if user.role == 'admin' %}<a class="small" href="/settings?tab=sources">manage →</a>{% endif %}</div>
+      {% for s in sources %}
+      <div class="mini-row"><span class="status-dot {{ s.last_status if s.enabled else '' }}"></span><a href="/feed?source={{ s.id }}&days=0">{{ s.name }}</a>
+        <span class="muted small">{{ 'disabled' if not s.enabled else s.last_run|timeago }}</span></div>
+      {% else %}<p class="muted small">No source has the topic “fraud”. Scam reports also come from every other source.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+<p class="muted small" style="margin-top:12px">Scammer identifiers are only taken from scam reports, only where the text marks them as the scammer's, never when it marks them as official or as a victim's, and without account holder names (UU PDP / Law 27/2022). Losses are converted to rupiah; the figure is the largest one a report states, not a total.</p>
+{% endblock %}

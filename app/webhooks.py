@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from . import __version__, settings, sharing
 from .config import load_config
 from .models import Entity, Item, Watch, Webhook, WebhookDelivery, utcnow
+from .processing.fraud import IDENT_TYPES
 
 log = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ def on_new_items(db: Session, item_ids: list[int]) -> int:
         if threshold and item.severity >= threshold:
             n += emit(db, "item.high_severity", {**p, "summary": f"[{item.severity}] {item.title}"})
         for link in item.entity_links:
-            if link.entity_id in watched:
+            if link.entity_id in watched and link.entity.type not in IDENT_TYPES:  # personal data stays in
                 e = link.entity
                 n += emit(db, "entity.watched", {**p, "watched": {"id": e.id, "type": e.type, "value": e.display},
                                                  "summary": f"Watched {e.type} {e.display} mentioned: {item.title}"})

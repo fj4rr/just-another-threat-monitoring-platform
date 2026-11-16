@@ -22,6 +22,7 @@ from .routers import (
     apikeys_routes,
     auth_routes,
     backfill_routes,
+    fraud_pages,
     pages,
     reports_routes,
     settings_routes,
@@ -96,7 +97,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "app" / "static")), name="static")
 for r in (auth_routes.router, pages.router, api_v1.router, api.router, settings_routes.router, reports_routes.router,
           admin.router, apikeys_routes.router, webhooks_routes.router, taxii.router,
-          backfill_routes.router):
+          backfill_routes.router, fraud_pages.router):
     app.include_router(r)
 
 

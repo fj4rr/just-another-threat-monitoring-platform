@@ -148,6 +148,8 @@ def _geo_fields(src: Source, form) -> None:
     if "language" in form:
         lang = str(form.get("language") or "").strip().lower()
         src.language = lang if lang in ("en", "id") else ""
+    if "topic" in form:
+        src.topic = "fraud" if form.get("topic") == "fraud" else ""
 
 
 @router.post("/sources", dependencies=[Depends(verify_csrf)])

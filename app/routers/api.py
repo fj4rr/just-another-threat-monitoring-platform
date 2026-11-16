@@ -199,6 +199,14 @@ def items_geotag(request: Request, user: User = Depends(require("admin")), db: S
     return {"ok": True, "message": "Geography is being recomputed in the background; a notification follows."}
 
 
+@router.post("/items/fraudtag", dependencies=[Depends(verify_csrf)])
+def items_fraudtag(request: Request, user: User = Depends(require("admin")), db: Session = Depends(get_db)):
+    jobs.run_now(jobs.run_fraudtag, True)
+    audit(db, user, "items_fraudtag", "", request)
+    db.commit()
+    return {"ok": True, "message": "Scam & fraud analysis is running in the background; a notification follows."}
+
+
 @router.post("/geoip/update", dependencies=[Depends(verify_csrf)])
 def geoip_update(request: Request, user: User = Depends(require("admin")), db: Session = Depends(get_db)):
     jobs.run_now(jobs.run_geoip_update)

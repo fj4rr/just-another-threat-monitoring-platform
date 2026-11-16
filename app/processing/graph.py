@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from ..models import Entity, EntityLink, Item, ItemEntity
 from . import trends
 
-NAMED = ("malware", "actor", "cve", "technique")
+NAMED = ("malware", "actor", "cve", "technique", "scam_type", "brand")
 _RANK = {"malicious": 0, "suspicious": 1}
 
 

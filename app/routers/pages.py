@@ -25,7 +25,7 @@ from ..models import (
     Watch,
     utcnow,
 )
-from ..processing import geo, trends
+from ..processing import fraud, geo, trends
 from ..search import item_text_clause
 from ..web import current_region, render
 
@@ -207,7 +207,9 @@ def related_chips(db: Session, ids: list[int], types: tuple[str, ...] = RELATED_
 
 
 def _entity_list(request, user, db, etype: str, title: str, category: str = "", q: str = "", days: int = 30,
-                 sort: str = "mentions", direction: str = "", page: int = 1, region: str = ""):
+                 sort: str = "mentions", direction: str = "", page: int = 1, region: str = "",
+                 related_types: tuple[str, ...] | None = None, categories: list[str] | None = None,
+                 section: str = ""):
     days = _clamp(days, 0, 3650)
     page = _clamp(page, 1, 100_000)
     q = q.strip()[:100]
@@ -236,14 +238,15 @@ def _entity_list(request, user, db, etype: str, title: str, category: str = "", 
     total = len(rows)
     maxn = max((r[1] for r in rows), default=0) or 1
     rows = rows[(page - 1) * ENTITY_PAGE: page * ENTITY_PAGE]
-    others = tuple(t for t in RELATED_TYPES if t != etype) if etype != "malware" else RELATED_TYPES
+    others = related_types or (tuple(t for t in RELATED_TYPES if t != etype) if etype != "malware" else RELATED_TYPES)
     related = related_chips(db, [r[0].id for r in rows], others)
     f = {"category": category, "q": q, "days": days, "sort": sort, "dir": direction,
          "qs": _qs(category=category, q=q, days=_keep(days))}
     return render(request, "entities.html", {
         "user": user, "rows": rows, "etype": etype, "title": title, "trend": trend, "total": total,
         "page": page, "pages": max(1, -(-total // ENTITY_PAGE)), "maxn": maxn, "related": related,
-        "categories": CATEGORIES if etype == "malware" else [], "f": f,
+        "categories": categories if categories is not None else (CATEGORIES if etype == "malware" else []), "f": f,
+        "section": section,
         "cat_breakdown": trends.category_breakdown(db, days or 3650, region) if etype == "malware" else [],
     })
 
@@ -395,8 +398,9 @@ def entity_detail(entity_id: int, request: Request, user: User = Depends(current
     linked_list = sorted(linked.values(), key=lambda d: (d["entity"].type != "malware",
                                                           -{"malicious": 3, "suspicious": 2}.get(d["entity"].verdict, 0),
                                                           d["entity"].type))
-    is_ioc = ent.type in trends.IOC_TYPES
-    co = trends.co_occurring(db, ent.id, ("malware", "actor", "cve", "technique"), 20)
+    is_ident = ent.type in fraud.IDENT_TYPES  # scammer phone / account / wallet: shown like an indicator
+    is_ioc = ent.type in trends.IOC_TYPES or is_ident
+    co = trends.co_occurring(db, ent.id, ("malware", "actor", "cve", "technique", "scam_type", "brand"), 20)
     # Indicators of a family / actor / CVE: IOCs from the same items plus IOCs linked by enrichment
     indicators: dict[int, dict] = {}
     if not is_ioc:
@@ -423,6 +427,7 @@ def entity_detail(entity_id: int, request: Request, user: User = Depends(current
         "linked": [d for d in linked_list if d["entity"].type not in trends.IOC_TYPES or is_ioc],
         "co": co, "indicators": indicator_list[:40], "ioc_total": ioc_total, "llm_on": llm.is_configured(),
         "watching": bool(watching), "is_ioc": is_ioc, "context_ok": is_ioc and bool(_context_names(ent.type)),
+        "is_ident": is_ident, "check_links": fraud.check_links(ent) if is_ident else [],
     })
 
 
@@ -477,7 +482,8 @@ def item_preview(item_id: int, request: Request, user: User = Depends(current_us
     if not item:
         raise HTTPException(404, "Item not found")
     ents = sorted(item.entity_links, key=lambda link: (link.entity.type, link.entity.display))
-    named = [link.entity for link in ents if link.entity.type in ("malware", "actor", "cve", "technique")]
+    named = [link.entity for link in ents
+             if link.entity.type in ("malware", "actor", "cve", "technique", "scam_type", "brand")]
     iocs = sorted((link.entity for link in ents if link.entity.type in trends.IOC_TYPES),
                   key=lambda e: ({"malicious": 0, "suspicious": 1}.get(e.verdict or "", 2), e.type))
     return render(request, "_preview_item.html", {
@@ -493,14 +499,15 @@ def entity_preview(entity_id: int, request: Request, user: User = Depends(curren
     ent = db.get(Entity, entity_id)
     if not ent:
         raise HTTPException(404, "Entity not found")
-    is_ioc = ent.type in trends.IOC_TYPES
+    is_ident = ent.type in fraud.IDENT_TYPES
+    is_ioc = ent.type in trends.IOC_TYPES or is_ident
     items = db.execute(
         select(Item).join(ItemEntity, ItemEntity.item_id == Item.id).where(ItemEntity.entity_id == ent.id)
         .order_by(Item.published_at.desc()).limit(6)
     ).unique().scalars().all()
     enrichments = db.execute(select(Enrichment).where(Enrichment.entity_id == ent.id)
                              .order_by(Enrichment.provider)).scalars().all()
-    co = trends.co_occurring(db, ent.id, ("malware", "actor", "cve", "technique"), 12)
+    co = trends.co_occurring(db, ent.id, ("malware", "actor", "cve", "technique", "scam_type", "brand"), 12)
     linked = db.execute(
         select(Entity, EntityLink.provider).join(EntityLink, or_(
             (EntityLink.dst_id == Entity.id) & (EntityLink.src_id == ent.id),
@@ -516,5 +523,5 @@ def entity_preview(entity_id: int, request: Request, user: User = Depends(curren
     t = next((r for r in trends.trending(db, ent.type, limit=500) if r["id"] == ent.id), None) if not is_ioc else None
     return render(request, "_preview_entity.html", {
         "user": user, "ent": ent, "is_ioc": is_ioc, "items": items, "enrichments": enrichments, "co": co,
-        "linked": linked, "ioc_total": ioc_total, "watching": bool(watching), "trend": t,
+        "linked": linked, "ioc_total": ioc_total, "watching": bool(watching), "trend": t, "is_ident": is_ident,
     })

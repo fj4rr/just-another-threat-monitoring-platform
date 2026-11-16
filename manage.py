@@ -16,6 +16,8 @@
     python manage.py geotag                    re-run geo attribution (targets, provinces, language) on every item
     python manage.py geoip-update              download the offline GeoIP database (DB-IP Lite, or GeoLite2 with
                                                MAXMIND_LICENSE_KEY) into data/geoip/ and locate IP indicators
+    python manage.py fraudtag                  re-run the scam & fraud analysis (scam types, brands, identifiers, score)
+    python manage.py telegram-login            sign in to Telegram once (MTProto, optional) and store the session
 """
 from __future__ import annotations
 
@@ -47,6 +49,10 @@ def main(argv: list[str]) -> int:
         print(jobs.run_cve_intel(force=True))
     elif cmd == "geotag":
         print(jobs.run_geotag(force=True))
+    elif cmd == "fraudtag":
+        print(jobs.run_fraudtag(force=True))
+    elif cmd == "telegram-login":
+        return telegram_login()
     elif cmd == "geoip-update":
         from app import geoip, settings
 
@@ -58,6 +64,7 @@ def main(argv: list[str]) -> int:
         from sqlalchemy import delete, func, update
 
         from app.models import Entity, EntityLink, ItemEntity
+        from app.processing import fraud
         from app.processing.extractor import extract_all
         from app.processing.pipeline import link_entities
         from app.processing.severity import reasons_to_json, score_item
@@ -72,6 +79,7 @@ def main(argv: list[str]) -> int:
             text = f"{item.title}\n{item.content}\n{' '.join(item.tags or [])}"
             ex = extract_all(text, strict=item.source.category != "intel")
             link_entities(db, item, ex)
+            link_entities(db, item, fraud.apply(db, item, item.source.topic or ""))
             score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}", ex, item.kind)
             item.severity, item.severity_detail = score, reasons_to_json(reasons)
             n += 1
@@ -135,6 +143,37 @@ def main(argv: list[str]) -> int:
     else:
         print(__doc__)
         return 1
+    return 0
+
+
+def telegram_login() -> int:
+    """Interactive MTProto sign-in. The phone number and login code go to Telegram only; what is stored is the
+    session string (Settings -> Social), which lets JATMP read public channels as this account."""
+    try:
+        from telethon.sessions import StringSession
+        from telethon.sync import TelegramClient
+    except ImportError:
+        print("Telethon is not installed: pip install -r requirements-telegram.txt")
+        return 1
+    from app import settings
+
+    api_id = str(settings.get("telegram_api_id") or "").strip() or input("api_id (from my.telegram.org): ").strip()
+    api_hash = str(settings.get("telegram_api_hash") or "").strip() or getpass.getpass("api_hash: ").strip()
+    if not api_id.isdigit() or not api_hash:
+        print("api_id must be a number and api_hash is required")
+        return 1
+    print("Use a separate account if you can: channels you read are visible to Telegram, not to the channel.")
+    with TelegramClient(StringSession(), int(api_id), api_hash, device_model="JATMP", app_version="jatmp") as client:
+        client.start()  # prompts for the phone number, the login code and the 2FA password if set
+        session = client.session.save()
+        me = client.get_me()
+    for key, value in (("telegram_api_id", api_id), ("telegram_api_hash", api_hash), ("telegram_session", session)):
+        if settings.env_locked(key):
+            print(f"{key} is set by an environment variable; set it there (session string not printed)")
+        else:
+            settings.set(key, value)
+    print(f"signed in as {getattr(me, 'username', None) or getattr(me, 'id', '?')}; session stored. "
+          "Telegram sources now use MTProto.")
     return 0
 
 

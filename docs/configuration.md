@@ -28,6 +28,7 @@ and are shown there as locked.
 | Offline GeoIP | `MAXMIND_LICENSE_KEY` | Optional. *Download GeoIP database* (Settings → General) or `manage.py geoip-update` fetches DB-IP IP to Country Lite (no account, CC BY 4.0) into `data/geoip/`; with a MaxMind key it fetches GeoLite2 Country instead. Monthly refresh is a setting |
 | MISP | `MISP_URL`, `MISP_API_KEY` | Automation key of a MISP user; distribution, sharing group, TLS verification and auto-push under Settings → MISP |
 | X / Twitter | `X_BEARER_TOKEN` | API v2 is a paid service; alternatively set `rss_bridge` on each X source |
+| Telegram (optional) | `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION` | Not needed for public channels with a web preview. For MTProto: an application from my.telegram.org, `requirements-telegram.txt`, then `python manage.py telegram-login` (see [Sources](sources.md#telegram)) |
 | LLM | `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | Optional. `LLM_PROVIDER` is `none`, `ollama`, `openai_compatible` or `anthropic`; the Settings page reflects whatever these resolve to |
 
 Runtime and deployment variables:

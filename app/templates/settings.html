@@ -4,13 +4,13 @@
 <div class="page-head"><div><h1>Settings</h1><p class="muted">Sources, API keys, enrichment and LLM. Values set through environment variables are locked here.</p></div></div>
 {% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
 <nav class="tabs" aria-label="Settings sections">
-  {% for t, l in [('sources','Sources'),('intel','Threat-intel APIs'),('social','Social'),('enrichment','Enrichment'),('llm','AI'),('sharing','Sharing & API'),('webhooks','Webhooks'),('misp','MISP'),('general','General')] %}
+  {% for t, l in [('sources','Sources'),('intel','Threat-intel APIs'),('social','Social'),('enrichment','Enrichment'),('llm','AI'),('sharing','Sharing & API'),('webhooks','Webhooks'),('misp','MISP'),('fraud','Scam & fraud'),('general','General')] %}
   <a href="?tab={{ t }}" class="{{ 'active' if tab == t }}" {% if tab == t %}aria-current="page"{% endif %}>{{ l }}</a>{% endfor %}
 </nav>
 
 {% if tab == 'sources' %}
 <details class="card add-src" id="add-source" style="margin-bottom:16px">
-  <summary><h2 style="display:inline">＋ Add source</h2> <span class="muted small">RSS/Atom feed, Bluesky, Mastodon, X, OTX, urlscan, ANY.RUN, ThreatFox</span></summary>
+  <summary><h2 style="display:inline">＋ Add source</h2> <span class="muted small">RSS/Atom feed, Bluesky, Mastodon, X, Telegram, OTX, urlscan, ANY.RUN, ThreatFox, MISP, ScamSniffer</span></summary>
   <div style="margin-top:12px">
   <form method="post" action="/settings/sources" id="add-src">
     <input type="hidden" name="csrf_token" value="{{ csrf }}">
@@ -22,6 +22,7 @@
       <div class="field"><label for="cat">Category</label><select name="category" id="cat"><option>news</option><option>social</option><option>intel</option></select></div>
       <div class="field"><label for="add-country" title="The outlet's country, for the source-country view and the National (ID) filter">Country (ISO-2, optional)</label><input id="add-country" type="text" name="country" maxlength="2" placeholder="ID" autocomplete="off"></div>
       <div class="field"><label for="add-lang">Language</label><select id="add-lang" name="language"><option value="">detect</option><option value="en">English</option><option value="id">Bahasa Indonesia</option></select></div>
+      <div class="field"><label for="add-topic" title="Scam & fraud sources show in the fraud section, and a single scam word is enough to file an entry as a scam report">Topic</label><select id="add-topic" name="topic"><option value="">general</option><option value="fraud">scam & fraud</option></select></div>
     </div>
     {% for k, v in kinds.items() %}
     <div class="kind-fields" data-kind="{{ k }}">
@@ -60,6 +61,7 @@
         {% if s.tlp %}<span class="badge" title="Default TLP for this source's items">TLP:{{ s.tlp }}</span>{% endif %}
         {% if s.country %}<span class="badge" title="Outlet country: {{ country_name(s.country) }}">{{ s.country }}</span>{% endif %}
         {% if s.language %}<span class="badge" title="Language">{{ s.language }}</span>{% endif %}
+        {% if s.topic == 'fraud' %}<span class="badge warn" title="Scam & fraud source">fraud</span>{% endif %}
         {% if s.redistribute == false or (s.redistribute is none and s.kind in ('anyrun','ransomwarelive')) %}<span class="badge" title="Never shared through the API, exports, webhooks or MISP">not shared</span>{% endif %}
         <div class="muted small mono" style="word-break:break-all">{% for k, v in (s.config or {}).items() if k not in ('user_id','since_id','account_id') %}{{ k }}={{ v }} {% endfor %}</div></td>
       <td>{{ s.kind }}</td>
@@ -95,6 +97,9 @@
                 <select id="lang-{{ s.id }}" name="language"><option value="" {{ 'selected' if not s.language }}>detect</option>
                   <option value="en" {{ 'selected' if s.language == 'en' }}>English</option>
                   <option value="id" {{ 'selected' if s.language == 'id' }}>Bahasa Indonesia</option></select></div>
+              <div class="field"><label for="topic-{{ s.id }}" title="Scam & fraud sources show in the fraud section, and a single scam word is enough to file an entry as a scam report">Topic</label>
+                <select id="topic-{{ s.id }}" name="topic"><option value="" {{ 'selected' if not s.topic }}>general</option>
+                  <option value="fraud" {{ 'selected' if s.topic == 'fraud' }}>scam & fraud</option></select></div>
             </div>
             <div class="row" style="justify-content:space-between">
               <button class="btn sm danger" name="action" value="delete" data-confirm="Delete “{{ s.name }}” and all of its items? This cannot be undone.">Delete</button>
@@ -315,7 +320,8 @@ document.addEventListener("DOMContentLoaded", () => {
     <div class="row"><button class="btn primary">Save</button>
       {% if tab == 'general' %}<button type="button" class="btn" data-post="/api/items/rescore" data-busy="Queuing…" title="Recompute every item's severity with the current rules (background job, no network)">Re-score all items</button>
       <button type="button" class="btn" data-post="/api/items/geotag" data-busy="Queuing…" title="Recompute target countries, provinces, language and source country of every item (background job, no network)">Re-run geography</button>
-      <button type="button" class="btn" data-post="/api/geoip/update" data-busy="Queuing…" title="Download the offline GeoIP country database into data/geoip/ (DB-IP Lite, CC BY 4.0; or MaxMind GeoLite2 when a license key is set)">Download GeoIP database</button>{% endif %}</div>
+      <button type="button" class="btn" data-post="/api/geoip/update" data-busy="Queuing…" title="Download the offline GeoIP country database into data/geoip/ (DB-IP Lite, CC BY 4.0; or MaxMind GeoLite2 when a license key is set)">Download GeoIP database</button>{% endif %}
+      {% if tab == 'fraud' %}<button type="button" class="btn" data-post="/api/items/fraudtag" data-busy="Queuing…" title="Re-run the scam & fraud analysis on every stored item (background job, no network)">Re-analyse items</button>{% endif %}</div>
   </form>
   {% if tab == 'intel' %}
   <div style="margin-top:16px"><h3>Test connection</h3>
@@ -331,6 +337,9 @@ document.addEventListener("DOMContentLoaded", () => {
   <div class="alert small" style="margin-top:16px">Pull: add a source of kind <em>MISP events</em> under Sources (events become items, attributes become indicators, galaxies become families and actors). Push: the “Send to MISP” button on item and family pages, or the automatic push above. Items that came from MISP are never pushed back, and pushes respect the sharing rules.</div>
   {% elif tab == 'social' %}
   <div class="alert small" style="margin-top:16px">Bluesky and Mastodon accounts need no key. X requires a paid API v2 bearer token, or set an RSS-bridge URL (e.g. self-hosted RSSHub/Nitter) on each X source instead.</div>
+  <div class="alert small" style="margin-top:12px">Telegram channels need no account either: JATMP reads the public web preview (<code>t.me/s/&lt;channel&gt;</code>). For channels without a preview, or a longer backfill, install <code>requirements-telegram.txt</code>, enter an api_id / api_hash from <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer">my.telegram.org</a> and run <code>python manage.py telegram-login</code> once; Telegram sources then use MTProto. The session string gives access to that Telegram account, so use a separate account and keep the database private.</div>
+  {% elif tab == 'fraud' %}
+  <div class="alert small" style="margin-top:16px">Every item is checked for scam reports when it is collected; the result is on the <a href="/fraud">Scams & fraud</a> pages. Scammer identifiers are taken only from scam reports and only where the text marks them as the scammer's (UU PDP data minimisation). They never leave JATMP through the REST API, exports, webhooks or MISP.</div>
   {% endif %}
 </div>
 {% endif %}

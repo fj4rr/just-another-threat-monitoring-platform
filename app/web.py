@@ -46,6 +46,15 @@ templates.env.filters["timeago"] = timeago
 templates.env.filters["safe_href"] = safe_href
 templates.env.globals["version"] = __version__
 
+
+def _idr(v) -> str:
+    from .processing.fraud import fmt_idr
+
+    return fmt_idr(v)
+
+
+templates.env.filters["idr"] = _idr
+
 def _misp_configured() -> bool:
     from . import settings
 

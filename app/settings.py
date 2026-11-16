@@ -39,6 +39,17 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "nvd_api_key": ("", "NVD_API_KEY", "NVD API key (optional, faster CVSS lookups)", "secret", "intel"),
     # Social
     "x_bearer_token": ("", "X_BEARER_TOKEN", "X (Twitter) API v2 bearer token", "secret", "social"),
+    "telegram_api_id": ("", "TELEGRAM_API_ID", "Telegram api_id (my.telegram.org; optional, for MTProto)", "text",
+                        "social"),
+    "telegram_api_hash": ("", "TELEGRAM_API_HASH", "Telegram api_hash (optional, for MTProto)", "secret", "social"),
+    "telegram_session": ("", "TELEGRAM_SESSION", "Telegram session string (created by `python manage.py telegram-login`)",
+                         "secret", "social"),
+    # Scam & fraud
+    "fraud_identifiers": (True, "", "Extract scammer phone numbers, bank accounts, e-wallets and crypto wallets from "
+                          "scam reports (never victims' or official numbers; no account holder names)", "bool", "fraud"),
+    "fraud_identifier_days": (365, "", "Delete scammer phone numbers, bank accounts and e-wallets not seen for N days "
+                              "(UU PDP data minimisation; 0 = keep)", "int", "fraud"),
+    "fraud_usd_idr": (16500, "", "Rupiah per US dollar, for losses reported in dollars", "int", "fraud"),
     # Enrichment
     "enrichment_enabled": (True, "", "Automatic cross-source enrichment", "bool", "enrichment"),
     "enrichment_interval": (10, "", "Enrichment interval (minutes)", "int", "enrichment"),
@@ -112,6 +123,8 @@ INT_BOUNDS: dict[str, tuple[int, int]] = {
     "webhook_min_severity": (0, 100),
     "misp_sharing_group_id": (0, 1_000_000),
     "misp_autopush_min_severity": (0, 100),
+    "fraud_identifier_days": (0, 3650),
+    "fraud_usd_idr": (1, 1_000_000),
 }
 
 # Small read cache: settings are consulted many times per request and by every collector

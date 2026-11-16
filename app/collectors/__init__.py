@@ -6,14 +6,17 @@ from .intel import AnyRunCollector, OTXCollector, RansomwareLiveCollector, Threa
 from .mastodon import MastodonCollector
 from .misp import MISPCollector
 from .rss import RSSCollector
+from .scamsniffer import ScamSnifferCollector
+from .telegram import TelegramCollector
 from .x_twitter import XCollector
 
 __all__ = ["DEFAULT_SOURCES", "REGISTRY", "Collector", "SkipCollector", "source_key"]
 
 REGISTRY: dict[str, type[Collector]] = {
     c.kind: c
-    for c in (RSSCollector, BlueskyCollector, MastodonCollector, XCollector, OTXCollector,
-              URLScanCollector, AnyRunCollector, ThreatFoxCollector, RansomwareLiveCollector, MISPCollector)
+    for c in (RSSCollector, BlueskyCollector, MastodonCollector, XCollector, TelegramCollector, OTXCollector,
+              URLScanCollector, AnyRunCollector, ThreatFoxCollector, RansomwareLiveCollector, MISPCollector,
+              ScamSnifferCollector)
 }
 
 
@@ -38,6 +41,17 @@ def _bsky(name: str, handle: str, every: int = 30) -> dict:
 def _masto(name: str, account: str, every: int = 30) -> dict:
     return {"name": f"{name} (Mastodon)", "kind": "mastodon", "category": "social", "interval_minutes": every,
             "config": {"account": account}}
+
+
+def _tg(name: str, channel: str, enabled: bool = True, every: int = 60, topic: str = "") -> dict:
+    return {"name": f"{name} (Telegram)", "kind": "telegram", "category": "social", "interval_minutes": every,
+            "enabled": enabled, "topic": topic, "config": {"channel": channel}}
+
+
+def _fraud_rss(name: str, url: str, every: int = 180, country: str = "", language: str = "") -> dict:
+    """Fact-check / consumer-alert feed, filtered to scam reports, shown in the fraud section."""
+    return {"name": name, "kind": "rss", "category": "news", "interval_minutes": every, "country": country,
+            "language": language, "topic": "fraud", "config": {"url": url, "filter": "fraud"}}
 
 
 def _x(name: str, username: str, enabled: bool = True, every: int = 180, country: str = "") -> dict:
@@ -135,6 +149,22 @@ DEFAULT_SOURCES: list[dict] = [
     # BSSN's own account is left out because its handle could not be confirmed.
     _x("Teguh Aprianto (Ethical Hacker Indonesia)", "secgron", enabled=False, country="ID"),
     _x("Id-SIRTII/CC (BSSN)", "Id_SIRTII", enabled=False, country="ID"),
+
+    # --- Telegram public channels (web preview, no account; verified active 2026-11-16). Channels run by threat
+    #     actors (hacktivists, leak and fraud markets) are not seeded: they are renamed or banned often, and
+    #     following one is the analyst's call. Add them under Settings -> Sources.
+    _tg("vx-underground", "vxunderground"),
+    _tg("The Hacker News", "thehackernews", enabled=False),
+    _tg("BleepingComputer", "BleepingComputer", enabled=False),
+    _tg("CVE Notify", "cveNotify", enabled=False, every=120),
+
+    # --- Scam & fraud (0.9; verified 2026-11-16). Not included: OJK and Komdigi reject automated clients,
+    #     turnbackhoax.id was down, OpenPhish forbids fetching its feed in robots.txt, FTC has no feed.
+    _fraud_rss("FBI IC3 public service announcements", "https://www.ic3.gov/PSA/RSS", 360, "US", "en"),
+    _fraud_rss("CekFakta.com (scam reports)", "https://cekfakta.com/feed/", 180, "ID", "id"),
+    _fraud_rss("Liputan6 Cek Fakta (scam reports)", "https://feed.liputan6.com/rss/cek-fakta", 120, "ID", "id"),
+    {"name": "ScamSniffer crypto phishing domains", "kind": "scamsniffer", "category": "intel",
+     "interval_minutes": 720, "topic": "fraud", "config": {}},
 
     # --- Threat intel platforms
     {"name": "OTX subscribed pulses", "kind": "otx", "category": "intel", "interval_minutes": 60,

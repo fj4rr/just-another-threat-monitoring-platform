@@ -19,18 +19,21 @@ the extractor, severity scoring, enrichment consensus, feed sorting, the AI sett
 builder in all four formats, password, CSRF and redirect handling, feed sanitisation, the settings form, the
 multi-user login flow, list pagination and filters, the preview fragments, job batches and progress,
 notifications, the CVE lookups (against a mocked HTTP transport), geo attribution (targets versus attackers,
-Indonesian places and institutions), the region filter, the Indonesian severity terms and the map outlines. GitHub Actions runs lint and tests on Python 3.11 and 3.12 and builds the Docker
+Indonesian places and institutions), the region filter, the Indonesian severity terms, the map outlines, the
+Telegram web-preview parser and paging, ScamSniffer, and the fraud analysis (scam types, brands, scammer
+identifiers and their exclusions, losses, victims, velocity, the pages and the outbound rules). GitHub Actions runs lint and tests on Python 3.11 and 3.12 and builds the Docker
 image.
 
 ## Architecture
 
 ```
 app/
-  collectors/   rss, bluesky, mastodon, x_twitter, intel (OTX, urlscan, ANY.RUN, ThreatFox, ransomware.live),
-                misp  → RawItem
+  collectors/   rss, bluesky, mastodon, x_twitter, telegram (web preview / MTProto), intel (OTX, urlscan, ANY.RUN,
+                ThreatFox, ransomware.live), misp, scamsniffer  → RawItem
   processing/   pipeline (dedupe, sanitise, store, link entities, geo-tag) · extractor (IOC/CVE/family/actor)
                 geo (language, target countries and provinces, source country, International / National filter)
                 severity (explainable 0–100 score) · enrichment (cross-source, consensus, re-checks)
+                fraud (scam types, impersonated brands, scammer identifiers, losses / victims, fraud score)
                 trends (dashboard aggregations, weighted correlation) · graph (capped relationship graphs)
   intel/        API clients: VirusTotal, OTX, urlscan, ANY.RUN, ThreatFox, MalwareBazaar, URLhaus, GreyNoise,
                 AbuseIPDB (rate limits, budgets, connection tests) · darkweb (ransomware.live, Hudson Rock)
@@ -40,7 +43,8 @@ app/
   llm/          client (Ollama / OpenAI-compatible / Anthropic, live model list) · presets (local and cloud vendors)
                 insights (summary, brief, digest, Q&A)
   reports.py    Threat Intel Findings: gather() plus PDF / Word / Markdown / CSV exporters
-  routers/      pages, api (JSON and actions), api_v1 (REST API + IOC feeds + offline docs), apikeys, webhooks,
+  routers/      pages, fraud_pages (scam & fraud section), api (JSON and actions), api_v1 (REST API + IOC feeds +
+                offline docs), apikeys, webhooks,
                 taxii (read-only TAXII 2.1), settings, reports, admin, auth and setup
   gazetteer.py  countries (English and Indonesian names, demonyms), 38 Indonesian provinces, cities, institutions
   geoip.py      offline GeoIP (MaxMind-format database in data/geoip/) for the hosting country of IPs

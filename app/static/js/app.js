@@ -553,6 +553,10 @@
     priority: ["Priority",
       "The trend score multiplied by exploitation risk: doubled when the CVE is in the CISA Known Exploited " +
       "Vulnerabilities catalog, then raised by EPSS and CVSS."],
+    fraud: ["Fraud score",
+      "0 to 100, separate from the threat severity: the scam type, the reported losses (in rupiah), the number of " +
+      "victims, an impersonated bank, e-wallet or government body, published scammer identifiers, an official " +
+      "warning or arrest, and whether reports of the same scam type doubled this week. The item page lists the parts."],
   };
   const tipBox = document.createElement("div");
   tipBox.className = "tip-pop"; tipBox.setAttribute("role", "tooltip"); tipBox.id = "tip-pop"; tipBox.hidden = true;

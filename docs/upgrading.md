@@ -4,6 +4,21 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.9
+
+- New columns `sources.topic`, `items.fraud_score`, `items.fraud_detail`, `items.fraud_loss_idr` and
+  `items.fraud_victims` are created on start-up.
+- About 40 seconds after the first start, a background job runs the scam & fraud analysis on every existing item
+  (*Re-analyse items* under Settings → Scam & fraud does the same, and so does `python manage.py fraudtag`). No
+  network requests.
+- **Add new built-in sources** under Settings → Sources adds the Telegram channels (vx-underground enabled, three
+  disabled), FBI IC3, CekFakta.com, Liputan6 Cek Fakta and ScamSniffer.
+- Telegram needs nothing more for public channels. For MTProto, `pip install -r requirements-telegram.txt` and run
+  `python manage.py telegram-login` (optional; see [Sources](sources.md#telegram)).
+- `manage.py reextract` now also rebuilds the scam types, brands and identifiers.
+- Scammer phone numbers, bank accounts and e-wallets not mentioned for 365 days are deleted by the nightly
+  housekeeping; change or turn this off under Settings → Scam & fraud.
+
 ## Upgrading to 0.8
 
 - New table `item_geo` and columns `items.lang`, `items.src_country`, `sources.country`, `sources.language` and

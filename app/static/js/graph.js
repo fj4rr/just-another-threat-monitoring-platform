@@ -14,6 +14,12 @@
     actor: { color: "--series-7", r: 11, label: "Threat actor" },
     cve: { color: "--series-4", r: 9, label: "CVE" },
     technique: { color: "--series-5", r: 7, label: "Technique" },
+    scam_type: { color: "--series-8", r: 10, label: "Scam type" },
+    brand: { color: "--series-6", r: 8, label: "Brand" },
+    phone: { color: "--series-3", r: 6, label: "Scammer identifier" },
+    bank_account: { color: "--series-3", r: 6, label: "Scammer identifier" },
+    ewallet: { color: "--series-3", r: 6, label: "Scammer identifier" },
+    crypto_wallet: { color: "--series-3", r: 6, label: "Scammer identifier" },
   };
   const VERDICT = { malicious: "--critical", suspicious: "--warning", clean: "--good" };
 
@@ -32,10 +38,10 @@
 
   function initPositions(nodes) {
     const rand = rng(nodes.length * 7919 + 17);
-    const order = ["item", "malware", "actor", "cve", "technique"];
+    const order = ["item", "malware", "actor", "cve", "technique", "scam_type", "brand"];
     nodes.forEach((n, i) => {
       if (n.center) { n.x = 0; n.y = 0; return; }
-      const ring = IOC.has(n.kind) ? 2.2 : 1 + order.indexOf(n.kind) * 0.25;
+      const ring = IOC.has(n.kind) || order.indexOf(n.kind) < 0 ? 2.2 : 1 + order.indexOf(n.kind) * 0.25;
       const a = (i / nodes.length) * Math.PI * 2 + rand() * 0.6;
       n.x = Math.cos(a) * 120 * ring + (rand() - 0.5) * 20;
       n.y = Math.sin(a) * 120 * ring + (rand() - 0.5) * 20;
@@ -256,7 +262,10 @@
         s.append(sw, document.createTextNode(label));
         legend.appendChild(s);
       };
-      for (const [k, v] of Object.entries(KIND)) if (kinds.has(k)) add(v.color, v.label, k === "item" ? "sq" : "");
+      const shown = new Set();  // the four scammer identifier kinds share one legend entry
+      for (const [k, v] of Object.entries(KIND)) {
+        if (kinds.has(k) && !shown.has(v.label)) { shown.add(v.label); add(v.color, v.label, k === "item" ? "sq" : ""); }
+      }
       for (const [v, c] of Object.entries(VERDICT)) if (kinds.has("ioc:" + v)) add(c, `IOC (${v})`, "dia");
       if (kinds.has("ioc:other")) add("--neutral-mark", "IOC (unknown / pending)", "dia");
     }
