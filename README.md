@@ -11,11 +11,7 @@ whole interface switches between an International and a National (Indonesia) vie
 It runs as a single process with SQLite by default. There is no JavaScript build step and nothing is loaded from
 a CDN at runtime, so it works on an isolated network.
 
-![Dashboard](docs/screenshots/dashboard.png)
-
-| Feed with the side preview | Geography: target countries and the families and actors per country |
-|---|---|
-| ![Feed and side preview](docs/screenshots/feed-preview.png) | ![Geography](docs/screenshots/geography.png) |
+![Dashboard](docs/screenshots/dashboard-full.png)
 
 More in the [screenshot tour](docs/screenshots.md).
 
