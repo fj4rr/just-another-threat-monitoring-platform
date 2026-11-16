@@ -33,6 +33,13 @@ def _rss_id(name: str, url: str, every: int = 60, security_filter: bool = True) 
             "language": "id", "config": config}
 
 
+def _rss_id_news(name: str, url: str, every: int = 60, country: str = "ID") -> dict:
+    """Indonesian general news section (national, economy, law). The stricter 'cyber' filter keeps only cyber
+    incidents and digital fraud; these feeds turn over fast, hence the short intervals."""
+    return {"name": name, "kind": "rss", "category": "news", "interval_minutes": every, "country": country,
+            "language": "id", "config": {"url": url, "filter": "cyber"}}
+
+
 def _bsky(name: str, handle: str, every: int = 30) -> dict:
     return {"name": f"{name} (Bluesky)", "kind": "bluesky", "category": "social", "interval_minutes": every,
             "config": {"handle": handle}}
@@ -96,6 +103,26 @@ DEFAULT_SOURCES: list[dict] = [
     # Not included: bssn.go.id answers automated clients with 403, Tempo's feed sits behind a Cloudflare
     # challenge, Kompas forbids automated collection in robots.txt, and cyberthreat.id is offline.
     _rss_id("Seraphim News", "https://www.seraphimnews.my.id/rss.xml", 180, security_filter=False),
+
+    # --- Indonesian general news (0.9.1; feeds and robots.txt checked 2026-11-16): breaches, attacks on public
+    #     services, judol and digital fraud are reported here rather than in the tech sections. Not included:
+    #     Tribunnews and Bisnis answer automated clients with 403, Tirto's feed with 403; Kumparan, IDN Times, Suara,
+    #     Merdeka and Beritasatu publish no feed; DailySocial's feed stopped in July 2026.
+    _rss_id_news("Detik News", "https://news.detik.com/rss", 30),
+    _rss_id_news("CNN Indonesia Nasional", "https://www.cnnindonesia.com/nasional/rss", 45),
+    _rss_id_news("CNN Indonesia Ekonomi", "https://www.cnnindonesia.com/ekonomi/rss", 60),
+    _rss_id_news("CNBC Indonesia News", "https://www.cnbcindonesia.com/news/rss", 45),
+    _rss_id_news("Antara Terkini", "https://www.antaranews.com/rss/terkini.xml", 30),
+    _rss_id_news("Antara Hukum", "https://www.antaranews.com/rss/hukum.xml", 120),
+    _rss_id_news("Liputan6 News", "https://feed.liputan6.com/rss/news", 45),
+    _rss_id_news("Republika News", "https://www.republika.co.id/rss/news", 30),
+    _rss_id_news("Okezone News", "https://sindikasi.okezone.com/index.php/rss/1/RSS2.0", 45),
+    _rss_id_news("Sindonews Nasional", "https://nasional.sindonews.com/rss", 60),
+    _rss_id_news("Jawa Pos Nasional", "https://www.jawapos.com/rss/nasional", 60),
+    _rss_id_news("iNews", "https://www.inews.id/feed", 45),
+    _rss_id_news("JPNN", "https://www.jpnn.com/index.php?mib=rss", 30),
+    _rss_id_news("Katadata", "https://katadata.co.id/rss", 120),
+    _rss_id_news("BBC News Indonesia", "https://feeds.bbci.co.uk/indonesia/rss.xml", 120, country="GB"),
 
     # --- Bluesky (public API, no key)
     _bsky("vx-underground", "vxunderground.bsky.social", 60),

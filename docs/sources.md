@@ -2,7 +2,12 @@
 
 [← Documentation index](README.md)
 
-What JATMP collects out of the box. Every source can be edited, disabled or removed under **Settings → Sources**, and any RSS / Atom feed, Bluesky or Mastodon account, X account, public Telegram channel or threat-intel query can be added there. On an existing install, **Add new built-in sources** (or `python manage.py seed-sources`) adds sources introduced by newer versions.
+What JATMP collects out of the box. Every source can be edited, disabled or removed under **Settings → Sources**, and any RSS / Atom feed, Bluesky or Mastodon account, X account, public Telegram channel or threat-intel query can be added there.
+
+Sources that a newer version adds to the built-in list join an existing install **automatically** when it starts,
+and a notification lists them. JATMP remembers which built-in sources it has already offered, so one you deleted
+does not come back. **Add new built-in sources** (or `python manage.py seed-sources`) adds every missing built-in
+source, deleted ones included.
 
 ## Built-in sources
 
@@ -10,6 +15,7 @@ What JATMP collects out of the box. Every source can be edited, disabled or remo
 |---|---|
 | **News (RSS)** | The Hacker News, Cyber Security News, BleepingComputer, SecurityWeek, The Record, Dark Reading, The DFIR Report, Unit 42, Malwarebytes Labs, SANS ISC, Krebs on Security, Cisco Talos, Securelist, Microsoft Security. Any other RSS or Atom feed can be added from the UI. |
 | **Indonesian news** (RSS, Bahasa Indonesia) | Detik Inet, CNN Indonesia Teknologi, CNBC Indonesia Tech, Antara Tekno, Liputan6 Tekno, Republika Tekno, Okezone Techno, Sindonews Tekno, Jawa Pos Teknologi. These are general technology sections, so a *security* topic filter keeps only entries about breaches, hacking, fraud, malware and the like (English and Indonesian terms). The filter can be set on any RSS source. Seraphim News, a security-only outlet (CVE analysis, data breaches, ransomware), is collected unfiltered. BSSN, Kompas and Tempo are not included: their sites refuse automated clients or forbid automated collection. |
+| **Indonesian general news** (RSS, Bahasa Indonesia, since 0.9.1) | Detik News, CNN Indonesia Nasional and Ekonomi, CNBC Indonesia News, Antara Terkini and Hukum, Liputan6 News, Republika News, Okezone News, Sindonews Nasional, Jawa Pos Nasional, iNews, JPNN, Katadata, BBC News Indonesia. Data breaches, attacks on public services, *judol* and digital fraud are often reported in these sections. They carry the stricter `cyber` topic filter. Not included: Tribunnews, Bisnis and Tirto refuse automated clients; Kumparan, IDN Times, Suara, Merdeka and Beritasatu publish no feed. |
 | **Bluesky** (public API, no key) | vx-underground, Marcus Hutchins, MalwareHunterTeam, Kevin Beaumont, Catalin Cimpanu, Will Thomas (BushidoToken), Zack Whittaker, Lorenzo Franceschi-Bicchierai, Dan Goodin, Karsten Hahn, hasherezade, Silas Cutler, Shadowserver, The DFIR Report, ESET Research, Cisco Talos, SentinelLABS, GreyNoise, Huntress, Ransomware.live |
 | **Mastodon** (public API, no key) | Marcus Hutchins, Brian Krebs, Brad Duncan (malware-traffic), SANS ISC, Proofpoint Threat Insight, Thomas Roccia, ffforward, Matt Taggart, Kevin Beaumont |
 | **X / Twitter** (API v2 bearer token or an RSS bridge) | Enabled: vxunderground, MalwareTechBlog, malwrhunterteam. Available but disabled by default so the API quota is not spent unintentionally: GossiTheDog, cyb3rops, 1ZRR4H, BushidoToken, TheDFIRReport, Unit42_Intel, abuse_ch, malware_traffic, ESETresearch, MsftSecIntel, executemalware, pr0xylife, g0njxa, Max_Mal_, RedDrip7, fr0gger_, StopMalvertisin, ViriBack, Fox_threatintel, FalconFeedsio, H4ckManac, anyrun_app, ffforward. Indonesian, also disabled by default: secgron (Teguh Aprianto, Ethical Hacker Indonesia), Id_SIRTII (Id-SIRTII/CC, BSSN) |
@@ -27,6 +33,10 @@ Any RSS source can carry a topic filter (*Filter* in the source's Edit dialog):
 
 - `security` keeps only entries about breaches, hacking, fraud, malware and the like (English and Indonesian terms).
   Used for the general technology sections of Indonesian outlets.
+- `cyber` is the stricter version for general news sections (national, economy, law). Words that are fine in a
+  tech section mean something else there ("tabung gas bocor", "modus penyelundupan", a hijacked bus), so only
+  unambiguous cyber and digital-fraud terms count (*serangan siber*, *data … bocor*, *situs diretas*, *judi online*,
+  *penipuan online*, *anti-scam*…), plus anything the fraud rules recognise as a scam report.
 - `fraud` keeps only entries about a scam (the scam-type rules of the [fraud analysis](fraud.md)). Used for
   fact-checkers, whose feeds are mostly political hoaxes.
 

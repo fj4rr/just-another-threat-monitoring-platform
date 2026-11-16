@@ -34,6 +34,7 @@ from .web import render
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
+log = logging.getLogger("jatmp")
 
 # Set JATMP_SECURE_COOKIES=1 (and terminate TLS in front of the app) when exposing the
 # platform beyond localhost: marks the session cookie Secure and enables HSTS.
@@ -44,6 +45,14 @@ SECURE = env_flag("JATMP_SECURE_COOKIES")
 async def lifespan(_: FastAPI):
     init_db()
     if is_installed():
+        try:  # built-in sources introduced by an upgrade join automatically (before scheduling, so they run)
+            from .setup_service import auto_seed_sources
+
+            added = auto_seed_sources()
+            if added:
+                log.info("added %d new built-in source(s)", len(added))
+        except Exception as e:  # never block start-up
+            log.warning("adding new built-in sources failed: %s", e)
         jobs.start()
     yield
     jobs.shutdown()

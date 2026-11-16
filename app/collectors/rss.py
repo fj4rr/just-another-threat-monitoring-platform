@@ -27,6 +27,21 @@ SECURITY_RE = re.compile(
     r"kejahatan digital|keamanan digital|modus|mengatasnamakan|judi online|judol|bssn|pdns|pusat data nasional|"
     r"skimming|social engineering|rekayasa sosial|kode otp|apk palsu|undangan pernikahan)\b", re.I)
 
+# "filter: cyber" is the stricter version for general news sections (national, economy, law), where words that are
+# fine in a tech section mean something else: "tabung gas bocor", "modus penyelundupan", "dibajak" (a hijacked bus).
+# Only unambiguous cyber and digital-fraud terms count; scam reports are added by the fraud rules.
+CYBER_RE = re.compile(
+    r"\b(?:hack(?:ed|er|ers|ing)|malware|ransomware|phish(?:ing)?|cyber\w*|ddos|spyware|botnet|zero[\s-]?day|"
+    r"cve-\d{4}|infostealer|data breach|deface\w*|"
+    r"peretas|peretasan|diretas|meretas|siber|phising|pishing|serangan (?:siber|ransomware|ddos)|"
+    r"(?:kebocoran|bocornya|pencurian|penjualan|jual beli) data(?: pribadi| pengguna| nasabah| pelanggan)?|"
+    r"data (?:pribadi |pengguna |nasabah |pelanggan |warga )?(?:\w+ ){0,5}(?:bocor|diretas|dicuri|dijual)|"
+    r"(?:akun|sistem|server|situs|website|aplikasi|rekening) (?:\w+ ){0,2}(?:dibobol|diretas|dibajak)|"
+    r"pembobolan (?:rekening|akun|data|sistem|bank)|pembajakan akun|kejahatan (?:digital|siber)|keamanan digital|"
+    r"penipuan (?:online|daring|digital|siber)|judi online|judi daring|judol|pinjol ilegal|investasi bodong|"
+    r"anti-?scam|scam\w*|rekening penipu|kode otp|apk palsu|skimming|rekayasa sosial|social engineering|"
+    r"bssn|pdns|pusat data nasional|id-sirtii|csirt)\b", re.I)
+
 
 def _entry_time(e) -> datetime | None:
     for key in ("published_parsed", "updated_parsed"):
@@ -40,8 +55,8 @@ class RSSCollector(Collector):
     category = "news"
     label = "RSS / Atom feed"
     fields = [("url", "Feed URL", "https://example.com/feed/"),
-              ("filter", "Topic filter (optional): 'security' keeps only security-related entries, 'fraud' only scam "
-                         "reports", "security")]
+              ("filter", "Topic filter (optional): 'security' keeps only security-related entries (tech sections), "
+                         "'cyber' is stricter for general news sections, 'fraud' keeps only scam reports", "security")]
 
     def _keep(self, raws: list[RawItem]) -> list[RawItem]:
         topic = str(self.cfg.get("filter") or "").strip().lower()
@@ -49,6 +64,14 @@ class RSSCollector(Collector):
             from ..processing.fraud import scam_types
 
             return [r for r in raws if scam_types(r.title, f"{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}")]
+        if topic == "cyber":  # general news sections: unambiguous cyber terms, or a scam report
+            from ..processing.fraud import scam_types
+
+            def keep(r: RawItem) -> bool:
+                body = f"{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}"
+                return bool(CYBER_RE.search(f"{r.title}\n{body}") or scam_types(r.title, body))
+
+            return [r for r in raws if keep(r)]
         if topic != "security":
             return raws
         return [r for r in raws if SECURITY_RE.search(f"{r.title}\n{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}")]

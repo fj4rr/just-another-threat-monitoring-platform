@@ -2,6 +2,22 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.9.1
+
+- **15 Indonesian general news sections** for the National view: Detik News, CNN Indonesia Nasional and Ekonomi,
+  CNBC Indonesia News, Antara Terkini and Hukum, Liputan6 News, Republika News, Okezone News, Sindonews Nasional,
+  Jawa Pos Nasional, iNews, JPNN, Katadata and BBC News Indonesia. Breaches, attacks on public services, *judol* and
+  digital fraud are often reported there rather than in the tech sections.
+- New RSS topic filter **`cyber`** for general news: only unambiguous cyber and digital-fraud terms count, plus scam
+  reports, so "tabung gas bocor", "modus penyelundupan" or a hijacked bus no longer pass as they would with the
+  `security` filter.
+- **New built-in sources join automatically** on start-up, with a notification. JATMP remembers which built-in
+  sources it has offered, so a source you deleted does not come back. The first start after upgrading adds every
+  missing built-in source once (as *Add new built-in sources* did); the button and `manage.py seed-sources` still
+  add every missing one.
+- Checked and not added: Tribunnews, Bisnis and Tirto refuse automated clients; Kumparan, IDN Times, Suara,
+  Merdeka and Beritasatu publish no feed; DailySocial's feed stopped in July 2026.
+
 ## 0.9.0
 
 - **Telegram collector** (`app/collectors/telegram.py`): public channels through their web preview

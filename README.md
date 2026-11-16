@@ -18,7 +18,7 @@ More in the [screenshot tour](docs/screenshots.md).
 
 ## Features
 
-- **Collection** from 14 English and 10 Indonesian news feeds, about 30 Bluesky and Mastodon accounts, X, public
+- **Collection** from 14 English news feeds and 25 Indonesian ones (tech and general news), about 30 Bluesky and Mastodon accounts, X, public
   Telegram channels (no account needed), OTX, urlscan.io, ANY.RUN, ThreatFox, MISP and ransomware.live. Any RSS
   feed, account or channel can be added. → [Sources](docs/sources.md)
 - **Analysis**: entity extraction with defang handling, an explainable 0–100 severity score, cross-provider

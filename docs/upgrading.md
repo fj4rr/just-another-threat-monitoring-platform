@@ -4,6 +4,13 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.9.1
+
+- New built-in sources are added automatically on start-up from now on (a notification lists them). The first start
+  after this upgrade adds every built-in source the install does not have, the 15 Indonesian news sections
+  included; a built-in source you deleted earlier comes back once in that run, so delete it again if needed. After
+  that, deleted built-in sources stay deleted.
+
 ## Upgrading to 0.9
 
 - New columns `sources.topic`, `items.fraud_score`, `items.fraud_detail`, `items.fraud_loss_idr` and
