@@ -1,6 +1,9 @@
 # JATMP — Just Another Threat Monitoring Platform
 
 [![CI](https://github.com/fj4rr/just-another-threat-monitoring-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/fj4rr/just-another-threat-monitoring-platform/actions/workflows/ci.yml)
+[![Docs](https://github.com/fj4rr/just-another-threat-monitoring-platform/actions/workflows/docs.yml/badge.svg)](https://fj4rr.github.io/just-another-threat-monitoring-platform/)
+
+📖 **Documentation: [fj4rr.github.io/just-another-threat-monitoring-platform](https://fj4rr.github.io/just-another-threat-monitoring-platform/)**
 
 JATMP is a self-hosted platform for keeping track of new and emerging malware campaigns and scams. It collects
 **security news**, **social media** (X, Bluesky, Mastodon, Telegram) and **threat-intelligence platforms**,
