@@ -18,31 +18,31 @@ a CDN at runtime, so it works on an isolated network.
 
 ![Cyber threats dashboard](docs/screenshots/dashboard-overview.png)
 
-More in the [screenshot tour](docs/screenshots.md).
+More in the [screenshot tour](https://fj4rr.github.io/just-another-threat-monitoring-platform/screenshots/).
 
 ## Features
 
 - **Collection** from 14 English news feeds and 25 Indonesian ones (tech and general news), about 30 Bluesky and Mastodon accounts, X, public
   Telegram channels (no account needed), OTX, urlscan.io, ANY.RUN, ThreatFox, MISP and ransomware.live. Any RSS
-  feed, account or channel can be added. → [Sources](docs/sources.md)
+  feed, account or channel can be added. → [Sources](https://fj4rr.github.io/just-another-threat-monitoring-platform/sources/)
 - **Analysis**: entity extraction with defang handling, an explainable 0–100 severity score, cross-provider
   verdict consensus (VirusTotal, OTX, abuse.ch, GreyNoise, AbuseIPDB and more), a relationship graph,
   on-demand infrastructure context, trend scoring over 7 days to a year, critical infrastructure sectors and CVE context from CISA KEV,
   FIRST EPSS and NVD.
-  → [Analysis](docs/analysis.md)
+  → [Analysis](https://fj4rr.github.io/just-another-threat-monitoring-platform/analysis/)
 - **Geography**: target, source and hosting countries kept apart, Indonesian provinces, an International /
-  National (ID) switch and Bahasa Indonesia support. → [Geography and Indonesia](docs/geography.md)
+  National (ID) switch and Bahasa Indonesia support. → [Geography and Indonesia](https://fj4rr.github.io/just-another-threat-monitoring-platform/geography/)
 - **Scams and fraud**: scam types, impersonated banks, e-wallets and government bodies, scammer phone numbers,
   accounts and wallets (kept to a minimum under UU PDP), losses in rupiah and a separate fraud score, from news,
-  fact-checkers, FBI IC3 and the ScamSniffer blocklist, on their own dashboard. → [Scams and fraud](docs/fraud.md)
+  fact-checkers, FBI IC3 and the ScamSniffer blocklist, on their own dashboard. → [Scams and fraud](https://fj4rr.github.io/just-another-threat-monitoring-platform/fraud/)
 - **Sharing**: REST API with API keys, IOC blocklist feeds, STIX 2.1 / TAXII 2.1, signed webhooks
-  (Slack, Discord, Teams) and two-way MISP, all behind TLP sharing rules. → [Sharing and integrations](docs/integrations.md)
+  (Slack, Discord, Teams) and two-way MISP, all behind TLP sharing rules. → [Sharing and integrations](https://fj4rr.github.io/just-another-threat-monitoring-platform/integrations/)
 - **Reporting and AI**: a *Threat Intel Findings* report as PDF, Word, Markdown or CSV, and optional summaries,
-  briefs, a daily executive summary and Q&A from a local or cloud LLM. → [Reporting and AI](docs/reporting-and-ai.md)
+  briefs, a daily executive summary and Q&A from a local or cloud LLM. → [Reporting and AI](https://fj4rr.github.io/just-another-threat-monitoring-platform/reporting-and-ai/)
 - **History**: backfill up to a year back, retention tiers, full-text search and optional PostgreSQL.
-  → [History and storage](docs/history-and-storage.md)
+  → [History and storage](https://fj4rr.github.io/just-another-threat-monitoring-platform/history-and-storage/)
 - **Operation**: single-user or multi-user with roles, live job progress, a notification center, a side preview on
-  every table, dark and light themes and a phone layout. → [Using JATMP](docs/using-jatmp.md)
+  every table, dark and light themes and a phone layout. → [Using JATMP](https://fj4rr.github.io/just-another-threat-monitoring-platform/using-jatmp/)
 
 ## Quick start
 
@@ -64,20 +64,18 @@ python run.py                 # open http://127.0.0.1:8000
 
 Or with Docker: copy `.env.example` to `.env` and run `docker compose up -d --build`. The installer can be
 skipped, because the web UI shows the same setup wizard on first launch. Run that first launch on `127.0.0.1`
-before exposing the port to a network. See [Getting started](docs/getting-started.md) for details.
+before exposing the port to a network. See [Getting started](https://fj4rr.github.io/just-another-threat-monitoring-platform/getting-started/) for details.
 
 ## Documentation
 
 | | |
 |---|---|
-| **Set up** | [Getting started](docs/getting-started.md) · [Configuration](docs/configuration.md) · [Upgrading](docs/upgrading.md) · [Maintenance commands](docs/maintenance.md) |
-| **Use** | [Sources](docs/sources.md) · [Using JATMP](docs/using-jatmp.md) · [Analysis](docs/analysis.md) · [Geography](docs/geography.md) · [Scams and fraud](docs/fraud.md) · [Integrations](docs/integrations.md) · [Reporting and AI](docs/reporting-and-ai.md) · [History and storage](docs/history-and-storage.md) |
-| **Reference** | [Security](docs/security.md) · [Development and architecture](docs/development.md) · [Changelog](CHANGELOG.md) |
+| **Set up** | [Getting started](https://fj4rr.github.io/just-another-threat-monitoring-platform/getting-started/) · [Configuration](https://fj4rr.github.io/just-another-threat-monitoring-platform/configuration/) · [Upgrading](https://fj4rr.github.io/just-another-threat-monitoring-platform/upgrading/) · [Maintenance commands](https://fj4rr.github.io/just-another-threat-monitoring-platform/maintenance/) |
+| **Use** | [Sources](https://fj4rr.github.io/just-another-threat-monitoring-platform/sources/) · [Using JATMP](https://fj4rr.github.io/just-another-threat-monitoring-platform/using-jatmp/) · [Analysis](https://fj4rr.github.io/just-another-threat-monitoring-platform/analysis/) · [Geography](https://fj4rr.github.io/just-another-threat-monitoring-platform/geography/) · [Scams and fraud](https://fj4rr.github.io/just-another-threat-monitoring-platform/fraud/) · [Integrations](https://fj4rr.github.io/just-another-threat-monitoring-platform/integrations/) · [Reporting and AI](https://fj4rr.github.io/just-another-threat-monitoring-platform/reporting-and-ai/) · [History and storage](https://fj4rr.github.io/just-another-threat-monitoring-platform/history-and-storage/) |
+| **Reference** | [Security](https://fj4rr.github.io/just-another-threat-monitoring-platform/security/) · [Development and architecture](https://fj4rr.github.io/just-another-threat-monitoring-platform/development/) · [Changelog](https://fj4rr.github.io/just-another-threat-monitoring-platform/changelog/) |
 
-The same pages are published as a searchable site at
-**[fj4rr.github.io/just-another-threat-monitoring-platform](https://fj4rr.github.io/just-another-threat-monitoring-platform/)**
-(built with MkDocs from [docs/](docs/README.md); `pip install -r requirements-docs.txt` and `mkdocs serve` to read
-them locally).
+The site is built with MkDocs from the Markdown in [`docs/`](docs/); to read it offline, run
+`pip install -r requirements-docs.txt` and `mkdocs serve`.
 
 ## Credits
 
