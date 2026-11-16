@@ -25,7 +25,11 @@ The **Geography** page shows target countries on a world map and Indonesian prov
 link to the matching feed), the families and actors named per country, hosting countries, source countries and
 languages. The maps are drawn from public-domain Natural Earth outlines that ship with JATMP, so nothing is
 loaded from outside. Item pages and previews list the targets, source country and language; the feed and the
-REST API filter by `country`, `province`, `src_country` and `lang`.
+REST API filter by `country`, `province`, `src_country` and `lang`. The map and list cards share a height and the
+lists scroll, so every target country and province is listed.
+
+On the dashboard, a globe shows the top 10 target countries (or provinces in the National view) of the last 30
+days, built from the same outlines; see [the dashboard](using-jatmp.md#dashboard).
 
 ## International / National (ID)
 

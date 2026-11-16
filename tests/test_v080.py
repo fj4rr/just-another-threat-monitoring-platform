@@ -168,8 +168,8 @@ def test_geo_page_dashboard_and_stats(client, geo_items):
     client.get("/?region=intl")
     stats = client.get("/api/stats/geo?days=0").json()
     assert stats["world_values"]["DE"] >= 1 and stats["id_values"]["ID-JB"] >= 1
-    assert "Indonesia by province" in client.get("/?region=id").text
-    assert "Target countries" in client.get("/?region=intl").text
+    assert 'data-globe="indonesia"' in client.get("/?region=id").text
+    assert 'data-globe="world"' in client.get("/?region=intl").text
     for path in ("/api/stats/overview", "/api/stats/timeline", "/api/stats/kpi_series", "/api/stats/trending",
                  "/api/stats/categories", "/api/stats/sources", "/api/stats/iocs", "/api/stats/top"):
         assert client.get(path + "?region=id").status_code == 200, path

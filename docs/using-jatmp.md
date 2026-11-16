@@ -2,7 +2,7 @@
 
 [← Documentation index](README.md)
 
-Install modes and roles, the shared table design and side preview, job status and notifications.
+Install modes and roles, the dashboard, the shared table design and side preview, job status and notifications.
 
 ## Install modes and roles
 
@@ -10,6 +10,27 @@ JATMP installs in **single-user** mode (no login) or **multi-user** mode with ad
 user management, job status and an audit log. Users keep a personal watchlist, and the interface offers a dark
 and a light theme, a `/` shortcut for search, a phone layout, retention tiers and a Docker image
 with a health check.
+
+## Dashboard
+
+From top to bottom:
+
+- **Threat radar** and **globe**. The radar shows trending malware families (circles), CVEs (diamonds) and threat
+  actors (triangles): the closer to the centre, the higher the trend score; the larger, the more mentions; a
+  dashed ring marks entries first seen this week. The buttons in the card head hide or show a type. The globe
+  shows the top 10 target countries of the last 30 days (Indonesian provinces in the National view). It turns
+  from one to the next and shows each one's count and the families and actors named there. Drag it to turn it,
+  hover a country for its count, click one to open its feed, or use the numbered buttons, + / − and ⟲. Pointing
+  at the globe pauses the tour, and ▶ / ❚❚ starts or stops it.
+- **KPI tiles**: items collected, IOCs seen, active malware families, threat actors and CVEs discussed in the last
+  7 days, each with a 14-day sparkline.
+- **AI digest**, only when an LLM is configured.
+- **Collection volume** per day and source type, 30 days.
+- **Trending malware**, **Trending CVEs** and **Trending threat actors**, each scrolling on its own. Hover the
+  CVSS, EPSS and priority headers for what they mean.
+- **Top 5 trending over time**, with a dropdown for families, CVEs or actors.
+- **Malware by type**, **CVEs by exploitation risk** and **Threat actors by type**.
+- **Notable recent items** (severity 30 and up), next to **Items per source** and **IOC verdicts**.
 
 ## Tables and preview
 

@@ -56,12 +56,19 @@ def overview(db: Session, days: int = 7, region: str = "") -> dict:
         .join(ItemEntity, ItemEntity.entity_id == Entity.id)
         .join(Item, Item.id == ItemEntity.item_id)
         .where(Entity.type == "cve", Item.published_at >= since), region)) or 0
+    actors = db.scalar(scoped(
+        select(func.count(distinct(Entity.id)))
+        .join(ItemEntity, ItemEntity.entity_id == Entity.id)
+        .join(Item, Item.id == ItemEntity.item_id)
+        .where(Entity.type == "actor", Item.published_at >= since), region)) or 0
+    new_actors = db.scalar(_ent_scoped(
+        select(func.count(Entity.id)).where(Entity.type == "actor", Entity.first_seen >= since), region, since)) or 0
     sources_ok = db.scalar(select(func.count(Source.id)).where(Source.enabled, Source.last_status == "ok")) or 0
     sources_total = db.scalar(select(func.count(Source.id)).where(Source.enabled)) or 0
     return {
         "items": items_now, "items_prev": items_prev, "active_families": active_fams,
         "new_families": new_fams, "iocs": iocs, "malicious_iocs": malicious, "cves": cves,
-        "sources_ok": sources_ok, "sources_total": sources_total, "days": days, "region": region or "intl",
+        "actors": actors, "new_actors": new_actors, "sources_ok": sources_ok, "sources_total": sources_total, "days": days, "region": region or "intl",
     }
 
 
@@ -127,6 +134,54 @@ def category_breakdown(db: Session, days: int = 30, region: str = "") -> list[di
     return [{"category": c or "other", "count": n} for c, n in rows]
 
 
+CVE_RISK = [  # (key, label), most urgent first; each CVE lands in the first bucket it qualifies for
+    ("kev", "In CISA KEV"), ("epss", "EPSS 10%+"), ("critical", "CVSS critical"), ("high", "CVSS high"),
+    ("lower", "CVSS medium/low"), ("unscored", "Low EPSS, no CVSS"), ("pending", "Not looked up yet"),
+]
+
+
+def cve_risk(meta: dict | None) -> str:
+    """Bucket key from CVE_RISK for a CVE entity's KEV / EPSS / CVSS metadata (app/intel/cve.py)."""
+    m = meta or {}
+    epss = (m.get("epss") or {}).get("score")
+    cvss = (m.get("cvss") or {}).get("score")
+    if m.get("kev"):
+        return "kev"
+    if isinstance(epss, (int, float)) and epss >= 0.1:
+        return "epss"
+    if isinstance(cvss, (int, float)):
+        return "critical" if cvss >= 9 else "high" if cvss >= 7 else "lower"
+    return "unscored" if (m.get("intel_checked_at") or m.get("epss")) else "pending"
+
+
+def cve_breakdown(db: Session, days: int = 30, region: str = "") -> list[dict]:
+    """CVEs discussed in the period, counted per exploitation-risk bucket (CVE_RISK)."""
+    since = _since(days)
+    ids = select(ItemEntity.entity_id).join(Item, Item.id == ItemEntity.item_id).where(Item.published_at >= since)
+    metas = db.execute(select(Entity.meta).where(Entity.type == "cve", Entity.id.in_(scoped(ids, region)))).scalars()
+    counts: dict[str, int] = defaultdict(int)
+    for m in metas:
+        counts[cve_risk(m)] += 1
+    return [{"category": k, "label": label, "count": counts[k]} for k, label in CVE_RISK if counts[k]]
+
+
+def actor_breakdown(db: Session, days: int = 30, region: str = "") -> list[dict]:
+    """Items mentioning threat actors in the period, per kind of actor (knowledge.actor_category)."""
+    from ..knowledge import ACTOR_CATEGORIES, actor_category
+
+    since = _since(days)
+    rows = db.execute(scoped(
+        select(Entity.display, Item.id)
+        .join(ItemEntity, ItemEntity.entity_id == Entity.id)
+        .join(Item, Item.id == ItemEntity.item_id)
+        .where(Entity.type == "actor", Item.published_at >= since), region)).all()
+    items: dict[str, set[int]] = defaultdict(set)
+    for name, item_id in rows:
+        items[actor_category(name)].add(item_id)
+    out = [{"category": c, "label": c, "count": len(items[c])} for c in ACTOR_CATEGORIES if items[c]]
+    return sorted(out, key=lambda d: (d["category"] == "unclassified", -d["count"]))
+
+
 def source_breakdown(db: Session, days: int = 7, region: str = "") -> list[dict]:
     since = _since(days)
     rows = db.execute(scoped(
@@ -172,9 +227,13 @@ def trending(db: Session, etype: str = "malware", limit: int = 10, window: int =
         .group_by(Entity.id)
     ).all()
     out = []
+    if etype == "actor":
+        from ..knowledge import actor_category
     for eid, name, cat, first_seen, r, b, s, c in rows:
         if not r:
             continue
+        if etype == "actor":
+            cat = actor_category(name)
         rate_recent = r / window
         rate_base = (b / baseline) if b else 0.0
         growth = (rate_recent + 0.1) / (rate_base + 0.1)
@@ -218,6 +277,7 @@ def kpi_series(db: Session, days: int = 14, region: str = "") -> dict:
         "families": per_day(base.where(Entity.type == "malware").group_by(day)),
         "iocs": per_day(base.where(Entity.type.in_(IOC_TYPES)).group_by(day)),
         "cves": per_day(base.where(Entity.type == "cve").group_by(day)),
+        "actors": per_day(base.where(Entity.type == "actor").group_by(day)),
     }
 
 

@@ -19,6 +19,8 @@ Schema changes are applied automatically on start-up (new tables and columns; th
   Geography page) or run `python manage.py geoip-update`.
 - Run `python manage.py rescore` to apply the Indonesian severity terms to items collected before the upgrade.
 - New dependency: `maxminddb` (pure Python), so run `pip install -r requirements.txt` again.
+- 0.8.2 changes no schema. Actors you added in `data/knowledge_extra.json` count as *unclassified* on the
+  dashboard until you give them a `category` (see [Configuration](configuration.md#extending-the-knowledge-base)).
 
 ## Upgrading to 0.7
 

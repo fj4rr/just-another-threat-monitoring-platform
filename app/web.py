@@ -90,6 +90,19 @@ def _geo_globals() -> None:
 _geo_globals()
 
 
+def _globe_top(rows: list[dict], national: bool, n: int = 10) -> list[dict]:
+    """Top target countries (or provinces) for the dashboard globe."""
+    from . import gazetteer
+
+    name = gazetteer.province_name if national else gazetteer.country_name
+    # newer provinces have no outline of their own; the globe points at the one they were split from
+    return [{"code": r["code"], "shape": gazetteer.MAP_PARENT.get(r["code"], r["code"]), "name": name(r["code"]),
+             "count": r["count"], "related": r.get("related") or []} for r in rows[:n]]
+
+
+templates.env.globals["globe_top"] = _globe_top
+
+
 def render(request: Request, name: str, ctx: dict | None = None, status_code: int = 200):
     from .processing.geo import REGIONS
 

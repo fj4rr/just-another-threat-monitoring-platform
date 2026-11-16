@@ -48,8 +48,11 @@ Malware families and actors can be added without touching code. Create `data/kno
 ```json
 {
   "malware": {"WhiteArmor": {"category": "ransomware", "aliases": ["white armor"]}},
-  "actors":  {"UNC9999": {"aliases": ["some alias"]}}
+  "actors":  {"UNC9999": {"aliases": ["some alias"], "category": "nation-state"}}
 }
 ```
+
+An actor's `category` is optional and feeds the dashboard's *Threat actors by type* chart: `nation-state`,
+`ransomware`, `extortion` or `cybercrime`. Actors without one count as unclassified.
 
 Restart, then run `python manage.py reextract` to reprocess existing items.

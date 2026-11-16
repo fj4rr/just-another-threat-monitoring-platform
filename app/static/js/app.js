@@ -230,23 +230,26 @@
   function make(el, cfgFn) {
     if (!el) return;
     if (!window.Chart) { emptyNote(el, "Charts unavailable (Chart.js failed to load)."); return; }
-    const entry = { el, cfgFn, chart: null };
+    const prev = charts.find((c) => c.el === el);
+    if (prev) { prev.cfgFn = cfgFn; if (prev.seen) prev.draw(); return prev; }  // redraw with new data
+    const entry = { el, cfgFn, chart: null, seen: false };
     const draw = () => {
       if (entry.chart) entry.chart.destroy();
-      entry.chart = new Chart(el, cfgFn());
+      entry.chart = new Chart(el, entry.cfgFn());
     };
     entry.draw = draw;
     charts.push(entry);
     // draw when scrolled into view so the entry animation is actually seen
-    if (REDUCED || !("IntersectionObserver" in window)) { draw(); return entry; }
+    if (REDUCED || !("IntersectionObserver" in window)) { entry.seen = true; draw(); return entry; }
     const io = new IntersectionObserver((es) => {
-      if (es.some((e) => e.isIntersecting)) { io.disconnect(); draw(); }
+      if (es.some((e) => e.isIntersecting)) { io.disconnect(); entry.seen = true; draw(); }
     }, { threshold: 0.15 });
     io.observe(el);
     return entry;
   }
-  window.addEventListener("jatmp-theme", () => charts.forEach((c) => c.draw()));
-  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => charts.forEach((c) => c.draw()));
+  const redrawAll = () => charts.forEach((c) => { if (c.seen && !c.el.hidden) c.draw(); });
+  window.addEventListener("jatmp-theme", redrawAll);
+  matchMedia("(prefers-color-scheme: light)").addEventListener("change", redrawAll);
 
   async function getJSON(url) {
     const r = await fetch(url, { credentials: "same-origin" });
@@ -255,6 +258,16 @@
   }
   const shortDate = (s) => { const d = new Date(s + "T00:00:00"); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
   const emptyNote = (el, msg) => { const p = el.parentElement; p.innerHTML = ""; const d = document.createElement("div"); d.className = "empty"; d.textContent = msg; p.appendChild(d); };
+  // like emptyNote, but keeps the canvas so the chart can be drawn again (charts with a type switch)
+  const chartNote = (el, msg) => {
+    const entry = charts.find((c) => c.el === el);
+    if (entry?.chart) { entry.chart.destroy(); entry.chart = null; }
+    el.hidden = !!msg;
+    el.parentElement.querySelector(".chart-note")?.remove();
+    if (!msg) return;
+    const d = document.createElement("div"); d.className = "empty chart-note"; d.textContent = msg;
+    el.parentElement.appendChild(d);
+  };
   const guard = (fn) => async (el, ...args) => {
     if (!el) return;
     try { await fn(el, ...args); } catch (err) { emptyNote(el, "Could not load data (" + err.message + ")"); }
@@ -527,6 +540,48 @@
   });
   if (bell) pollPulse();
 
+  // ---------- hover / focus explanations: [data-tip="cvss"] uses a built-in text, anything else is shown as is
+  const TIPS = {
+    cvss: ["CVSS: how severe",
+      "Common Vulnerability Scoring System base score from NVD, 0 to 10. It rates how much damage the flaw allows " +
+      "if it is exploited: 9.0 and up critical, 7.0–8.9 high, 4.0–6.9 medium, below 4 low. " +
+      "It does not tell whether anyone is actually exploiting it."],
+    epss: ["EPSS: how likely",
+      "Exploit Prediction Scoring System from FIRST: the probability that the CVE is exploited in the wild within " +
+      "the next 30 days, recalculated daily. Most CVEs score below 1%; 10% or more is high. " +
+      "Read it next to CVSS: CVSS is the impact, EPSS the likelihood."],
+    priority: ["Priority",
+      "The trend score multiplied by exploitation risk: doubled when the CVE is in the CISA Known Exploited " +
+      "Vulnerabilities catalog, then raised by EPSS and CVSS."],
+  };
+  const tipBox = document.createElement("div");
+  tipBox.className = "tip-pop"; tipBox.setAttribute("role", "tooltip"); tipBox.id = "tip-pop"; tipBox.hidden = true;
+  document.body.appendChild(tipBox);
+  let tipFor = null;
+  const showTip = (host) => {
+    const key = host.dataset.tip, def = TIPS[key];
+    tipBox.textContent = "";
+    if (def) {
+      const h = document.createElement("strong"); h.textContent = def[0];
+      const b = document.createElement("div"); b.textContent = def[1];
+      tipBox.append(h, b);
+    } else tipBox.textContent = key;
+    tipBox.hidden = false;
+    tipFor = host;
+    host.setAttribute("aria-describedby", "tip-pop");
+    const r = host.getBoundingClientRect(), w = tipBox.offsetWidth, h = tipBox.offsetHeight;
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8);
+    const below = r.bottom + 8 + h < innerHeight;
+    tipBox.style.left = left + "px";
+    tipBox.style.top = (below ? r.bottom + 8 : r.top - h - 8) + "px";
+  };
+  const hideTip = () => { tipBox.hidden = true; tipFor?.removeAttribute("aria-describedby"); tipFor = null; };
+  document.addEventListener("pointerover", (e) => { const h = e.target.closest?.("[data-tip]"); if (h && h !== tipFor) showTip(h); else if (!h && tipFor) hideTip(); });
+  document.addEventListener("focusin", (e) => { const h = e.target.closest?.("[data-tip]"); if (h) showTip(h); });
+  document.addEventListener("focusout", hideTip);
+  document.addEventListener("scroll", hideTip, true);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTip(); });
+
   const JATMP = {
     toast, api, openPreview, closePreview, pollPulse,
 
@@ -549,9 +604,11 @@
       });
     }),
 
-    trendLines: guard(async (el, limit = 5, days = 30) => {
-      const d = await getJSON(`/api/stats/trending_timeline?limit=${limit}&days=${days}`);
-      if (!d.series.length) return emptyNote(el, "No malware families detected yet.");
+    trendLines: guard(async (el, limit = 5, days = 30, type = "malware") => {
+      const d = await getJSON(`/api/stats/trending_timeline?limit=${limit}&days=${days}&type=${encodeURIComponent(type)}`);
+      const what = { malware: "malware families", cve: "CVEs", actor: "threat actors" }[type] || "entities";
+      if (!d.series.length) return chartNote(el, `No ${what} mentioned in the last ${days} days.`);
+      chartNote(el, "");
       make(el, () => {
         const S = SERIES();
         return {
@@ -564,14 +621,22 @@
       });
     }),
 
-    hbar: guard(async (el, url, { labelKey = "name", valueKey = "count", link = null, color = 1, empty = "No data yet." } = {}) => {
-      const rows = await getJSON(url);
+    // keep(row): rows to draw as bars; note(other rows): text shown under the chart for the rest
+    hbar: guard(async (el, url, { labelKey = "name", valueKey = "count", link = null, color = 1, empty = "No data yet.", label = "Mentions",
+                                  keep = null, note = null } = {}) => {
+      const all = await getJSON(url);
+      const rows = keep ? all.filter(keep) : all, rest = keep ? all.filter((r) => !keep(r)) : [];
+      if (note && rest.length) {
+        const n = document.createElement("div");
+        n.className = "muted small"; n.style.marginTop = "6px"; n.textContent = note(rest);
+        el.parentElement.after(n);
+      }
       if (!rows.length) return emptyNote(el, empty);
       make(el, () => {
         const base = baseOptions();
         return {
           type: "bar",
-          data: { labels: rows.map((r) => r[labelKey]), datasets: [{ label: "Mentions", data: rows.map((r) => r[valueKey]),
+          data: { labels: rows.map((r) => r[labelKey]), datasets: [{ label, data: rows.map((r) => r[valueKey]),
             backgroundColor: css(`--series-${color}`), borderRadius: 4, borderSkipped: "start", maxBarThickness: 16 }] },
           options: baseOptions({
             indexAxis: "y", interaction: { mode: "nearest", axis: "y", intersect: false },

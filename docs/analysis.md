@@ -62,10 +62,17 @@ entities, related indicators and enrichment results.
 
 ## Trends
 
-The dashboard scores each family by its recent mention rate against a 30-day baseline, weighted by
-how many sources and source types cover it, and shows the result as a radar, timelines and tables. The same
-score drives the *Trending CVEs* and *Trending threat actors* widgets, which also list the families, actors
-and CVEs mentioned alongside each entry.
+The dashboard scores each family, CVE and threat actor by its recent mention rate against a 30-day
+baseline, weighted by how many sources and source types cover it, and shows the result on the threat radar (one
+shape per type), in a chart over time and in the *Trending malware*, *Trending CVEs* and *Trending threat
+actors* tables, which also list the families, actors and CVEs mentioned alongside each entry.
+
+Two breakdowns put the period in context. *CVEs by exploitation risk* places each CVE in the first bucket it
+qualifies for: in CISA KEV, EPSS of 10% or more, CVSS critical (9+), high (7 to 8.9) or lower; CVEs without a
+CVSS score and with a low EPSS, or not looked up yet, are counted under the chart. *Threat actors by type* counts
+items per kind of actor: nation-state, ransomware, extortion (data theft and extortion crews such as
+ShinyHunters or Scattered Spider) and cybercrime. Actors from the built-in knowledge base are classified;
+others are *unclassified* unless `data/knowledge_extra.json` gives them a `category`.
 
 ## Vulnerability context
 
@@ -73,7 +80,9 @@ Every six hours, CVEs mentioned in the last 30 days are looked up in the CISA Kn
 Exploited Vulnerabilities catalog, FIRST EPSS and the NVD (CVSS score, vector and description). None of these
 needs a key; an optional NVD key only makes the CVSS lookups faster. Trending CVEs are ranked by exploitation
 risk as well as chatter (trend score × 2 when in KEV × (1 + EPSS) × (0.5 + CVSS/10)), and the CVE list can be
-sorted by CVSS or EPSS.
+sorted by CVSS or EPSS. CVSS rates how much damage a flaw allows if it is exploited (0 to 10); EPSS is the
+probability that it is exploited in the wild within 30 days. Hovering either column header shows the same
+explanation.
 
 ## A note on severity
 

@@ -2,15 +2,15 @@
 
 [← Documentation index](README.md)
 
-A tour of the interface as of 0.8.
+A tour of the interface as of 0.8.2.
 
 Dashboard: International / National (ID) switch, *Collect now* / *Enrich now* with last and next run,
-notification bell, headline ticker, threat radar, KPI tiles with sparklines, collection volume and trending
-families.
+notification bell, headline ticker, threat radar with families, CVEs and actors, the globe of the top 10 target
+countries, and the KPI tiles.
 
 ![Dashboard](screenshots/dashboard.png)
 
-| Trending CVEs (CISA KEV, CVSS, EPSS, risk-weighted priority) and trending threat actors with their families | Feed with the side preview: severity breakdown, entities and indicators without leaving the list |
+| Trending malware, CVEs (CISA KEV, CVSS, EPSS, risk-weighted priority) and threat actors side by side | Feed with the side preview: severity breakdown, entities and indicators without leaving the list |
 |---|---|
 | ![Dashboard widgets](screenshots/dashboard-widgets.png) | ![Feed and side preview](screenshots/feed-preview.png) |
 
@@ -18,7 +18,7 @@ families.
 |---|---|
 | ![Item page](screenshots/item.png) | ![Relationship graph](screenshots/graph.png) |
 
-| Geography: target countries on a world map, with the families and actors named per country | National (ID) view: the dashboard limited to Indonesia, with the province map |
+| Geography: target countries on a world map, with the families and actors named per country | National (ID) view: the dashboard limited to Indonesia, with the globe on the provinces |
 |---|---|
 | ![Geography](screenshots/geography.png) | ![National view](screenshots/dashboard-national.png) |
 

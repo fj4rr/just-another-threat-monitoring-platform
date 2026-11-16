@@ -55,8 +55,9 @@ app/
   notify.py     notification center (de-duplicated by key, per-user read watermark, 30-day retention)
   templates/    pages, plus _preview_item.html / _preview_entity.html (partial HTML for the side preview)
   static/       app.css (theme tokens, dark and light) · app.js (CSP-safe behaviours, preview drawer, job and
-                notification polling, charts) · motion.js (radar, sparklines) · graph.js (force-directed SVG graph)
-                geomap.js (choropleth maps) · geo/ (pre-projected Natural Earth outlines: world, Indonesian provinces)
+                notification polling, charts, [data-tip] explanations) · motion.js (radar, sparklines) · graph.js
+                (force-directed SVG graph) · geomap.js (choropleth maps) · globe.js (dashboard globe: canvas,
+                un-projects the flat outlines) · geo/ (pre-projected Natural Earth outlines: world, Indonesian provinces)
 scripts/        build_geo.py (rebuilds static/geo from Natural Earth GeoJSON; not needed at runtime)
 data/           config.json (install mode, secret), jatmp.db (SQLite)
 tests/          pytest suite

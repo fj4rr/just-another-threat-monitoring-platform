@@ -53,19 +53,25 @@ def stats_trending(type: str = "malware", limit: int = 10, _: User = Depends(cur
     return trends.trending(db, type, min(max(limit, 1), 50), region=region)
 
 
+TREND_TYPES = ("malware", "cve", "actor")
+
+
 @router.get("/stats/trending_timeline")
-def stats_trending_timeline(limit: int = 5, days: int = 30, _: User = Depends(current_user),
+def stats_trending_timeline(limit: int = 5, days: int = 30, type: str = "malware", _: User = Depends(current_user),
                             db: Session = Depends(get_db), region: str = Depends(current_region)):
-    top = trends.trending(db, "malware", limit=min(max(limit, 1), 8), region=region)
+    etype = type if type in TREND_TYPES else "malware"
+    top = trends.trending(db, etype, limit=min(max(limit, 1), 8), region=region)
     tl = trends.family_timeline(db, [t["id"] for t in top], _days(days, 7, 180), region)
     return {"labels": tl["labels"], "series": [{"id": t["id"], "name": t["name"], "data": tl["series"][t["id"]]}
                                                for t in top]}
 
 
 @router.get("/stats/categories")
-def stats_categories(days: int = 30, _: User = Depends(current_user), db: Session = Depends(get_db),
-                     region: str = Depends(current_region)):
-    return trends.category_breakdown(db, _days(days, 1, 3650), region)
+def stats_categories(days: int = 30, type: str = "malware", _: User = Depends(current_user),
+                     db: Session = Depends(get_db), region: str = Depends(current_region)):
+    """Malware by type, CVEs by exploitation risk, or actor mentions by kind of actor."""
+    fn = {"cve": trends.cve_breakdown, "actor": trends.actor_breakdown}.get(type, trends.category_breakdown)
+    return fn(db, _days(days, 1, 3650), region)
 
 
 @router.get("/stats/sources")

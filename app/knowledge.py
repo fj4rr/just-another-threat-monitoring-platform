@@ -3,7 +3,7 @@
 Extend it without touching code by creating data/knowledge_extra.json:
 {
   "malware": {"NewFamily": {"category": "stealer", "aliases": ["newfam"]}},
-  "actors":  {"Some Actor": {"aliases": ["UNC1234"], "origin": ""}}
+  "actors":  {"Some Actor": {"aliases": ["UNC1234"], "category": "nation-state"}}
 }
 The LLM extractor (if enabled) also adds unknown families to the DB at runtime.
 """
@@ -227,6 +227,31 @@ ACTORS: dict[str, list[str]] = {
     "Crimson Collective": [],
     "Scattered LAPSUS$ Hunters": ["slsh"],
 }
+
+
+# What kind of group each actor is (dashboard "Threat actors by type"). Actors not listed here, for
+# example ones the LLM extractor added, count as "unclassified".
+ACTOR_CATEGORIES = ["nation-state", "ransomware", "extortion", "cybercrime", "unclassified"]
+_ACTOR_KIND = {
+    "nation-state": [
+        "Lazarus Group", "Kimsuky", "APT28", "APT29", "Sandworm", "Turla", "Gamaredon", "APT41", "Volt Typhoon",
+        "Salt Typhoon", "Silk Typhoon", "Mustang Panda", "APT10", "MuddyWater", "Charming Kitten", "APT33", "OilRig",
+        "UNC5221", "UNC3886", "Andariel", "BlueNoroff", "Famous Chollima", "Transparent Tribe", "SideWinder", "Bitter",
+        "Patchwork", "Velvet Ant", "Earth Lamia",
+    ],
+    "ransomware": ["Storm-0501", "Storm-1811", "Cl0p Gang", "Black Basta Group", "Hellcat"],
+    "extortion": ["Scattered Spider", "ShinyHunters", "Lapsus$", "Crimson Collective", "Scattered LAPSUS$ Hunters"],
+    "cybercrime": ["FIN7", "FIN8", "TA505", "TA577", "TA4557", "TA558", "Water Hydra", "APT-C-36"],
+}
+ACTOR_KIND: dict[str, str] = {name: kind for kind, names in _ACTOR_KIND.items() for name in names}
+
+
+def actor_category(name: str) -> str:
+    """nation-state / ransomware / extortion / cybercrime, or "unclassified". knowledge_extra.json may set
+    ``"category"`` on an actor."""
+    extra = (_extra().get("actors") or {}).get(name) or {}
+    cat = extra.get("category") or ACTOR_KIND.get(name, "")
+    return cat if cat in ACTOR_CATEGORIES else "unclassified"
 
 
 @lru_cache(maxsize=1)

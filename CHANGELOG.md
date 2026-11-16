@@ -2,6 +2,32 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.8.2
+
+- **Dashboard rework.** Top row: the threat radar next to a globe. Below it, five KPI tiles in one row (new:
+  *Threat actors*, with a sparkline), the AI digest (only when an LLM is configured), a lower collection-volume
+  chart, *Trending malware*, *Trending CVEs* and *Trending threat actors* side by side (each scrolls on its own),
+  the trend-over-time chart, three breakdowns, and *Notable recent items* next to *Items per source* and
+  *IOC verdicts*. *Most-mentioned families* is gone.
+- **Threat radar** shows trending CVEs and threat actors as well as malware families, one shape and colour per
+  type (circle, diamond, triangle); buttons in the card head hide or show each type, and a dashed ring marks
+  entries first seen this week.
+- **Globe** (`static/js/globe.js`) replaces the dashboard map and the *Most targeted countries* card: the top 10
+  target countries (provinces in the National view) pulse on a globe that turns from one to the next and shows a
+  callout with the count and the families and actors named. Drag to turn it, hover for a country's count, click
+  to open the feed, use the numbered buttons to jump to a target, zoom with + / −. It reuses the Natural Earth
+  outlines of the flat maps (no new data, no library) and stays still with *prefers-reduced-motion*.
+- **Trend over time** has a dropdown for malware families, CVEs or threat actors
+  (`/api/stats/trending_timeline?type=`).
+- **New breakdowns**: *CVEs by exploitation risk* (in CISA KEV, EPSS 10%+, CVSS critical / high / lower; CVEs not
+  yet rated are counted under the chart) and *Threat actors by type* (nation-state, ransomware, extortion,
+  cybercrime). Actors in the built-in knowledge base are classified; others can get a `category` in
+  `data/knowledge_extra.json`. `/api/stats/categories` takes `type=malware|cve|actor`.
+- **CVSS and EPSS explained**: hovering or focusing the CVSS, EPSS and priority headers (CVE list, dashboard,
+  CVE pages) opens a short explanation.
+- **Geography page**: the map and list cards have the same height and the lists scroll inside them; *Most
+  targeted* now lists every target country instead of the top 10.
+
 ## 0.8.1
 
 - **More Indonesian sources**: Seraphim News (RSS, security-only, so no topic filter) and two Indonesian X

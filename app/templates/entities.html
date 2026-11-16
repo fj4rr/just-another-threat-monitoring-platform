@@ -28,7 +28,7 @@
     <thead><tr>
       {{ th('Name', 'name', f, 'col-title', default='asc') }}
       {% if categories %}{{ th('Type', 'category', f, 'col-narrow', default='asc') }}{% endif %}
-      {% if etype == 'cve' %}{{ th('CVSS', 'cvss', f, 'num col-narrow') }}{{ th('EPSS', 'epss', f, 'num col-narrow') }}{% endif %}
+      {% if etype == 'cve' %}{{ th('CVSS', 'cvss', f, 'num col-narrow', tip='cvss') }}{{ th('EPSS', 'epss', f, 'num col-narrow', tip='epss') }}{% endif %}
       {{ th('Mentions', 'mentions', f, 'num col-bar') }}
       {{ th('Sources', 'sources', f, 'num col-narrow') }}
       {{ th('Trend', 'trend', f, 'num col-narrow') }}

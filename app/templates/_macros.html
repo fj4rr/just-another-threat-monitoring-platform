@@ -52,11 +52,11 @@
 {%- endmacro %}
 
 {# Sortable table header. f must carry sort, dir and qs (filters without sort/dir/page). #}
-{% macro th(label, key, f, cls='', default='desc') -%}
+{% macro th(label, key, f, cls='', default='desc', tip='') -%}
 {% set active = f.sort == key %}
 {% set next = ('asc' if f.dir == 'desc' else 'desc') if active else default %}
-<th class="sortable {{ cls }} {{ 'active' if active }}" {% if active %}aria-sort="{{ 'ascending' if f.dir == 'asc' else 'descending' }}"{% endif %}>
-  <a href="?{{ f.qs }}{{ '&' if f.qs }}sort={{ key }}&dir={{ next }}" title="Sort by {{ label|lower }}">{{ label }}<span class="arrow" aria-hidden="true">{% if active %}{{ '▲' if f.dir == 'asc' else '▼' }}{% else %}↕{% endif %}</span></a>
+<th class="sortable {{ cls }} {{ 'active' if active }} {{ 'has-tip' if tip }}" {% if tip %}data-tip="{{ tip }}"{% endif %} {% if active %}aria-sort="{{ 'ascending' if f.dir == 'asc' else 'descending' }}"{% endif %}>
+  <a href="?{{ f.qs }}{{ '&' if f.qs }}sort={{ key }}&dir={{ next }}" {% if not tip %}title="Sort by {{ label|lower }}"{% endif %}>{{ label }}<span class="arrow" aria-hidden="true">{% if active %}{{ '▲' if f.dir == 'asc' else '▼' }}{% else %}↕{% endif %}</span></a>
 </th>
 {%- endmacro %}
 

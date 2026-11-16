@@ -63,9 +63,9 @@ def dashboard(request: Request, user: User = Depends(current_user), db: Session 
     return render(request, "dashboard.html", {
         "user": user, "ov": trends.overview(db, 7, region),
         "trending": trends.trending(db, "malware", limit=12, region=region),
-        "actors": trends.trending_actors(db, limit=8, region=region),
-        "cves": trends.trending_cves(db, limit=8, region=region),
-        "geo": trends.geo_stats(db, 30, region, families_per=2),
+        "actors": trends.trending_actors(db, limit=15, region=region),
+        "cves": trends.trending_cves(db, limit=15, region=region),
+        "geo": trends.geo_stats(db, 30, region, families_per=3),
         "recent": recent, "digest": digest, "llm_on": llm.is_configured(), "watch_ids": watch_ids,
     })
 

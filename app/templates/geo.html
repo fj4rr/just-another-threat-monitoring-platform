@@ -29,7 +29,7 @@
 </ul>
 {% endmacro %}
 
-<div class="geo-grid">
+<div class="geo-grid even">
   <div class="card">
     <div class="card-head"><h2>Target countries</h2><span class="muted small">victims and places of activity · click to open the feed</span></div>
     <div class="geomap" data-map="world" data-values="v-world" data-link="/feed?country={code}{{ q }}" data-unit="items" aria-label="World map of target countries by number of items">
@@ -37,12 +37,12 @@
     <script type="application/json" id="v-world">{{ s.world_values|tojson }}</script>
   </div>
   <div class="card">
-    <div class="card-head"><h2>Most targeted</h2><span class="muted small">with the families and actors named</span></div>
-    {{ geolist(s.targets, '/feed?country={code}' ~ q, country_name, limit=10) }}
+    <div class="card-head"><h2>Most targeted</h2><span class="muted small">{{ s.targets|length }} countries · with the families and actors named</span></div>
+    <div class="list-fill">{{ geolist(s.targets, '/feed?country={code}' ~ q, country_name, limit=250) }}</div>
   </div>
 </div>
 
-<div class="geo-grid" style="margin-top:16px">
+<div class="geo-grid even" style="margin-top:16px">
   <div class="card">
     <div class="card-head"><h2>Indonesia by province</h2><span class="muted small">provinces, cities and regional institutions named in the items</span></div>
     <div class="geomap warm" data-map="indonesia" data-values="v-id" data-link="/feed?province={code}{{ q }}" data-unit="items" aria-label="Map of Indonesian provinces by number of items">
@@ -53,7 +53,7 @@
   </div>
   <div class="card">
     <div class="card-head"><h2>Provinces</h2><a class="small" href="/feed?country=ID{{ q }}">all Indonesian items →</a></div>
-    {{ geolist(s.provinces, '/feed?province={code}' ~ q, province_name, warm=true, limit=38) }}
+    <div class="list-fill">{{ geolist(s.provinces, '/feed?province={code}' ~ q, province_name, warm=true, limit=38) }}</div>
   </div>
 </div>
 
