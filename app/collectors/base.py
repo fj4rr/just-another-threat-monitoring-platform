@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from .. import __version__
+from .. import __version__, netguard
 from ..models import Source
 from ..processing.pipeline import RawItem
 
@@ -44,7 +44,7 @@ class Collector:
     def client(self, **headers) -> httpx.Client:
         h = {"User-Agent": USER_AGENT, "Accept": "application/json, */*"}
         h.update({k.replace("_", "-"): v for k, v in headers.items()})
-        return httpx.Client(timeout=30, headers=h, follow_redirects=True)
+        return netguard.client(timeout=30, headers=h)  # SSRF guard + size cap (audit 2026-11 S-3, S-4)
 
     def fetch(self) -> list[RawItem]:  # pragma: no cover - interface
         raise NotImplementedError

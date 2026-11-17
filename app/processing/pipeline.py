@@ -1,11 +1,12 @@
 """Ingest raw collected items: dedupe, store, extract & link entities."""
 from __future__ import annotations
 
+import hashlib
 import html
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -42,20 +43,45 @@ _WS_RE = re.compile(r"\s+")
 # Stylesheet text some WordPress plugins print into the post body outside a <style> tag (Kadence blocks in the
 # Malwarebytes feed): ".kb-btns97520 .kt-button{font-weight:normal;}" and "@media (...){...{...}}". A rule only
 # counts when its body is nothing but "property: value;" declarations, so code and JSON in articles stay.
-# A selector is made of real simple selectors (".kt-button", "ul.menu", "a:hover", "[data-x]"), never plain words.
-_CSS_SIMPLE = r"(?:[a-z][a-z0-9]*)?(?:[.#][\w-]+|::?[\w-]+(?:\([^(){}]{0,40}\))?|\[[^\]{}]{0,60}\])+"
-_CSS_SEL = rf"{_CSS_SIMPLE}(?:\s*[>+~]?\s*{_CSS_SIMPLE})*(?:\s*,\s*{_CSS_SIMPLE}(?:\s*[>+~]?\s*{_CSS_SIMPLE})*)*"
+# A selector is made of real compound selectors (".kt-button", "ul.menu", "a:hover", "[data-x]"), never plain words.
+#
+# The patterns must stay linear on hostile input (audit 2026-11 S-2): every article goes through here, and a
+# regex that backtracks for minutes holds a scheduler thread that cannot be killed. So
+# * two compound selectors are always separated by a real combinator (whitespace or > + ~), never by nothing:
+#   ".a.a" has exactly one parse, where "(?:x)+(?:\s*[>+~]?\s*(?:x)+)*" had exponentially many;
+# * a plain rule is found from its declaration block backwards, in a bounded window, instead of trying a
+#   selector match at every position of a 50 KB text.
+_CSS_COMPOUND = r"(?:[a-z][a-z0-9]*)?(?:[.#][\w-]+|::?[\w-]+(?:\([^(){}]{0,40}\))?|\[[^\]{}]{0,60}\])+"
+_CSS_COMPLEX = rf"{_CSS_COMPOUND}(?:(?:\s*[>+~]\s*|\s+){_CSS_COMPOUND})*"
+_CSS_SEL = rf"{_CSS_COMPLEX}(?:\s*,\s*{_CSS_COMPLEX})*"
 _CSS_DECLS = r"\{(?:\s*-{0,2}[a-z][a-z-]*\s*:\s*[^;{}<>]{1,300};)+\s*\}"
-_CSS_RULE = re.compile(rf"@media[^{{}}]{{0,200}}\{{\s*(?:{_CSS_SEL}\s*{_CSS_DECLS}\s*)+\}}|{_CSS_SEL}\s*{_CSS_DECLS}",
-                       re.I)
-_CSS_HINT = re.compile(r"\{[^{}]{0,300}:[^{}]{0,300};")
+_CSS_MEDIA = re.compile(rf"@media[^{{}}]{{0,200}}\{{\s*(?:{_CSS_SEL}\s*{_CSS_DECLS}\s*)+\}}", re.I)
+_CSS_BLOCK = re.compile(_CSS_DECLS, re.I)
+_CSS_SEL_TAIL = re.compile(rf"(?:{_CSS_SEL})\s*\Z", re.I)
+_CSS_SEL_WINDOW = 200  # longest selector looked for in front of a declaration block
+_CSS_HINT = re.compile(r"\{[^{}:;]{0,300}:[^{};]{0,300};")
 
 
 def strip_css(text: str) -> str:
-    """Drop stylesheet rules that ended up in the text (see _CSS_RULE)."""
+    """Drop stylesheet rules that ended up in the text (see _CSS_COMPOUND)."""
     if not text or not _CSS_HINT.search(text):
         return text or ""
-    return _CSS_RULE.sub(" ", text)
+    if "@media" in text.lower():
+        text = _CSS_MEDIA.sub(" ", text)
+    out: list[str] = []
+    pos = 0
+    for m in _CSS_BLOCK.finditer(text):
+        lo = max(pos, m.start() - _CSS_SEL_WINDOW)
+        sel = _CSS_SEL_TAIL.search(text[lo:m.start()])
+        if sel is None:
+            continue  # "{key: value;}" without a selector in front: JSON, code, prose
+        out.append(text[pos:lo + sel.start()])
+        out.append(" ")
+        pos = m.end()
+    if not out:
+        return text
+    out.append(text[pos:])
+    return "".join(out)
 
 
 def strip_html(text: str) -> str:
@@ -181,8 +207,72 @@ def mark_listed(db: Session, indicators: list[Extracted], provider: str, summary
     return len(ents)
 
 
+EXT_MAX = 500  # the external_id column keeps 512; longer ids are shortened with a hash so they stay unique
+
+
 def _external_id(r: RawItem) -> str:
-    return (r.external_id or r.url or r.title or "").strip()[:500]
+    """Dedup key of an entry within its source. Ids longer than EXT_MAX (URLs with tracking parameters) keep
+    a readable prefix plus a hash of the whole id: cutting them at 500 characters made different entries
+    collide (audit 2026-11 D-13)."""
+    ext = (r.external_id or r.url or r.title or "").strip()
+    if len(ext) <= EXT_MAX:
+        return ext
+    return f"{ext[:EXT_MAX - 66]}#sha256:{hashlib.sha256(ext.encode('utf-8', 'replace')).hexdigest()}"
+
+
+# --------------------------------------------------------------------------- cross-source dedup (audit D-10)
+_FP_SUFFIX = re.compile(r"\s+[|\-–—:]\s+[^|\-–—:]{1,40}$")  # " - ANTARA News", " | Republika Online"
+_FP_WORD = re.compile(r"[^\W_]+")
+DUP_WINDOW = timedelta(days=4)  # a syndicated copy appears within days of the original
+
+
+def fingerprint(title: str, content: str = "") -> str:
+    """Same story, other outlet: the normalised title (without the outlet's suffix). Short titles ("Weekly
+    update") also take the start of the text so unrelated items do not collide. "" when there is too little."""
+    t = _FP_SUFFIX.sub("", (title or "").strip())
+    words = _FP_WORD.findall(t.lower())
+    if len(words) < 5:
+        words += _FP_WORD.findall((content or "")[:400].lower())[:30]
+    if len(words) < 6:
+        return ""
+    return hashlib.blake2b(" ".join(words).encode(), digest_size=20).hexdigest()
+
+
+def find_original(db: Session, item: Item, batch: dict[str, tuple[int, int, datetime]] | None = None) -> int | None:
+    """Id of the earlier item from another source with the same fingerprint, if ``item`` is a copy."""
+    if not item.fingerprint:
+        return None
+    at = item.published_at or utcnow()
+    if batch is not None and item.fingerprint in batch:
+        oid, osrc, oat = batch[item.fingerprint]
+        if osrc != item.source_id and abs(oat - at) <= DUP_WINDOW:
+            return oid
+    row = db.execute(
+        select(Item.id, Item.dup_of).where(
+            Item.fingerprint == item.fingerprint, Item.source_id != item.source_id, Item.id != item.id,
+            Item.published_at >= at - DUP_WINDOW, Item.published_at <= at + DUP_WINDOW)
+        .order_by(Item.published_at, Item.id).limit(1)).first()
+    if row is None:
+        return None
+    return row.dup_of or row.id
+
+
+def tag_families(tags: list[str], source: Source | None) -> list[Extracted]:
+    """Families named by an intel feed's tags (OTX ``malware_families``). Only intel feeds: news and social tags
+    are free-form, and a tag is never an everyday word ("Play", "Hook", "Chaos", "Snake"; audit 2026-11 D-7)."""
+    from ..knowledge import COMMON_WORDS, canonical_malware
+
+    if source is None or source.category != "intel":
+        return []
+    out = []
+    for tag in tags or []:
+        low = str(tag).strip().lower()
+        if not low or low in COMMON_WORDS or len(low) <= 3:
+            continue
+        hit = canonical_malware(low)
+        if hit:
+            out.append(Extracted("malware", hit[0].lower(), hit[0], hit[1], "feed"))
+    return out
 
 
 def _slim_raw(raw: dict | None, content: str) -> dict:
@@ -206,6 +296,10 @@ def ingest_committed(db: Session, source: Source, raws: list[RawItem], progress=
         try:
             ids = ingest(db, source, raws, progress, origin)
             db.commit()
+            if ids:
+                from .trends import invalidate_cache
+
+                invalidate_cache()  # the trending lists include the new items from now on
             return ids
         except IntegrityError:
             db.rollback()
@@ -218,19 +312,22 @@ def ingest_committed(db: Session, source: Source, raws: list[RawItem], progress=
 def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, origin: str = "live") -> list[int]:
     """Store new items. Returns IDs of newly created items.
     ``progress(done, total)`` is called as entries are processed (in-memory job progress, no DB writes)."""
-    from ..knowledge import canonical_malware
-
     new_ids: list[int] = []
     strict = source.category != "intel"
     wanted = {ext for ext in (_external_id(r) for r in raws) if ext}
     if not wanted:
         return new_ids
-    # one query for the whole batch instead of one per entry
-    known = {
-        ext for (ext,) in db.execute(
-            select(Item.external_id).where(Item.source_id == source.id, Item.external_id.in_(wanted))
-        )
-    }
+    # ids stored by 0.10 and older were cut at 500 characters: look those up too, so an upgrade re-ingests nothing
+    legacy = {(r.external_id or r.url or r.title or "").strip()[:EXT_MAX]: ext
+              for r, ext in ((r, _external_id(r)) for r in raws) if "#sha256:" in ext}
+    lookup = list(wanted | set(legacy))
+    # one query (per 500 keys) for the whole batch instead of one per entry
+    known: set[str] = set()
+    for n in range(0, len(lookup), 500):
+        for (ext,) in db.execute(select(Item.external_id).where(Item.source_id == source.id,
+                                                                Item.external_id.in_(lookup[n:n + 500]))):
+            known.add(legacy.get(ext, ext))
+    fp_batch: dict[str, tuple[int, int, datetime]] = {}
     velocity_cache: dict = {}  # scam-type spread counts, once per type and day for the whole batch
     for n, r in enumerate(raws, 1):
         if progress and (n % 5 == 0 or n == len(raws)):
@@ -250,17 +347,19 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, orig
             tags=[str(t)[:80] for t in r.tags[:50]], published_at=published, raw=_slim_raw(r.raw, content),
             tlp=norm_tlp((r.raw or {}).get("tlp")), origin=origin,
         )
+        if r.kind == "article":
+            item.fingerprint = fingerprint(item.title, content)
         db.add(item)
         db.flush()
+        if item.fingerprint:
+            item.dup_of = find_original(db, item, fp_batch)
+            fp_batch.setdefault(item.fingerprint, (item.dup_of or item.id, item.source_id, item.published_at))
         text = f"{item.title}\n{content}\n{' '.join(item.tags)}"
         extracted = extract_all(text, strict=strict)
         for ind in r.indicators:
             extracted.append(Extracted(ind.type, ind.value, ind.display, ind.category, "feed"))
         # tags on intel feeds (e.g. OTX malware_families) often name families directly
-        for tag in item.tags:
-            hit = canonical_malware(tag)
-            if hit:
-                extracted.append(Extracted("malware", hit[0].lower(), hit[0], hit[1], "feed"))
+        extracted += tag_families(item.tags, source)
         # dedupe by (type,value)
         uniq = {(e.type, e.value): e for e in extracted}
         item.severity, reasons = score_item(item.title, f"{content}\n{' '.join(item.tags)}", list(uniq.values()), item.kind)

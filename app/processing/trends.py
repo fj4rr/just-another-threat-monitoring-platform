@@ -1,11 +1,13 @@
 """Aggregations used by the dashboard and the LLM digest."""
 from __future__ import annotations
 
+import threading
+import time
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, case, distinct, func, select
 from sqlalchemy.orm import Session
 
 from ..models import Entity, Item, ItemEntity, Source, utcnow
@@ -249,18 +251,53 @@ def ioc_breakdown(db: Session, days: int = 30, region: str = "") -> list[dict]:
     return sorted(out.values(), key=lambda d: -(d["malicious"] + d["suspicious"] + d["other"]))
 
 
+# One dashboard view asks for the trending lists 4–6 times (overview, families, actors, CVEs, radar) and the
+# stats endpoints poll them again: keep each answer for a short while (audit 2026-11 E-3). New items clear it.
+TRENDING_TTL = 45.0
+_trend_cache: dict[tuple, tuple[float, list[dict]]] = {}
+_trend_lock = threading.Lock()
+
+
+def invalidate_cache() -> None:
+    with _trend_lock:
+        _trend_cache.clear()
+
+
 def trending(db: Session, etype: str = "malware", limit: int = 10, window: int = 7, baseline: int | None = None,
              region: str = "", extra=None) -> list[dict]:
     """Trend score = recent mention rate vs. baseline rate, weighted by cross-source spread.
-    New entities (first seen inside the window) get flagged."""
+    New entities (first seen inside the window) get flagged. Cached for TRENDING_TTL seconds (calls with an
+    ``extra`` clause are not cached)."""
+    if extra is not None:
+        return _trending(db, etype, limit, window, baseline, region, extra)
+    key = (etype, limit, window, baseline, region)
+    now = time.monotonic()
+    with _trend_lock:
+        hit = _trend_cache.get(key)
+        if hit and hit[0] > now:
+            return [dict(r) for r in hit[1]]
+    rows = _trending(db, etype, limit, window, baseline, region, None)
+    with _trend_lock:
+        if len(_trend_cache) > 256:
+            _trend_cache.clear()
+        _trend_cache[key] = (now + TRENDING_TTL, [dict(r) for r in rows])
+    return rows
+
+
+def _trending(db: Session, etype: str, limit: int, window: int, baseline: int | None, region: str,
+              extra) -> list[dict]:
     baseline = baseline or baseline_days(window)
     now = utcnow()
     w_start, b_start = now - timedelta(days=window), now - timedelta(days=window + baseline)
-    recent = func.count(distinct(Item.id)).filter(Item.published_at >= w_start)
-    base = func.count(distinct(Item.id)).filter(and_(Item.published_at >= b_start, Item.published_at < w_start))
-    srcs = func.count(distinct(Item.source_id)).filter(Item.published_at >= w_start)
-    cats = func.count(distinct(Source.category)).filter(Item.published_at >= w_start)
-    q = (select(Entity.id, Entity.display, Entity.category, Entity.first_seen, recent, base, srcs, cats)
+    # a story syndicated to five outlets is one report from one source (Item.dup_of, audit 2026-11 D-10)
+    story = func.coalesce(Item.dup_of, Item.id)
+    recent = func.count(distinct(story)).filter(Item.published_at >= w_start)
+    base = func.count(distinct(story)).filter(and_(Item.published_at >= b_start, Item.published_at < w_start))
+    srcs = func.count(distinct(Item.source_id)).filter(Item.published_at >= w_start, Item.dup_of.is_(None))
+    cats = func.count(distinct(Source.category)).filter(Item.published_at >= w_start, Item.dup_of.is_(None))
+    # a family only ever found by the "<Name> ransomware" heuristic trends once two sources name it
+    known = func.max(case((ItemEntity.origin != "heuristic", 1), else_=0))
+    q = (select(Entity.id, Entity.display, Entity.category, Entity.first_seen, recent, base, srcs, cats, known)
          .join(ItemEntity, ItemEntity.entity_id == Entity.id)
          .join(Item, Item.id == ItemEntity.item_id)
          .join(Source, Source.id == Item.source_id)
@@ -271,9 +308,11 @@ def trending(db: Session, etype: str = "malware", limit: int = 10, window: int =
     out = []
     if etype == "actor":
         from ..knowledge import actor_category
-    for eid, name, cat, first_seen, r, b, s, c in rows:
-        if not r:
+    for eid, name, cat, first_seen, r, b, s, c, k in rows:
+        if not r or (etype == "malware" and not k and s < 2):
             continue
+        s = max(s, 1)  # every copy may sit outside the window's originals
+        c = max(c, 1)
         if etype == "actor":
             cat = actor_category(name)
         rate_recent = r / window

@@ -6,9 +6,12 @@ import logging
 
 import httpx
 
-from .. import settings
+from .. import netguard, settings
 
 log = logging.getLogger(__name__)
+# A local model may take minutes for a long brief, but a hung server must not hold a scheduler worker forever
+# (audit 2026-11 E-4): 10 s to connect, at most 5 minutes for the answer.
+LLM_TIMEOUT = httpx.Timeout(300, connect=10)
 
 # Models that accept the server-side refusal fallback parameter.
 _FALLBACK_MODELS = {"claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"}
@@ -60,7 +63,8 @@ def _ollama(system: str, prompt: str, max_tokens: int) -> str:
         "options": {"num_predict": max_tokens, "num_ctx": 16384},
     }
     try:
-        r = httpx.post(f"{base}/api/chat", json=body, timeout=600)
+        with netguard.client(timeout=LLM_TIMEOUT) as c:
+            r = c.post(f"{base}/api/chat", json=body)
         r.raise_for_status()
         data = r.json()
     except httpx.HTTPError as e:
@@ -80,7 +84,8 @@ def _openai_compatible(system: str, prompt: str, max_tokens: int) -> str:
         "max_tokens": max_tokens,
     }
     try:
-        r = httpx.post(f"{base}/chat/completions", json=body, headers=headers, timeout=600)
+        with netguard.client(timeout=LLM_TIMEOUT, headers=headers) as c:
+            r = c.post(f"{base}/chat/completions", json=body)
         r.raise_for_status()
         data = r.json()
     except httpx.HTTPError as e:
@@ -148,13 +153,15 @@ def list_models(provider_name: str, base_url: str = "", api_key: str = "") -> li
     try:
         if provider_name == "ollama":
             base = (base_url or settings.get("llm_base_url") or "http://localhost:11434").rstrip("/")
-            r = httpx.get(f"{base}/api/tags", timeout=15)
+            with netguard.client(timeout=15) as c:
+                r = c.get(f"{base}/api/tags")
             r.raise_for_status()
             names = [m.get("name") or m.get("model") for m in r.json().get("models") or []]
         elif provider_name == "openai_compatible":
             base = (base_url or settings.get("llm_base_url") or "http://localhost:1234/v1").rstrip("/")
             headers = {"Authorization": f"Bearer {key}"} if key else {}
-            r = httpx.get(f"{base}/models", headers=headers, timeout=20)
+            with netguard.client(timeout=20, headers=headers) as c:
+                r = c.get(f"{base}/models")
             r.raise_for_status()
             data = r.json()
             rows = data.get("data") if isinstance(data, dict) else data

@@ -147,10 +147,20 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
         return local_user(db)
     uid = request.session.get("uid")
     user = db.get(User, uid) if uid else None
-    if user is None or not user.is_active or user.username == LOCAL_USER:
+    # session cookies are signed but stateless: a password change bumps session_version, which ends every
+    # other session of that user (audit 2026-11 S-11)
+    if (user is None or not user.is_active or user.username == LOCAL_USER
+            or int(request.session.get("sv") or 0) != int(user.session_version or 0)):
         request.session.pop("uid", None)
         raise LoginRequired()
     return user
+
+
+def end_other_sessions(request: Request | None, user: User) -> None:
+    """Invalidate every session of ``user``; the current request's session (if any) stays signed in."""
+    user.session_version = int(user.session_version or 0) + 1
+    if request is not None and request.session.get("uid") == user.id:
+        request.session["sv"] = user.session_version
 
 
 def require(role: str):

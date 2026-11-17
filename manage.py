@@ -67,9 +67,9 @@ def main(argv: list[str]) -> int:
         from sqlalchemy import delete, func, update
 
         from app.models import Entity, EntityLink, ItemEntity
-        from app.processing import fraud
+        from app.processing import fraud, sectors
         from app.processing.extractor import extract_all
-        from app.processing.pipeline import link_entities
+        from app.processing.pipeline import link_entities, tag_families
         from app.processing.severity import reasons_to_json, score_item
 
         db = SessionLocal()
@@ -78,17 +78,24 @@ def main(argv: list[str]) -> int:
         db.execute(update(Entity).values(mention_count=0))
         db.commit()
         n = 0
-        for item in db.execute(select(Item)).scalars():
-            text = f"{item.title}\n{item.content}\n{' '.join(item.tags or [])}"
-            ex = extract_all(text, strict=item.source.category != "intel")
-            link_entities(db, item, ex)
-            link_entities(db, item, fraud.apply(db, item, item.source.topic or ""))
-            score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}", ex, item.kind)
-            item.severity, item.severity_detail = score, reasons_to_json(reasons)
-            n += 1
-            if n % 200 == 0:
-                db.commit()
-        db.commit()
+        ids = [i for (i,) in db.execute(select(Item.id).order_by(Item.published_at, Item.id))]
+        for c in range(0, len(ids), 200):  # chunks: a big install does not fit in memory at once
+            for item in db.execute(select(Item).where(Item.id.in_(ids[c:c + 200]))).unique().scalars():
+                # the same steps as pipeline.ingest: entities, intel tags, severity, scam analysis, sectors
+                text = f"{item.title}\n{item.content}\n{' '.join(item.tags or [])}"
+                ex = extract_all(text, strict=item.source.category != "intel") + tag_families(item.tags, item.source)
+                uniq = {(e.type, e.value): e for e in ex}
+                score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}",
+                                            list(uniq.values()), item.kind)
+                item.severity, item.severity_detail = score, reasons_to_json(reasons)
+                for fx in fraud.apply(db, item, item.source.topic or ""):
+                    uniq.setdefault((fx.type, fx.value), fx)
+                for sx in sectors.apply(item):
+                    uniq.setdefault((sx.type, sx.value), sx)
+                link_entities(db, item, list(uniq.values()))
+                n += 1
+            db.commit()
+            db.expunge_all()
         counts = dict(db.execute(select(ItemEntity.entity_id, func.count()).group_by(ItemEntity.entity_id)).all())
         for ent in db.execute(select(Entity)).scalars():
             ent.mention_count = counts.get(ent.id, 0)

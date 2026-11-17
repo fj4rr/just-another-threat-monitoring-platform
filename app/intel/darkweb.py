@@ -18,7 +18,7 @@ from collections import Counter
 import httpx
 from sqlalchemy.orm import Session
 
-from .. import settings
+from .. import netguard, settings
 from ..models import Entity, utcnow
 from . import LookupResult, NotConfigured
 from .clients import USER_AGENT, throttle
@@ -39,7 +39,7 @@ GROUP_ALIASES = {
 def _client(headers: dict | None = None, timeout: int = 40) -> httpx.Client:
     h = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     h.update(headers or {})
-    return httpx.Client(timeout=timeout, headers=h, follow_redirects=True)
+    return netguard.client(timeout=timeout, headers=h)
 
 
 def _as_list(data) -> list[dict]:

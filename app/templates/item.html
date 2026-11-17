@@ -40,7 +40,7 @@
       <div class="content-body">{{ item.content or '(no content)' }}</div>
       {% if item.slimmed_at %}<p class="muted small" style="margin:8px 0 0">The full text was trimmed by the retention setting on {{ item.slimmed_at.strftime('%Y-%m-%d') }}; the original is at the source link.</p>{% endif %}
       {% if item.origin == 'backfill' %}<p class="muted small" style="margin:8px 0 0">Collected by a historical backfill.</p>{% endif %}
-      {% if item.tags %}<div style="margin-top:10px">{% for t in item.tags %}<span class="badge">{{ t }}</span> {% endfor %}</div>{% endif %}
+      {% if item.tags %}<div style="margin-top:10px">{% set ai_tags = (item.raw or {}).get('llm_tags', []) %}{% for t in item.tags %}<span class="badge"{% if t in ai_tags %} title="Tag proposed by the AI summary"{% endif %}>{{ t }}{% if t in ai_tags %} · AI{% endif %}</span> {% endfor %}</div>{% endif %}
     </div>
     <div class="card graph-card">
       <div class="card-head"><h2>Relationship graph</h2>
@@ -70,7 +70,7 @@
     {% for type, links in groups %}
       <h3 style="margin-top:12px">{{ type }} ({{ links|length }})</h3>
       {% for l in links %}
-        {% if type in ('malware','actor','cve','technique','scam_type','brand','sector') %}{{ chip(l.entity) }}
+        {% if type in ('malware','actor','cve','technique','scam_type','brand','sector') %}{{ chip(l.entity) }}{% if l.origin == 'llm' %}<span class="badge" title="Proposed by the AI summary, not found by the rule-based extraction">AI</span>{% endif %}
         {% else %}
         <div class="row" style="justify-content:space-between;margin:4px 0;flex-wrap:nowrap">
           <a class="mono" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview" style="word-break:break-all">{{ l.entity.display|truncate(70, True) }}</a>

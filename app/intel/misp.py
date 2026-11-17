@@ -13,11 +13,10 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import __version__, settings, sharing
+from .. import __version__, netguard, settings, sharing
 from ..models import Entity, Item, utcnow
 from . import NotConfigured, make_ioc
 
@@ -56,7 +55,8 @@ class MISP:
     def _req(self, method: str, path: str, body: dict | None = None):
         headers = {"Authorization": self.key, "Accept": "application/json", "Content-Type": "application/json",
                    "User-Agent": f"JATMP/{__version__}"}
-        with httpx.Client(timeout=60, verify=bool(settings.get("misp_verify_tls")), headers=headers) as c:
+        with netguard.client(timeout=60, verify=bool(settings.get("misp_verify_tls")), headers=headers,
+                             follow_redirects=False) as c:
             r = c.request(method, self.url + path, json=body)
         if r.status_code in (401, 403):
             raise RuntimeError(f"MISP rejected the key ({r.status_code})")

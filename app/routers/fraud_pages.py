@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from .. import settings
 from ..auth import current_user
 from ..db import get_db
-from ..models import Entity, Item, ItemEntity, Source, User, utcnow
+from ..models import Entity, Item, ItemEntity, Source, User, utcnow, with_links
 from ..processing import fraud, fraudstats, geo, trends
 from ..search import item_text_clause
 from ..web import current_region, render
@@ -38,7 +38,7 @@ def dashboard(request: Request, user: User = Depends(current_user), db: Session 
               region: str = Depends(current_region)):
     days = dashboard_period(request)
     since = _since(days)
-    in_period = _fraud_items(region).where(Item.published_at >= since)
+    in_period = _fraud_items(region).where(Item.published_at >= since).options(with_links())
     recent = db.execute(in_period.order_by(Item.published_at.desc()).limit(12)).unique().scalars().all()
     top = db.execute(in_period.order_by(Item.fraud_score.desc(), Item.published_at.desc()).limit(8)).unique().scalars().all()
     idents = db.execute(
@@ -98,7 +98,8 @@ def items(request: Request, q: str = "", scam: int = 0, brand: int = 0, sector: 
     total = _count(db, stmt)
     cols = ITEM_SORTS[sort][0]()
     order = [c.asc() if direction == "asc" else c.desc() for c in cols] + [Item.id.desc()]
-    rows = db.execute(stmt.order_by(*order).offset((page - 1) * PAGE).limit(PAGE)).unique().scalars().all()
+    rows = db.execute(stmt.options(with_links()).order_by(*order).offset((page - 1) * PAGE).limit(PAGE)
+                      ).unique().scalars().all()
     scam_types = db.execute(select(Entity).where(Entity.type == "scam_type").order_by(Entity.display)).scalars().all()
     brand_list = db.execute(select(Entity).where(Entity.type == "brand").order_by(Entity.display)).scalars().all()
     f = {"q": q, "scam": scam, "brand": brand, "sector": sector, "min_score": min_score, "days": days, "sort": sort,

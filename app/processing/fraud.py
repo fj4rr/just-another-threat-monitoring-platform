@@ -32,7 +32,9 @@ IDENT_LABELS = {"phone": "Phone number", "bank_account": "Bank account", "ewalle
                 "crypto_wallet": "Crypto wallet"}
 
 # Bump when the rules change: the start-up job re-analyses stored items once per version.
-RULES_VERSION = 4  # 3 (0.10): vendor listicles only count their title; 4: charge names ("wire fraud") are no scam cue
+RULES_VERSION = 5  # 3 (0.10): vendor listicles only count their title; 4: charge names ("wire fraud") are no scam cue
+# 5 (0.10.1): weak phrases need a nearby cue, warning brands are not impersonated, identifiers need a scammer cue,
+# wallet checksums, "Rp 2,5 T" / "Rp 5 M"
 
 # --------------------------------------------------------------------------- scam types
 # (key, display name, weight, strong pattern, weak pattern). Weak patterns need a scam word elsewhere in the item.
@@ -129,16 +131,45 @@ ROUNDUP = re.compile(r"\b(?:week(?:ly)? in (?:review|security)|a week in|in revi
                      r"vendors|services)\b", re.I)
 
 
+# A weak phrase only counts next to a scam word: "phishing" in an article about a banking trojan that mentions
+# "scammers using fake delivery notices" once, three paragraphs later, is still a malware article.
+WEAK_WINDOW = 200
+
+
+def _weak_hit(weak: re.Pattern, text: str, cues: list[tuple[int, int]], title_len: int, topic: str) -> bool:
+    if not cues:
+        return False
+    if cues[0][0] < title_len:  # a scam word in the title: the item is about a scam
+        return weak.search(text) is not None
+    if topic != "fraud" and len(cues) < 2:  # elsewhere one passing mention is not enough
+        return False
+    for m in weak.finditer(text):
+        if any(a - WEAK_WINDOW <= m.start() and m.end() <= b + WEAK_WINDOW for a, b in cues):
+            return True
+    return False
+
+
 def scam_types(title: str, body: str, topic: str = "") -> list[tuple[str, str, int]]:
     """Scam types an item is about: [(key, name, weight)], strongest first."""
     if ROUNDUP.search(title or ""):
         body = ""
     text = f"{title}\n{body}"
-    cue = bool(FRAUD_CUE.search(text))
+    cues = [m.span() for m in FRAUD_CUE.finditer(text)]
+    tlen = len(title or "")
     out = []
+    spots: list[int] = [a for a, _ in cues]  # where the scam evidence sits
     for key, name, weight, strong, weak in _TYPES:
-        if strong.search(text) or (cue and weak is not None and weak.search(text)):
+        hits = [m.start() for m in strong.finditer(text)]
+        if not hits and weak is not None and _weak_hit(weak, text, cues, tlen, topic):
+            hits = [m.start() for m in weak.finditer(text)]
+        if hits:
             out.append((key, name, weight))
+            spots += hits
+    # Outside fraud-topic sources an item whose title says nothing about a scam must show the scam in more than
+    # one place: a malware write-up with one passing sentence ("authorities also warned about scammers using
+    # fake delivery notices") is not a scam report (audit 2026-11 D-3).
+    if out and topic != "fraud" and min(spots) >= tlen and max(spots) - min(spots) <= WEAK_WINDOW:
+        out = []
     if not out:
         n = len(_STRONG_CUE.findall(text))
         if (topic == "fraud" and n >= 1) or (n >= 2 and _STRONG_CUE.search(title or "")) or n >= 4:
@@ -245,6 +276,15 @@ _STRONG_BEFORE = re.compile(
     r"mengaku(?: sebagai)?(?: (?:petugas|pegawai|pihak|staf|dari))?|tiruan|kloning|spoofed|palsu)\s+(?:\S+\s+){0,1}$", re.I)
 _STRONG_AFTER = re.compile(r"^\s*(?:\S+\s+){0,2}?(?:palsu|fiktif|gadungan|abal-abal|look-?alikes?|clones?|"
                            r"impersonators?)\b", re.I)
+# The brand is the one speaking: "Shopee warns customers about a new scam", "BCA mengimbau nasabah", "kata pihak
+# OJK". A warning brand is not an impersonated one, unless the text also says so right next to the name.
+_WARN_AFTER = re.compile(
+    r"^\W{0,3}(?:\S+\s+){0,2}?(?:warn(?:s|ed|ing)?|urg(?:es|ed)|remind(?:s|ed)?|advis(?:es|ed)|caution(?:s|ed)?|"
+    r"said|says|stated|told|confirm(?:s|ed)?|clarif\w*|den(?:y|ies|ied)|alert(?:s|ed)|"
+    r"mengimbau|menghimbau|imbau|mengingatkan|memperingatkan|klarifikasi|membantah|menegaskan|mengatakan|"
+    r"menyatakan|menjelaskan|mengonfirmasi|memastikan|resmi|official)\b", re.I)
+_WARN_BEFORE = re.compile(r"(?:kata|ujar|menurut|according to|pihak|juru bicara|spokesperson for|imbauan)\s+(?:\S+\s+)?$",
+                          re.I)
 
 
 def brands(title: str, body: str) -> list[tuple[str, str]]:
@@ -257,11 +297,15 @@ def brands(title: str, body: str) -> list[tuple[str, str]]:
         for m in rx.finditer(text):
             in_title = m.start() < len(title or "")
             near = text[max(0, m.start() - BRAND_WINDOW): m.end() + BRAND_WINDOW]
-            if cat in STRONG_ONLY:
-                hit = bool(_STRONG_BEFORE.search(text[max(0, m.start() - 40): m.start()])
-                           or _STRONG_AFTER.search(text[m.end(): m.end() + 30]))
+            before, after = text[max(0, m.start() - 40): m.start()], text[m.end(): m.end() + 40]
+            adjacent = bool(_STRONG_BEFORE.search(before) or _STRONG_AFTER.search(after[:30]))
+            if cat in STRONG_ONLY or adjacent:
+                hit = adjacent
+            elif _WARN_AFTER.search(after) or _WARN_BEFORE.search(before):
+                hit = False  # the brand warns about the scam; a later mention may still be the impersonated one
             else:
-                hit = in_title or bool(IMPERSONATION_CUE.search(near))
+                # the title of a scam item alone is not enough ("Nasabah BCA rugi Rp 50 juta"): it needs a cue
+                hit = bool(IMPERSONATION_CUE.search(near)) or (in_title and bool(IMPERSONATION_CUE.search(title)))
             if hit:
                 out[name] = cat
                 break
@@ -281,12 +325,26 @@ RE_EWALLET = re.compile(r"\b(?P<w>DANA|OVO|GoPay|Gopay|ShopeePay|LinkAja)\b[^\d+
 RE_BTC = re.compile(r"\bbc1[02-9ac-hj-np-z]{11,71}\b|\b[13][1-9A-HJ-NP-Za-km-z]{25,34}\b")
 RE_ETH = re.compile(r"\b0x[a-fA-F0-9]{40}\b")
 RE_TRON = re.compile(r"\bT[1-9A-HJ-NP-Za-km-z]{33}\b")
-CRYPTO_CUE = re.compile(r"bitcoin|\bbtc\b|ethereum|\beth\b|usdt|tether|\btron\b|trc-?20|erc-?20|wallet|dompet|"
-                        r"crypto|kripto|address|alamat", re.I)
+# "alamat" / "address" are in almost every Indonesian article (a street address); they are no crypto cue.
+CRYPTO_CUE = re.compile(r"bitcoin|\bbtc\b|ethereum|\beth\b|usdt|tether|\btron\b|trc-?20|erc-?20|wallet|"
+                        r"dompet (?:kripto|crypto|digital)|crypto|kripto", re.I)
+# A number is the scammer's only when the text says so. Specific cues name the scammer ("nomor penipu", "pelaku
+# menghubungi dari nomor", "ditransfer ke rekening"); generic ones ("hubungi nomor", "contact", "phone") also sit
+# next to every police station, bank branch and complaint line in a news story, so they only count when no
+# institution is named in the same sentence (audit 2026-11 D-1: "Hubungi Polres Jakarta Selatan di nomor 0812…").
+SCAMMER_SPECIFIC = re.compile(
+    r"penipu|pelaku|tersangka|scammer|fraudster|\bscam\w*|\bfraud\w*|nomor (?:yang )?(?:di)?gunakan|"
+    r"digunakan (?:oleh )?(?:pelaku|penipu)|dari nomor|from (?:the )?number|calls? from|texts? from|"
+    r"messages? from|sms dari|pesan dari|mengaku|mengatasnamakan|posing as|pretending|ditelepon|"
+    r"(?:di)?transfer(?:kan|red)? (?:ke|to)|(?:di)?kirim(?:kan)? (?:ke|to)|sent to|rekening (?:penampung|tujuan)|"
+    r"mule account", re.I)
 SCAMMER_CUE = re.compile(
-    r"nomor|nomer|\bno\.|\bwa\b|whatsapp|hubungi|menghubungi|dihubungi|telepon|\btelp|\bsms\b|penipu|pelaku|"
-    r"scammer|fraudster|calls? from|texts? from|call(?:ed|ing)?|contact|phone|number|rekening|transfer|kirim|"
-    r"account|dompet|wallet|address|alamat|dikirim", re.I)
+    SCAMMER_SPECIFIC.pattern + r"|nomor|nomer|\bno\.|\bwa\b|whatsapp|hubungi|menghubungi|dihubungi|telepon|\btelp|"
+    r"\bsms\b|contact|phone|number|call(?:ed|ing)?|rekening|transfer|kirim|account|dompet|wallet", re.I)
+INSTITUTION_CUE = re.compile(
+    r"\bpol(?:res|da|sek|restabes|ri)\b|polisi|kepolisian|police|\bkantor\b|\bcabang\b|layanan|pengaduan|aduan|"
+    r"\bcs\b|customer (?:service|care|support)|\bdinas\b|satgas|\bojk\b|otoritas|kementerian|pemerintah|"
+    r"helpline|help desk|support line|branch|office|department|hotline|call cent(?:er|re)|contact cent(?:er|re)", re.I)
 OFFICIAL_CUE = re.compile(r"resmi|official|verified|terverifikasi|call cent(?:er|re)|hotline|layanan pengaduan|"
                           r"kontak resmi|customer care|pusat panggilan|pengaduan", re.I)
 VICTIM_CUE = re.compile(r"(?:nomor|no\.?|number|rekening|account|milik)\s+(?:hp\s+|telepon\s+|wa\s+|bank\s+)?"
@@ -327,8 +385,84 @@ def _excluded(text: str, start: int, end: int) -> bool:
     return bool(OFFICIAL_CUE.search(_before(text, start, 45)) or VICTIM_CUE.search(_before(text, start, CUE_BEFORE)))
 
 
-def _cue_ok(text: str, start: int) -> bool:
-    return bool(SCAMMER_CUE.search(_before(text, start, CUE_BEFORE))) and not _excluded(text, start, start)
+def _after(text: str, end: int, n: int) -> str:
+    """Up to ``n`` characters after ``end``, but not past the end of the sentence."""
+    chunk = text[end: end + n]
+    m = _SENTENCE_END.search(chunk)
+    return chunk[:m.start()] if m else chunk
+
+
+def _cue_ok(text: str, start: int, end: int | None = None, own_cue: bool = False) -> bool:
+    """The identifier at ``start``–``end`` is the scammer's: not official or the victim's, and either named as the
+    scammer's or (for a plain "nomor"/"rekening") in a sentence that names no institution. ``own_cue``: the
+    match itself carries the generic cue ("rekening BCA 123…", "DANA 0812…")."""
+    end = start if end is None else end
+    if _excluded(text, start, end):
+        return False
+    before = _before(text, start, CUE_BEFORE)
+    if SCAMMER_SPECIFIC.search(before):
+        return True
+    if not own_cue and not SCAMMER_CUE.search(before):
+        return False
+    return not INSTITUTION_CUE.search(before + " " + _after(text, end, 60))
+
+
+# --- crypto address checksums: a 26–35 character base58-looking token ("invoice 1AbCdEf…") is not a wallet
+_B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+_B58_INDEX = {c: i for i, c in enumerate(_B58)}
+
+
+def _base58check(addr: str) -> bytes | None:
+    """Payload (version byte + hash) of a valid Base58Check string, else None."""
+    import hashlib
+
+    n = 0
+    for c in addr:
+        if c not in _B58_INDEX:
+            return None
+        n = n * 58 + _B58_INDEX[c]
+    raw = n.to_bytes((n.bit_length() + 7) // 8, "big")
+    raw = b"\0" * (len(addr) - len(addr.lstrip("1"))) + raw
+    if len(raw) != 25:
+        return None
+    body, check = raw[:-4], raw[-4:]
+    if hashlib.sha256(hashlib.sha256(body).digest()).digest()[:4] != check:
+        return None
+    return body
+
+
+_BECH32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+
+def _bech32_ok(addr: str) -> bool:
+    """BIP-173 / BIP-350 checksum of a segwit address (bc1…)."""
+    a = addr.lower()
+    if addr not in (a, addr.upper()):
+        return False
+    hrp, sep, data = a.rpartition("1")
+    if not sep or hrp != "bc" or len(data) < 7 or any(c not in _BECH32 for c in data):
+        return False
+    gen = (0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3)
+    chk = 1
+    for v in [ord(c) >> 5 for c in hrp] + [0] + [ord(c) & 31 for c in hrp] + [_BECH32.index(c) for c in data]:
+        top = chk >> 25
+        chk = (chk & 0x1FFFFFF) << 5 ^ v
+        for i in range(5):
+            chk ^= gen[i] if (top >> i) & 1 else 0
+    return chk in (1, 0x2BC830A3)  # bech32 (v0) or bech32m (taproot)
+
+
+def wallet_ok(value: str, chain: str) -> bool:
+    """Checksum of a crypto address: Base58Check (BTC 1…/3…, Tron T…) or bech32 (bc1…)."""
+    if chain == "eth":
+        return True  # 0x + 40 hex digits is specific enough; EIP-55 needs keccak, which hashlib does not have
+    if chain == "tron":
+        body = _base58check(value)
+        return body is not None and body[0] == 0x41
+    if value.lower().startswith("bc1"):
+        return _bech32_ok(value)
+    body = _base58check(value)
+    return body is not None and body[0] in (0x00, 0x05)  # P2PKH "1…", P2SH "3…"
 
 
 def identifiers(text: str) -> list[Extracted]:
@@ -338,8 +472,8 @@ def identifiers(text: str) -> list[Extracted]:
     taken: set[str] = set()
     for m in RE_EWALLET.finditer(text):
         num = norm_phone(m.group("num"))
-        # "DANA 0812…" names the account itself, so no scammer cue is needed; official / victim ones are skipped
-        if not num or _excluded(text, m.start(), m.end()):
+        # "DANA 0812…" names the account itself, so it carries its own cue; official / victim ones are skipped
+        if not num or not _cue_ok(text, m.start(), m.end(), own_cue=True):
             continue
         wallet = {"gopay": "GoPay"}.get(m.group("w").lower(), m.group("w"))
         value = f"{wallet.lower()}:{num}"
@@ -347,14 +481,14 @@ def identifiers(text: str) -> list[Extracted]:
         taken.add(num)
     for m in RE_PHONE.finditer(text):
         num = norm_phone(m.group(0))
-        if not num or num in taken or not _cue_ok(text, m.start()):
+        if not num or num in taken or not _cue_ok(text, m.start(), m.end()):
             continue
         out[("phone", num)] = Extracted("phone", num, num, "id-mobile" if num.startswith("+628") else "intl", "regex")
     for m in RE_ACCOUNT.finditer(text):
         num = _digits(m.group("num"))
         if not 8 <= len(num) <= 18 or norm_phone(m.group("num")):
             continue
-        if _excluded(text, m.start(), m.end()) or VICTIM_CUE.search(m.group(0)):
+        if VICTIM_CUE.search(m.group(0)) or not _cue_ok(text, m.start(), m.end(), own_cue=True):
             continue
         code = (m.group("bank") or "").lower()
         bank = BANK_CODES.get(code)
@@ -368,18 +502,20 @@ def identifiers(text: str) -> list[Extracted]:
         for rx, chain in ((RE_BTC, "btc"), (RE_ETH, "eth"), (RE_TRON, "tron")):
             for m in rx.finditer(text):
                 v = m.group(0)
-                if chain == "btc" and not v.startswith("bc1") and not re.search(r"[a-z]", v[1:]):
-                    continue  # base58 always mixes cases; an all-caps token is something else
+                if not wallet_ok(v, chain):
+                    continue  # checksum fails: an invoice number, a hash, a random token
                 value = v.lower() if chain == "eth" else v
                 out[("crypto_wallet", value)] = Extracted("crypto_wallet", value, v, chain, "regex")
     return list(out.values())
 
 
 # --------------------------------------------------------------------------- losses and victims
-_UNITS = {"triliun": 1e12, "t": 1e12, "miliar": 1e9, "milyar": 1e9, "m": 1e6, "juta": 1e6, "jt": 1e6,
-          "ribu": 1e3, "rb": 1e3, "k": 1e3, "billion": 1e9, "bn": 1e9, "b": 1e9, "million": 1e6, "mn": 1e6,
-          "thousand": 1e3}
-RE_RUPIAH = re.compile(r"(?:\brp\.?|\bidr)\s?(?P<n>\d[\d.,]*)\s*(?P<u>triliun|miliar|milyar|juta|ribu|jt|rb)?\b"
+# Unit tables per currency: "M" is miliar (10^9) after "Rp" and million (10^6) after "$".
+_UNITS_IDR = {"triliun": 1e12, "t": 1e12, "miliar": 1e9, "milyar": 1e9, "m": 1e9, "juta": 1e6, "jt": 1e6,
+              "ribu": 1e3, "rb": 1e3}
+_UNITS_USD = {"m": 1e6, "k": 1e3, "billion": 1e9, "bn": 1e9, "b": 1e9, "million": 1e6, "mn": 1e6, "thousand": 1e3}
+# "Rp 2,5 T" and "Rp 5 M" (headline style) count in capitals only: "Rp 5 m" is no unit
+RE_RUPIAH = re.compile(r"(?:\brp\.?|\bidr)\s?(?P<n>\d[\d.,]*)\s*(?P<u>triliun|miliar|milyar|juta|ribu|jt|rb|(?-i:[TM]))?\b"
                        r"|(?P<n2>\d[\d.,]*)\s*(?P<u2>triliun|miliar|milyar|juta)\s+rupiah", re.I)
 RE_DOLLAR = re.compile(r"(?:us\$|\$|\busd\s?)(?P<n>\d[\d.,]*)\s*(?P<u>billion|million|thousand|bn|mn|[mbk])?\b"
                        r"|(?P<n2>\d[\d.,]*)\s*(?P<u2>billion|million)\s+(?:us )?dollars", re.I)
@@ -422,7 +558,7 @@ def _number(s: str, comma_decimal: bool, has_unit: bool) -> float | None:
 def losses_idr(text: str, usd_rate: float = 16_500.0) -> float:
     """Largest reported loss in rupiah, counting amounts next to a loss word only."""
     best = 0.0
-    for rx, rate, comma_dec in ((RE_RUPIAH, 1.0, True), (RE_DOLLAR, usd_rate, False)):
+    for rx, rate, comma_dec, units in ((RE_RUPIAH, 1.0, True, _UNITS_IDR), (RE_DOLLAR, usd_rate, False, _UNITS_USD)):
         for m in rx.finditer(text or ""):
             raw, unit = (m.group("n"), m.group("u")) if m.group("n") else (m.group("n2"), m.group("u2"))
             window = text[max(0, m.start() - 90): m.end() + 40]
@@ -431,7 +567,7 @@ def losses_idr(text: str, usd_rate: float = 16_500.0) -> float:
             n = _number(raw, comma_dec, bool(unit))
             if n is None:
                 continue
-            value = n * _UNITS.get((unit or "").lower(), 1.0) * rate
+            value = n * units.get((unit or "").lower(), 1.0) * rate
             if value < 100_000:  # rupiah amounts below this are fees and prices, not losses
                 continue
             best = max(best, value)
@@ -499,7 +635,8 @@ def velocity(db, key: str, at: datetime, cache: dict | None = None) -> tuple[int
 
     def count(lo, hi):
         return db.scalar(
-            select(func.count(func.distinct(Item.id))).join(ItemEntity, ItemEntity.item_id == Item.id)
+            select(func.count(func.distinct(func.coalesce(Item.dup_of, Item.id))))  # syndicated copies count once
+            .join(ItemEntity, ItemEntity.item_id == Item.id)
             .join(Entity, Entity.id == ItemEntity.entity_id)
             .where(Entity.type == "scam_type", Entity.value == key, Item.published_at > lo, Item.published_at <= hi)
         ) or 0

@@ -4,6 +4,31 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.10.1
+
+Fixes from a security, data-processing and efficiency audit. Install the new dependency (`cryptography`) with
+`pip install -r requirements.txt -c requirements.lock`, or rebuild the Docker image.
+
+- **API keys are encrypted** in the database on the first start. Keep `data/config.json` with your database
+  backups from now on: without it the stored keys cannot be read and must be entered again.
+- **Outbound guard.** Feeds, providers, the AI and MISP may only reach public addresses. Private hosts you already
+  configured (a local Ollama, an internal MISP, an RSS-Bridge on the LAN, a feed on a `.local` name) are added to
+  Settings → Sharing → *Private hosts JATMP may contact* on the first start. Anything private you add later goes
+  there by hand (a local AI server is added for you when you save the AI tab in local mode); a blocked request
+  says so in the source's error.
+- **First-run setup** from another machine (or through Docker's port mapping) asks for a setup token. It is in the
+  log (`docker compose logs jatmp`) and in `data/setup-token`.
+- New columns (`users.session_version`, `items.fingerprint`, `items.dup_of`) and indexes on `items` and
+  `entities` are created on start-up.
+- One-off start-up jobs, without network requests: syndicated copies of the same story from different outlets are
+  marked (statistics, trending and the executive summary count them once); the scam & fraud analysis and the
+  sector tags are recomputed with the new rules.
+- Malware families, actors and severity use stricter rules (everyday words such as *Bitter* or *Pegasus* need a
+  qualifier, demonyms and platform names are no new family, a guessed family no longer outscores a known one,
+  "critical infrastructure" is no critical bug). Stored items keep their old entities until you run
+  `python manage.py reextract`, which also recomputes severities.
+- `/healthz` no longer reports the version.
+
 ## Upgrading to 0.10
 
 - New column `insights.data` (the structured executive summary) is created on start-up.

@@ -8,7 +8,7 @@ from datetime import date
 
 import httpx
 
-from .. import __version__, settings
+from .. import __version__, netguard, settings
 from . import LookupResult, NotConfigured, make_ioc
 
 USER_AGENT = f"JATMP/{__version__} (+threat-monitoring; self-hosted)"
@@ -17,7 +17,7 @@ USER_AGENT = f"JATMP/{__version__} (+threat-monitoring; self-hosted)"
 def _client(headers: dict | None = None) -> httpx.Client:
     h = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     h.update(headers or {})
-    return httpx.Client(timeout=30, headers=h, follow_redirects=True)
+    return netguard.client(timeout=30, headers=h)  # SSRF guard + size cap (audit 2026-11 S-3, S-4)
 
 
 # --------------------------------------------------------------------------- rate limiting

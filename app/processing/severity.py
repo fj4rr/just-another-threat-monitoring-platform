@@ -34,7 +34,12 @@ GROUPS: list[tuple[str, list[tuple[str, int, str]]]] = [
     ]),
     ("impact", [
         (r"\bremote code execution\b|\brce\b|unauthenticated (?:attacker|remote|access)|pre[\s-]auth", 14, "remote code execution"),
-        (r"\bcvss\s*(?:v?\d(?:\.\d)?\s*)?(?:score\s*)?(?:of\s*)?(?:9\.\d|9|10)(?:\.0)?\b|\bcritical\b", 12, "critical / CVSS ≥ 9"),
+        (r"\bcvss\s*(?:v?\d(?:\.\d)?\s*)?(?:score\s*)?(?:of\s*)?(?:9\.\d|9|10)(?:\.0)?\b|"
+         # "critical" only about a bug ("critical flaw", "rated critical", "critical-severity"), not "critical
+         # infrastructure" or "critical thinking" (audit 2026-11 D-11)
+         r"\bcritical\b(?![\s-]+infrastructure)(?=.{0,40}?\b(?:vulnerab\w*|flaws?|bugs?|cve-\d|severity|cvss|"
+         r"security (?:hole|issue|update|patch)|remote code|rce|exploit\w*|patch\w*|zero[\s-]?day)\b)|"
+         r"\b(?:vulnerab\w*|flaws?|bugs?|severity|cvss|cve-\d{4}-\d+|rated)\b.{0,30}?\bcritical\b", 12, "critical / CVSS ≥ 9"),
         (r"auth(?:entication)?[\s-]bypass|bypass(?:es|ed|ing)? (?:\w+ )?authentication", 12, "authentication bypass"),
         (r"\bwiper\b|destructive (?:malware|attack)|data[\s-]destroying", 14, "destructive / wiper"),
         (r"privilege escalation|\blpe\b|\beop\b", 6, "privilege escalation"),
@@ -172,16 +177,18 @@ def score_item(title: str, body: str, entities, kind: str = "article") -> tuple[
 
     # ---- entity signals
     types: dict[str, int] = {}
-    heuristic_family = False
+    known_family = False
     for e in entities or []:
         t = getattr(e, "type", "")
         types[t] = types.get(t, 0) + 1
-        if t == "malware" and getattr(e, "origin", "") == "heuristic":
-            heuristic_family = True
+        if t == "malware" and getattr(e, "origin", "") != "heuristic":
+            known_family = True
     if types.get("malware"):
-        pts = 12 if heuristic_family else 10
+        # a name guessed by the "<Name> ransomware" heuristic is weaker evidence than a known family, so it must
+        # never score more (audit 2026-11 D-6: false positives outscored true ones)
+        pts = 10 if known_family else 6
         score += pts
-        reasons.append(Reason("unknown family named" if heuristic_family else "known malware family", pts))
+        reasons.append(Reason("known malware family" if known_family else "unknown family named", pts))
     if types.get("actor"):
         score += 8
         reasons.append(Reason("known threat actor", 8))

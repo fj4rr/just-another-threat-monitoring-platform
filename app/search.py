@@ -3,7 +3,9 @@
 SQLite: an FTS5 table (``items_fts``, external content = ``items``) kept in sync by triggers and built
 once on start-up. Queries are turned into quoted prefix terms, so user input can never inject FTS syntax:
 ``lumma steal`` -> ``"lumma"* "steal"*``. Titles additionally match as plain substrings.
-Other databases (PostgreSQL) and SQLite builds without FTS5 fall back to case-insensitive LIKE.
+PostgreSQL (0.10.1, audit 2026-11 E-6): a GIN index on ``to_tsvector('simple', title || ' ' || content)``, queried
+with prefix terms built from word characters only (``lumma:* & steal:*``), so no full scan of ``content``.
+SQLite builds without FTS5 fall back to case-insensitive LIKE.
 """
 from __future__ import annotations
 
@@ -16,11 +18,15 @@ from .models import Item
 
 log = logging.getLogger(__name__)
 _TOKEN = re.compile(r"[\w][\w.\-:/@]*", re.UNICODE)
-_state = {"fts": None}
+_WORD = re.compile(r"\w+", re.UNICODE)
+_state = {"fts": None, "pg": False}
+PG_DOCUMENT = "to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, ''))"
 
 
 def ensure_fts(engine) -> bool:
     """Create the FTS table + triggers if missing; returns whether FTS is usable."""
+    if engine.dialect.name == "postgresql":
+        return _ensure_pg(engine)
     if engine.dialect.name != "sqlite":
         _state["fts"] = False
         return False
@@ -50,6 +56,23 @@ def ensure_fts(engine) -> bool:
     return bool(_state["fts"])
 
 
+def _ensure_pg(engine) -> bool:
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_items_fts ON items USING GIN ({PG_DOCUMENT})"))
+        _state["fts"], _state["pg"] = True, True
+    except Exception as e:
+        log.warning("PostgreSQL full-text index unavailable, falling back to ILIKE: %s", e)
+        _state["fts"], _state["pg"] = False, False
+    return bool(_state["fts"])
+
+
+def pg_query(q: str) -> str:
+    """to_tsquery text from free input: word characters only, every term a prefix, all terms required."""
+    words = [w for t in _TOKEN.findall(q or "")[:12] for w in _WORD.findall(t)][:16]
+    return " & ".join(f"{w.lower()}:*" for w in words)
+
+
 def fts_enabled() -> bool:
     if _state["fts"] is None:
         from .db import engine
@@ -68,7 +91,12 @@ def item_text_clause(q: str):
     q = (q or "").strip()
     like = f"%{q}%"
     m = match_query(q)
-    if m and fts_enabled():
+    if m and fts_enabled() and _state["pg"]:
+        pq = pg_query(q)
+        if pq:
+            return or_(text(f"{PG_DOCUMENT} @@ to_tsquery('simple', :pg_q)").bindparams(pg_q=pq),
+                       Item.title.ilike(like))
+    if m and fts_enabled() and not _state["pg"]:
         ids = text("SELECT rowid FROM items_fts WHERE items_fts MATCH :fts_q").bindparams(fts_q=m).columns(
             column("rowid"))
         return or_(Item.id.in_(ids), Item.title.ilike(like))

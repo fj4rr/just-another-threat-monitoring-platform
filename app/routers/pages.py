@@ -24,6 +24,7 @@ from ..models import (
     User,
     Watch,
     utcnow,
+    with_links,
 )
 from ..processing import fraud, geo, trends
 from ..search import item_text_clause
@@ -152,7 +153,8 @@ def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: i
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     cols = FEED_SORTS[sort][0]()
     order = [c.asc() if direction == "asc" else c.desc() for c in cols] + [Item.id.desc()]
-    items = db.execute(stmt.order_by(*order).offset((page - 1) * PAGE).limit(PAGE)).unique().scalars().all()
+    items = db.execute(stmt.options(with_links()).order_by(*order).offset((page - 1) * PAGE).limit(PAGE)
+                       ).unique().scalars().all()
     sources = db.execute(select(Source).order_by(Source.category, Source.name)).scalars().all()
     ent = db.get(Entity, entity) if entity else None
     f = {"cat": cat, "kind": kind, "q": q, "source": source, "entity": entity, "min_sev": min_sev, "days": days,

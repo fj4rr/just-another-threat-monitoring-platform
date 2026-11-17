@@ -1,6 +1,9 @@
 """Runtime settings stored in the DB (editable from the UI), with env-var overrides."""
 from __future__ import annotations
 
+import base64
+import hashlib
+import logging
 import os
 import threading
 import time
@@ -90,6 +93,12 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "webhook_min_severity": (70, "", "Webhooks: minimum severity for the new-item event", "int", "sharing"),
     "webhooks_allow_private": (False, "", "Webhooks: allow private / loopback target addresses (SSRF risk)", "bool",
                                "sharing"),
+    # Outbound requests (app/netguard.py): feeds, providers, the LLM, MISP only reach public addresses by default
+    "outbound_private_hosts": ("", "JATMP_PRIVATE_HOSTS",
+                               "Private hosts JATMP may contact: host names or IP ranges, comma-separated (a local "
+                               "Ollama, an internal MISP, a self-hosted RSS-Bridge)", "text", "sharing"),
+    "outbound_allow_private": (False, "", "Allow feeds, providers and the LLM to reach any private / loopback address "
+                               "(SSRF risk; prefer the host list above)", "bool", "sharing"),
     # MISP
     "misp_url": ("", "MISP_URL", "MISP base URL", "text", "misp"),
     "misp_api_key": ("", "MISP_API_KEY", "MISP automation key", "secret", "misp"),
@@ -127,6 +136,61 @@ INT_BOUNDS: dict[str, tuple[int, int]] = {
     "fraud_usd_idr": (1, 1_000_000),
 }
 
+log = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------------- secrets at rest (audit 2026-11 S-10)
+# API keys, the LLM key and the Telegram session are stored encrypted (Fernet, key derived from the install's
+# secret_key in data/config.json), so a copy of the database alone does not hand them out. Values written by
+# older versions are encrypted by encrypt_stored_secrets() at start-up.
+_ENC_PREFIX = "enc:v1:"
+
+
+def _fernet():
+    from cryptography.fernet import Fernet
+
+    from .config import load_config
+
+    raw = hashlib.sha256(b"jatmp-settings-v1:" + str(load_config().get("secret_key") or "").encode()).digest()
+    return Fernet(base64.urlsafe_b64encode(raw))
+
+
+def _is_secret(key: str) -> bool:
+    spec = SCHEMA.get(key)
+    return bool(spec and spec[3] == "secret")
+
+
+def _encrypt(value: Any) -> Any:
+    if not isinstance(value, str) or not value or value.startswith(_ENC_PREFIX):
+        return value
+    try:
+        return _ENC_PREFIX + _fernet().encrypt(value.encode()).decode()
+    except ImportError:  # pragma: no cover - cryptography is a dependency; keep working without it
+        log.warning("cryptography is not installed: storing a secret setting unencrypted")
+        return value
+
+
+def _decrypt(key: str, value: Any) -> Any:
+    if not isinstance(value, str) or not value.startswith(_ENC_PREFIX):
+        return value
+    try:
+        return _fernet().decrypt(value[len(_ENC_PREFIX):].encode()).decode()
+    except Exception:  # wrong secret_key (config.json replaced) or a damaged value: treat as not set
+        log.warning("cannot decrypt the stored %s (was data/config.json replaced?); enter it again", key)
+        return ""
+
+
+def encrypt_stored_secrets() -> int:
+    """Encrypt secret settings that an older version stored in plain text. Returns how many were rewritten."""
+    n = 0
+    with session_scope() as db:
+        for key in [k for k in SCHEMA if _is_secret(k)]:
+            row = db.get(Setting, key)
+            if row is not None and isinstance(row.value, str) and row.value and not row.value.startswith(_ENC_PREFIX):
+                row.value = _encrypt(row.value)
+                n += 1
+    return n
+
+
 # Small read cache: settings are consulted many times per request and by every collector
 # thread. Entries live for a few seconds; set() invalidates immediately in this process.
 _CACHE_TTL = 5.0
@@ -149,6 +213,8 @@ def get(key: str, default: Any = None) -> Any:
         with session_scope() as db:
             row = db.get(Setting, key)
             value = row.value if row is not None else None
+        if _is_secret(key):
+            value = _decrypt(key, value)
         with _cache_lock:
             _cache[key] = (now + _CACHE_TTL, value)
     if value is not None:
@@ -159,12 +225,13 @@ def get(key: str, default: Any = None) -> Any:
 
 
 def set(key: str, value: Any) -> None:
+    stored = _encrypt(value) if _is_secret(key) else value
     with session_scope() as db:
         row = db.get(Setting, key)
         if row is None:
-            db.add(Setting(key=key, value=value))
+            db.add(Setting(key=key, value=stored))
         else:
-            row.value = value
+            row.value = stored
     with _cache_lock:
         _cache.pop(key, None)
 

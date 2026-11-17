@@ -53,7 +53,29 @@ async def lifespan(_: FastAPI):
                 log.info("added %d new built-in source(s)", len(added))
         except Exception as e:  # never block start-up
             log.warning("adding new built-in sources failed: %s", e)
+        try:  # 0.10.1: API keys stored in plain text by older versions are encrypted once
+            from . import settings as _settings
+
+            n = _settings.encrypt_stored_secrets()
+            if n:
+                log.info("encrypted %d stored secret setting(s)", n)
+        except Exception as e:
+            log.warning("encrypting stored secrets failed: %s", e)
+        try:  # 0.10.1 outbound guard: keep the private hosts an admin already configured working
+            from . import netguard
+            from .db import session_scope
+
+            with session_scope() as db:
+                kept = netguard.seed_allowlist(db)
+            if kept:
+                log.info("outbound guard: allowed the private host(s) already configured: %s", ", ".join(kept))
+        except Exception as e:
+            log.warning("seeding the private host list failed: %s", e)
         jobs.start()
+    else:
+        from . import setup_token
+
+        setup_token.announce()
     yield
     jobs.shutdown()
 
@@ -112,9 +134,9 @@ for r in (auth_routes.router, pages.router, api_v1.router, api.router, settings_
 
 @app.get("/healthz", include_in_schema=False)
 def healthz():
-    """Liveness probe for Docker / orchestrators. Unauthenticated and secret-free."""
-    return {"ok": True, "version": __version__, "installed": is_installed(),
-            "scheduler": jobs.scheduler.running}
+    """Liveness probe for Docker / orchestrators. Unauthenticated, so it names no version (audit 2026-11 S-13):
+    signed-in users see it in the footer and the API docs."""
+    return {"ok": True, "installed": is_installed(), "scheduler": jobs.scheduler.running}
 
 
 @app.exception_handler(LoginRequired)

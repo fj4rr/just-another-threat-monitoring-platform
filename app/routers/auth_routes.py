@@ -5,12 +5,13 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import jobs
+from .. import jobs, setup_token
 from ..auth import (
     LOCAL_USER,
     audit,
     clear_fails,
     current_user,
+    end_other_sessions,
     hash_password,
     login_locked,
     needs_rehash,
@@ -29,11 +30,16 @@ from ..web import render
 router = APIRouter()
 
 
+def _setup_ctx(request: Request, error: str | None, form: dict, given: str = "") -> dict:
+    return {"user": None, "error": error, "form": form, "need_token": setup_token.required(request),
+            "token_value": given if setup_token.valid(given) else "", "token_path": str(setup_token.TOKEN_PATH)}
+
+
 @router.get("/setup")
-def setup_page(request: Request):
+def setup_page(request: Request, token: str = ""):
     if is_installed():
         return RedirectResponse("/", status_code=303)
-    return render(request, "setup.html", {"user": None, "error": None, "form": {}})
+    return render(request, "setup.html", _setup_ctx(request, None, {}, token))
 
 
 @router.post("/setup", dependencies=[Depends(verify_csrf)])
@@ -55,13 +61,18 @@ def setup_submit(
     llm_base_url: str = Form(""),
     llm_model: str = Form(""),
     llm_api_key: str = Form(""),
+    token: str = Form(""),
 ):
     if is_installed():
         return RedirectResponse("/", status_code=303)
     form = {"mode": mode, "app_name": app_name, "admin_username": admin_username, "llm_provider": llm_provider,
             "llm_base_url": llm_base_url, "llm_model": llm_model}
+    if setup_token.required(request) and not setup_token.valid(token):
+        return render(request, "setup.html", _setup_ctx(
+            request, "The setup token is missing or wrong. It is printed in the server log at start-up and stored "
+                     f"in {setup_token.TOKEN_PATH}.", form))
     if mode == "multi" and admin_password != admin_password2:
-        return render(request, "setup.html", {"user": None, "error": "Passwords do not match.", "form": form})
+        return render(request, "setup.html", _setup_ctx(request, "Passwords do not match.", form, token))
     try:
         perform_install(
             mode=mode, app_name=app_name.strip()[:40], admin_username=admin_username.strip(),
@@ -73,7 +84,8 @@ def setup_submit(
                  "llm_api_key": llm_api_key},
         )
     except ValueError as e:
-        return render(request, "setup.html", {"user": None, "error": str(e), "form": form})
+        return render(request, "setup.html", _setup_ctx(request, str(e), form, token))
+    setup_token.discard()
     jobs.start()
     return RedirectResponse("/login" if mode == "multi" else "/", status_code=303)
 
@@ -108,6 +120,7 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
     clear_fails(key)
     request.session.clear()  # new session id/content on login (fixation protection)
     request.session["uid"] = user.id
+    request.session["sv"] = int(user.session_version or 0)
     user.last_login = utcnow()
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(password)
@@ -120,6 +133,20 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login" if is_multi_user() else "/", status_code=303)
+
+
+@router.post("/logout/everywhere", dependencies=[Depends(verify_csrf)])
+def logout_everywhere(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Sign out every other browser of this user (multi-user mode)."""
+    user = db.get(User, user.id)
+    if is_multi_user():
+        end_other_sessions(request, user)
+        audit(db, user, "sessions_ended", "", request)
+        db.commit()
+    from .apikeys_routes import keys_ctx
+
+    return render(request, "profile.html", {"user": user, "msg": "Other sessions were signed out.", "error": None,
+                                            **keys_ctx(db, user)})
 
 
 @router.get("/profile")
@@ -149,8 +176,9 @@ def profile_save(request: Request, current: str = Form(""), new: str = Form(""),
             error = password_problems(new)
         else:
             user.password_hash = hash_password(new)
+            end_other_sessions(request, user)  # other browsers signed in as this user are signed out
             audit(db, user, "password_changed", "", request)
-            msg = "Password changed."
+            msg = "Password changed. Other sessions were signed out."
     db.commit()
     from .apikeys_routes import keys_ctx
 

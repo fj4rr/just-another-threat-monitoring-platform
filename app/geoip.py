@@ -7,7 +7,6 @@ country comes from the intel providers (VirusTotal, AbuseIPDB, OTX, IPinfo...) d
 """
 from __future__ import annotations
 
-import gzip
 import ipaddress
 import logging
 import shutil
@@ -17,6 +16,7 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
+from . import netguard
 from .config import DATA_DIR
 
 log = logging.getLogger(__name__)
@@ -88,13 +88,27 @@ def status() -> dict:
     return {"installed": True, "file": path.name, **meta}
 
 
+MAX_DOWNLOAD = 200 * 1024 * 1024  # compressed download
+MAX_DATABASE = 400 * 1024 * 1024  # unpacked .mmdb (country databases are ~10 MB; a gzip bomb stops here)
+
+
+def _gunzip_capped(data: bytes, limit: int) -> bytes:
+    """gzip.decompress with a ceiling on the output size (audit 2026-11 S-4)."""
+    import zlib
+
+    d = zlib.decompressobj(16 + zlib.MAX_WBITS)
+    out = d.decompress(data, limit + 1)
+    if len(out) > limit or d.unconsumed_tail:
+        raise RuntimeError("the GeoIP download unpacks to more than expected; refusing it")
+    return out + d.flush()
+
+
 def update(license_key: str = "", client=None) -> str:
     """Download a fresh country database into ``data/geoip/``. Returns a short description."""
-    import httpx
 
     GEOIP_DIR.mkdir(parents=True, exist_ok=True)
     own = client is None
-    client = client or httpx.Client(timeout=120, follow_redirects=True)
+    client = client or netguard.client(timeout=120, max_bytes=MAX_DOWNLOAD)
     try:
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
@@ -109,10 +123,12 @@ def update(license_key: str = "", client=None) -> str:
                     member = next((m for m in tar.getmembers() if m.name.endswith(".mmdb") and m.isfile()), None)
                     if member is None:
                         raise RuntimeError("no .mmdb file in the GeoLite2 archive")
+                    if member.size > MAX_DATABASE:
+                        raise RuntimeError("the .mmdb file in the GeoLite2 archive is implausibly large")
                     src = tar.extractfile(member)
                     target = GEOIP_DIR / "GeoLite2-Country.mmdb"
                     with open(tmpdir / "new.mmdb", "wb") as out:
-                        shutil.copyfileobj(src, out)
+                        out.write(src.read(MAX_DATABASE + 1)[:MAX_DATABASE])
                 label = "MaxMind GeoLite2 Country"
             else:
                 now = datetime.now(UTC)
@@ -127,7 +143,7 @@ def update(license_key: str = "", client=None) -> str:
                         break
                 r.raise_for_status()
                 with open(tmpdir / "new.mmdb", "wb") as out:
-                    out.write(gzip.decompress(r.content))
+                    out.write(_gunzip_capped(r.content, MAX_DATABASE))
                 target = GEOIP_DIR / "dbip-country-lite.mmdb"
                 label = "DB-IP IP to Country Lite (CC BY 4.0, https://db-ip.com)"
             import maxminddb

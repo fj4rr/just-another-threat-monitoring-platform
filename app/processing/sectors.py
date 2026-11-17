@@ -6,8 +6,10 @@ defence. An item gets a sector when the text names organisations or services of 
 affected party ("rumah sakit", "hospital", "bank", "maskapai", ".go.id" sites…), or when the feed states one
 (ransomware.live victim sector, OTX industries).
 
-Rules are deliberately strict: a hit in the title counts on its own, the body needs two hits of the same sector,
-and newsletters / round-ups only count their title. Sectors are stored as ``sector`` entities linked to the item
+Rules are deliberately strict: the title needs two hits of a sector (or one more in the body), the body alone needs
+two hits of the same sector, and newsletters / round-ups only count their title. In a scam report "bank",
+"rekening" and "nasabah" name the victim's bank for the transfer, not an attacked finance sector, so finance only
+counts there next to an attack word ("dibobol", "breach", "ransomware"). Sectors are stored as ``sector`` entities linked to the item
 (origin ``kb``), so every list, filter and graph that works with entities works with sectors too.
 
     keys = detect(title, body, feed_sector="Healthcare")   # -> ["health", ...]
@@ -19,7 +21,8 @@ import re
 from .extractor import Extracted
 from .fraud import ROUNDUP as _FRAUD_ROUNDUP
 
-RULES_VERSION = 1  # bump when the rules change: the start-up job re-tags stored items once
+RULES_VERSION = 2  # bump when the rules change: the start-up job re-tags stored items once
+# 2 (0.10.1): one title hit is not enough on its own; finance in scam reports needs an attack word
 
 # (key, display name, Indonesian name, case-insensitive pattern, case-sensitive pattern for acronyms)
 SECTORS: list[tuple[str, str, str, str, str]] = [
@@ -104,6 +107,12 @@ FEED_SECTORS = [
 _ROUNDUP = re.compile(_FRAUD_ROUNDUP.pattern + r"|\bstormcast\b|\bnever be afraid\b", re.I)
 MAX_SECTORS = 3
 BODY_CHARS = 20_000  # long reports are scanned up to here
+THRESHOLD = 2  # points: a title hit is 2, a body hit 1
+TITLE_ONLY_THRESHOLD = 3  # "Bank account scams rise in Jakarta" alone is no finance-sector item (audit 2026-11 D-9)
+ATTACK_CUE = re.compile(r"\b(?:dibobol|membobol|pembobolan|diretas|meretas|peretasan|breach(?:ed|es)?|hack(?:ed|ers?)|"
+                        r"ransomware|data (?:leak|breach)|kebocoran data|cyber ?attacks?|serangan|diserang|intrusion|"
+                        r"compromised|ddos|lumpuh\w*|outage|systems? (?:down|offline)|hit by|attack(?:s|ed)?|"
+                        r"zero[\s-]?days?|exploit\w*|stolen|dicuri|leak(?:s|ed)?|bocor)\b", re.I)
 
 
 def _hits(rx: re.Pattern, cs: re.Pattern | None, text: str) -> int:
@@ -128,21 +137,32 @@ def feed_sectors(values) -> list[str]:
     return out
 
 
-def detect(title: str, body: str, feed_sector=None) -> list[str]:
-    """Sector keys an item is about, strongest first (at most ``MAX_SECTORS``)."""
+def detect(title: str, body: str, feed_sector=None, scam: bool = False) -> list[str]:
+    """Sector keys an item is about, strongest first (at most ``MAX_SECTORS``). ``scam``: the item is a scam
+    report (fraud score > 0)."""
     title, body = title or "", (body or "")[:BODY_CHARS]
     if _ROUNDUP.search(title):
         body = ""
     scores: dict[str, int] = {}
-    for key in feed_sectors(feed_sector):
+    from_feed = set(feed_sectors(feed_sector))
+    for key in from_feed:
         scores[key] = scores.get(key, 0) + 3
-    for key, rx, cs in _RX:
-        t = _hits(rx, cs, title)
-        b = min(_hits(rx, cs, body), 4)
+    attack = bool(ATTACK_CUE.search(title) or ATTACK_CUE.search(body))
+    hits = [(key, _hits(rx, cs, title), min(_hits(rx, cs, body), 4)) for key, rx, cs in _RX]
+    in_title = sum(1 for _, t, _ in hits if t)
+    for key, t, b in hits:
+        if key == "finance" and scam and key not in from_feed and not attack:
+            continue
         s = 2 * t + b
-        if s:
-            scores[key] = scores.get(key, 0) + s
-    keys = [k for k, s in scores.items() if s >= 2]
+        if not s:
+            continue
+        # one title word and nothing in the body: only when the headline is about an attack on that one sector
+        # ("Serangan ransomware lumpuhkan layanan rumah sakit"), not "Hospital food vendor hit by phishing"
+        if (not b and key not in from_feed and s < TITLE_ONLY_THRESHOLD
+                and not (in_title == 1 and ATTACK_CUE.search(title))):
+            continue
+        scores[key] = scores.get(key, 0) + s
+    keys = [k for k, s in scores.items() if s >= THRESHOLD]
     keys.sort(key=lambda k: (-scores[k], SECTOR_KEYS.index(k)))
     return keys[:MAX_SECTORS]
 
@@ -159,7 +179,7 @@ def _feed_value(raw: dict | None):
 def apply(item) -> list[Extracted]:
     """Sector entities to link to a freshly collected ``item``."""
     body = f"{item.content or ''}\n{' '.join(item.tags or [])}"
-    return entities(detect(item.title, body, _feed_value(item.raw)))
+    return entities(detect(item.title, body, _feed_value(item.raw), scam=bool(item.fraud_score)))
 
 
 def retag_all(db, progress=None, batch: int = 500) -> int:
@@ -187,7 +207,8 @@ def retag_all(db, progress=None, batch: int = 500) -> int:
                                       .where(ItemEntity.item_id.in_(chunk), Entity.type == "sector")):
             old.setdefault(link.item_id, {})[value] = link
         for item in db.execute(select(Item).where(Item.id.in_(chunk))).unique().scalars():
-            want = set(detect(item.title, f"{item.content or ''}\n{' '.join(item.tags or [])}", _feed_value(item.raw)))
+            want = set(detect(item.title, f"{item.content or ''}\n{' '.join(item.tags or [])}", _feed_value(item.raw),
+                              scam=bool(item.fraud_score)))
             have = old.get(item.id, {})
             for key in set(have) - want:
                 link = have[key]

@@ -19,7 +19,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import settings
+from .. import netguard, settings
 from ..config import DATA_DIR
 from ..models import Entity, utcnow
 from .clients import USER_AGENT, throttle
@@ -38,8 +38,7 @@ MAX_PER_RUN = 60
 
 
 def _client() -> httpx.Client:
-    return httpx.Client(timeout=40, headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
-                        follow_redirects=True)
+    return netguard.client(timeout=40, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
 
 
 def _parse_dt(s: str | None) -> datetime | None:

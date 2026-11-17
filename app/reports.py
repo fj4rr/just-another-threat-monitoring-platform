@@ -14,7 +14,6 @@ Word and PDF need the optional ``python-docx`` / ``reportlab`` packages (in requ
 """
 from __future__ import annotations
 
-import csv
 import io
 import re
 from datetime import datetime, timedelta
@@ -22,7 +21,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import and_, distinct, func, or_, select, true
 from sqlalchemy.orm import Session
 
-from . import __version__
+from . import __version__, csvsafe
 from .models import Entity, EntityLink, Insight, Item, ItemEntity, Source, utcnow
 from .processing import trends
 
@@ -401,7 +400,7 @@ def to_markdown(rep: dict) -> bytes:
 # --------------------------------------------------------------------------- CSV
 def to_csv(rep: dict) -> bytes:
     buf = io.StringIO()
-    w = csv.writer(buf, lineterminator="\n")
+    w = csvsafe.writer(buf, lineterminator="\n")  # no formulas from feed text (audit 2026-11 S-5)
     w.writerow([rep["title"]])
     w.writerow([_subtitle(rep)])
     w.writerow([summary_text(rep)])

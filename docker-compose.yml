@@ -21,7 +21,8 @@ services:
       # postgresql+psycopg://jatmp:${JATMP_DB_PASSWORD}@db:5432/jatmp
       JATMP_DATABASE_URL: ${JATMP_DATABASE_URL:-}
     restart: unless-stopped
-    # To use Ollama running on the host: set LLM_BASE_URL=http://host.docker.internal:11434
+    # To use Ollama running on the host: set LLM_BASE_URL=http://host.docker.internal:11434 (and add
+    # host.docker.internal to JATMP_PRIVATE_HOSTS, or save the AI tab in local mode, which adds it)
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

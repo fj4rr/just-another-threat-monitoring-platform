@@ -41,6 +41,7 @@ Runtime and deployment variables:
 | `JATMP_SECURE_COOKIES` | `0` | Set to `1` behind HTTPS: `Secure` session cookie and HSTS |
 | `JATMP_FORWARDED_ALLOW_IPS` | `127.0.0.1` | Proxies allowed to set `X-Forwarded-*` (client IP in the audit log) |
 | `JATMP_PUBLIC_URL` | empty | Public base URL used for links in API output, webhooks and MISP events |
+| `JATMP_PRIVATE_HOSTS` | empty | Private hosts JATMP may contact, comma-separated host names or IP ranges (`ollama, misp.internal, 10.20.0.0/16`). Feeds, providers, the AI and MISP only reach public addresses otherwise; see [Security](security.md) |
 
 ## Extending the knowledge base
 

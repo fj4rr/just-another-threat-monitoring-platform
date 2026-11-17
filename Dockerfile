@@ -3,8 +3,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 JATMP_DATA_DIR=/data JATMP_HOST
     PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /app
 ARG WITH_POSTGRES=0
-COPY requirements.txt requirements-postgres.txt ./
-RUN pip install -r requirements.txt && \
+COPY requirements.txt requirements.lock requirements-postgres.txt ./
+# requirements.lock pins every package (regenerate: uv pip compile requirements.txt --universal -o requirements.lock)
+RUN pip install -r requirements.txt -c requirements.lock && \
     if [ "$WITH_POSTGRES" = "1" ]; then pip install -r requirements-postgres.txt; fi
 COPY . .
 RUN useradd -r -u 10001 jatmp && mkdir -p /data && chown jatmp /data

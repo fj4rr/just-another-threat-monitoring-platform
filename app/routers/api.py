@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import jobs, notify
+from .. import jobs, notify, throttle
 from ..auth import audit, current_user, require, verify_csrf
 from ..db import get_db
 from ..llm import client as llm
@@ -169,10 +169,14 @@ def source_run(source_id: int, request: Request, user: User = Depends(require("a
     src = db.get(Source, source_id)
     if not src:
         raise HTTPException(404, "source not found")
-    jobs.run_now(jobs.run_source, source_id)
+    throttle.check(f"{user.id}:source_run", 20)
+    # one run per source at a time: the queued row is created right away, so a second click finds it
+    if jobs.job_running(db, f"source:{source_id}"):
+        return {"ok": True, "running": True, "message": f"{src.name} is already running"}
+    batch = jobs.queue_collection(db, [source_id])
     audit(db, user, "source_run", src.name, request)
     db.commit()
-    return {"ok": True, "message": f"{src.name} queued"}
+    return {"ok": True, "batch": batch, "message": f"{src.name} queued"}
 
 
 @router.post("/sources/run_all", dependencies=[Depends(verify_csrf)])
@@ -266,18 +270,22 @@ def items_rescore(request: Request, user: User = Depends(require("admin")), db: 
     return {"ok": True, "message": "re-scoring queued; severities update in the background"}
 
 
+# Manual lookups per user and minute: they call paid / rate-limited providers inside the request (audit 2026-11 S-7)
+ENRICH_PER_MINUTE = 12
+LOOKUPS_PER_MINUTE = 6
+
+
 @router.post("/entities/{entity_id}/enrich", dependencies=[Depends(verify_csrf)])
 def entity_enrich(entity_id: int, request: Request, user: User = Depends(require("analyst")),
                   db: Session = Depends(get_db)):
     ent = db.get(Entity, entity_id)
     if not ent:
         raise HTTPException(404, "entity not found")
-    if ent.type in IOC_TYPES:
-        msgs = enrich_entity(db, ent)
-    elif ent.type == "malware":
-        msgs = enrich_family(db, ent)
-    else:
+    if ent.type not in IOC_TYPES and ent.type != "malware":
         raise HTTPException(400, "enrichment supports IOCs and malware families")
+    throttle.check(f"{user.id}:enrich", ENRICH_PER_MINUTE)  # paid provider quota, synchronous (audit S-7)
+    with throttle.exclusive(f"enrich:{ent.id}", "this entity is already being enriched"):
+        msgs = enrich_entity(db, ent) if ent.type in IOC_TYPES else enrich_family(db, ent)
     audit(db, user, "entity_enrich", f"{ent.type}:{ent.value}", request)
     db.commit()
     return {"ok": True, "message": "; ".join(msgs) or "no providers configured (Settings → API keys)"}
@@ -290,8 +298,10 @@ def item_summarize(item_id: int, user: User = Depends(require("analyst")), db: S
     item = db.get(Item, item_id)
     if not item:
         raise HTTPException(404, "item not found")
+    throttle.check(f"{user.id}:summarize", LOOKUPS_PER_MINUTE)
     try:
-        out = summarize_item(db, item)
+        with throttle.exclusive(f"summarize:{item.id}", "a summary of this item is already being written"):
+            out = summarize_item(db, item)
     except LLMError as e:
         raise HTTPException(400, str(e)) from e
     db.commit()
@@ -407,7 +417,9 @@ def entity_context(entity_id: int, request: Request, user: User = Depends(requir
     providers = context.available(ent.type)
     if not providers:
         raise HTTPException(400, f"no context provider configured for {ent.type} (Settings → Threat-intel APIs)")
-    msgs = enrich_entity(db, ent, providers, auto_context=False)
+    throttle.check(f"{user.id}:context", LOOKUPS_PER_MINUTE)
+    with throttle.exclusive(f"context:{ent.id}", "a context lookup for this indicator is already running"):
+        msgs = enrich_entity(db, ent, providers, auto_context=False)
     audit(db, user, "context_lookup", f"{ent.type}:{ent.value} via {', '.join(p.name for p in providers)}", request)
     db.commit()
     return {"ok": True, "message": "; ".join(msgs)}
@@ -425,6 +437,7 @@ def entity_deepdive(entity_id: int, request: Request, user: User = Depends(requi
     ent = db.get(Entity, entity_id)
     if not ent:
         raise HTTPException(404, "entity not found")
+    throttle.check(f"{user.id}:deepdive", LOOKUPS_PER_MINUTE)
     try:
         if ent.type in ("malware", "actor"):
             res = darkweb.ransomware_deep_dive(ent)

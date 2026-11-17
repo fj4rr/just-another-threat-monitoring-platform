@@ -9,6 +9,11 @@
     {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="/setup">
       <input type="hidden" name="csrf_token" value="{{ csrf }}">
+      {% if need_token %}
+      <h3 style="margin-top:18px">Setup token</h3>
+      <p class="muted small">You are not on the server itself, so prove you run it: copy the token from the server log (printed at start-up) or from <code>{{ token_path }}</code>.</p>
+      <div class="field"><label for="su-token">Setup token</label><input id="su-token" type="password" name="token" value="{{ token_value }}" required autocomplete="off" spellcheck="false"></div>
+      {% endif %}
       <h3 style="margin-top:18px">1 · Usage mode</h3>
       <div class="mode-pick">
         <label><input type="radio" name="mode" value="single" {{ 'checked' if form.get('mode','single') == 'single' }}>

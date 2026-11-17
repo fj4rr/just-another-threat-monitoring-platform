@@ -24,6 +24,17 @@ from app.config import load_config, save_config
 from app.setup_service import perform_install
 
 
+@pytest.fixture(autouse=True)
+def _fresh_caches():
+    """Short-lived in-process caches (trending lists, manual-action throttles) must not leak between tests."""
+    from app import throttle
+    from app.processing import trends
+
+    trends.invalidate_cache()
+    throttle.reset()
+    yield
+
+
 @pytest.fixture(scope="session")
 def installed():
     """Single-user install with the default sources, once per test session."""

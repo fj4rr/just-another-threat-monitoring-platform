@@ -13,11 +13,9 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import ipaddress
 import json
 import logging
 import secrets
-import socket
 import time
 from datetime import timedelta
 from urllib.parse import urlsplit
@@ -26,7 +24,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import __version__, settings, sharing
+from . import __version__, netguard, settings, sharing
 from .config import load_config
 from .models import Entity, Item, Watch, Webhook, WebhookDelivery, utcnow
 from .processing.fraud import IDENT_TYPES
@@ -55,31 +53,18 @@ def new_salt() -> str:
 
 
 # --------------------------------------------------------------------------- SSRF guard
+def _allow_private() -> bool:
+    return bool(settings.get("webhooks_allow_private"))
+
+
 def check_url(url: str, allow_private: bool | None = None) -> str | None:
     """Error message, or None when the URL is an acceptable webhook target."""
-    allow_private = bool(settings.get("webhooks_allow_private")) if allow_private is None else allow_private
-    try:
-        parts = urlsplit((url or "").strip())
-    except ValueError:
-        return "not a valid URL"
-    if parts.scheme not in ("https", "http"):
-        return "the URL must start with https:// (or http://)"
-    if not parts.hostname:
-        return "the URL has no host"
-    if parts.username or parts.password:
-        return "credentials in the URL are not allowed"
-    if allow_private:
-        return None
-    try:
-        infos = socket.getaddrinfo(parts.hostname, parts.port or (443 if parts.scheme == "https" else 80),
-                                   type=socket.SOCK_STREAM)
-    except (socket.gaierror, UnicodeError):
-        return f"cannot resolve {parts.hostname}"
-    for info in infos:
-        addr = ipaddress.ip_address(info[4][0].split("%")[0])
-        if not addr.is_global:
-            return f"{parts.hostname} resolves to a private / local address ({addr}); an admin can allow this under Settings → Sharing"
-    return None
+    allow_private = _allow_private() if allow_private is None else allow_private
+    err = netguard.Policy(allow_private=allow_private).check_url(url)
+    if err and "blocked:" in err:
+        host = urlsplit(url.strip()).hostname
+        return f"{host} resolves to a private / local address; an admin can allow this under Settings → Sharing"
+    return err
 
 
 # --------------------------------------------------------------------------- queueing
@@ -183,7 +168,9 @@ def send(hook: Webhook, delivery: WebhookDelivery, http: httpx.Client | None = N
                "X-JATMP-Event": delivery.event, "X-JATMP-Delivery": str(delivery.id), "X-JATMP-Timestamp": ts,
                "X-JATMP-Signature": sign(secret_for(hook), ts, body)}
     own = http is None
-    http = http or httpx.Client(timeout=TIMEOUT, follow_redirects=False)
+    # the connection goes to the address that was checked, so DNS rebinding between check and send is no way
+    # around the guard (audit 2026-11 S-12)
+    http = http or netguard.client(timeout=TIMEOUT, follow_redirects=False, allow_private=_allow_private())
     try:
         r = http.post(hook.url, content=body, headers=headers)
         return r.status_code, "" if 200 <= r.status_code < 300 else f"HTTP {r.status_code}: {r.text[:200]}"

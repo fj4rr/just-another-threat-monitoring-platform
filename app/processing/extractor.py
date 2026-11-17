@@ -112,7 +112,10 @@ def _benign_domain(d: str) -> bool:
     d = d.lower().strip(".")
     if d.rsplit(".", 1)[-1] in FILE_EXT_TLDS:
         return True
-    return any(d == b or d.endswith("." + b) for b in BENIGN_DOMAINS)
+    # every parent of the name ("a.b.example.com" -> "b.example.com", "example.com", "com") is one set lookup,
+    # instead of an endswith() against all BENIGN_DOMAINS entries per domain (audit 2026-11 E-7)
+    labels = d.split(".")
+    return any(".".join(labels[i:]) in BENIGN_DOMAINS for i in range(len(labels)))
 
 
 def extract_iocs(text: str, *, strict: bool = True) -> list[Extracted]:
@@ -267,6 +270,42 @@ LEGIT_TOOLS = {
 }
 
 
+# Platforms and brands that name the channel, not the malware ("the Facebook malware campaign", "Instagram malware").
+PLATFORM_WORDS = {
+    "facebook", "instagram", "tiktok", "youtube", "whatsapp", "linkedin", "x", "twitter", "shopee", "tokopedia",
+    "lazada", "bukalapak", "gojek", "grab", "snapchat", "pinterest", "reddit", "threads", "wechat", "line",
+    "messenger", "playstore", "appstore", "steam", "roblox", "minecraft", "fortnite", "zoom", "skype", "viber",
+}
+
+
+def _place_words() -> set[str]:
+    """Country names and demonyms ("the Indonesian ransomware gang", "Vietnamese stealer"): never a family."""
+    from .. import gazetteer
+
+    out: set[str] = set()
+    for c in gazetteer.COUNTRIES.values():
+        for w in [c["name"], *c["aliases"], *c["demonyms"]]:
+            if " " not in w and "." not in w:
+                out.add(w.lower())
+    return out
+
+
+GENERIC_WORDS |= PLATFORM_WORDS | _place_words()
+
+
+def plausible_family(name: str) -> bool:
+    """A family name worth creating an entity for, by the same rules as the extractor: not a generic word,
+    a legitimate tool, a platform, a country or demonym, or an everyday word; 3–60 characters, not a number.
+    Used for names proposed by LLMs and providers too (audit 2026-11 D-14)."""
+    low = (name or "").strip().lower()
+    if not 3 <= len(low) <= 60 or low.isdigit():
+        return False
+    words = low.replace("-", " ").split()
+    if not words or all(w in GENERIC_WORDS or w in LEGIT_TOOLS for w in words):
+        return False
+    return not (len(words) == 1 and (low in knowledge.COMMON_WORDS or low in ID_GENERIC_WORDS))
+
+
 def _sentence_start(text: str, pos: int) -> bool:
     before = text[:pos].rstrip(" \t\"'“‘(")
     return not before or before[-1] in ".!?:\n|—–-"
@@ -355,7 +394,8 @@ def extract_all(text: str, *, strict: bool = True) -> list[Extracted]:
     known = extract_known_entities(text)
     names = {e.value for e in known if e.type == "malware"} | {e.display.lower() for e in known}
     families = extract_candidate_families(text, names)
-    if detect_language(text) == "id":
+    # mixed items (English headline, Indonesian body) often come out as "": run the Indonesian patterns too
+    if detect_language(text) in ("", "id"):
         have = names | {f.value for f in families}
         families += [f for f in extract_candidate_families_id(text, have) if f.value not in have]
     return known + families + extract_iocs(text, strict=strict)

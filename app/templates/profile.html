@@ -18,6 +18,13 @@
     {% endif %}
     <button class="btn primary">Save</button>
   </form>
+  {% if multi_user %}
+  <form method="post" action="/logout/everywhere" style="margin-top:12px" data-confirm="Sign out every other browser signed in as you?">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <button class="btn sm">Sign out other sessions</button>
+    <span class="muted small">Changing the password does this too.</span>
+  </form>
+  {% endif %}
 </div>
 
 <div class="card" id="api-keys">

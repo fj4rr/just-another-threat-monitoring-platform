@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import apikeys, jobs
-from ..auth import LOCAL_USER, ROLES, audit, hash_password, password_problems, require, verify_csrf
+from ..auth import LOCAL_USER, ROLES, audit, end_other_sessions, hash_password, password_problems, require, verify_csrf
 from ..config import DATA_DIR, is_multi_user
 from ..db import get_db
 from ..models import ApiKey, AuditLog, CollectorRun, Enrichment, Entity, Insight, Item, Source, User
@@ -91,6 +91,7 @@ def update_user(user_id: int, request: Request, action: str = Form(...), role: s
         if password_problems(password):
             return RedirectResponse(f"/admin?error={quote(password_problems(password))}", status_code=303)
         target.password_hash = hash_password(password)
+        end_other_sessions(request if target.id == user.id else None, target)
     elif action == "delete":
         if last_admin or target.id == user.id:
             return RedirectResponse("/admin?error=Cannot+delete+yourself+or+the+last+admin", status_code=303)

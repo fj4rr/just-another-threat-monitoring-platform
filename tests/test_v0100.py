@@ -33,7 +33,14 @@ def test_sector_detection():
     # sectors stated by the feed (ransomware.live victim sector, OTX industries)
     assert d("New victim: acme", "", feed_sector="Healthcare") == ["health"]
     assert set(sectors.feed_sectors(["Financial Services", "Telecommunication", "Not Found"])) == {"finance", "ict"}
-    assert len(d("Bank, hospital, airline, telecom and ministry all hit", "")) == sectors.MAX_SECTORS
+    many = d("Bank, hospital, airline, telecom and ministry all hit",
+             "The bank, the hospital, the airline, the telecom operator and the ministry confirmed it.")
+    assert len(many) == sectors.MAX_SECTORS
+    # audit 2026-11 D-9: one title word is no sector, and a scam victim's bank is not an attacked finance sector
+    assert d("Bank account scams rise in Jakarta", "") == []
+    assert d("Hospital food vendor hit by phishing", "") == []
+    assert d("Penipuan transfer bank", "Nasabah bank mentransfer ke rekening penipu.", scam=True) == []
+    assert d("Bank BSI dibobol ransomware", "Layanan perbankan nasabah lumpuh.", scam=True) == ["finance"]
 
 
 def test_sectors_on_ingest_and_breakdown(client):
@@ -89,7 +96,7 @@ def test_fraud_dashboard_and_nav(client):
         ingest(db, src, [RawItem(external_id="v0100-fraud-1",
                                  title="Waspada penipuan APK undangan pernikahan mengatasnamakan BCA",
                                  content="Korban kehilangan Rp 25 juta setelah memasang file APK undangan palsu. "
-                                         "Rekening nasabah bank dikuras.")])
+                                         "Pelaku membobol rekening nasabah bank.")])
     r = client.get("/fraud?days=30")
     assert r.status_code == 200
     assert "Scam &amp; fraud landscape" in r.text and 'id="c-scam-tl"' in r.text and 'data-kpi="reports"' in r.text

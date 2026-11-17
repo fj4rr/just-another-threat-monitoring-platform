@@ -35,6 +35,8 @@ class User(Base):
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # notifications created before this moment count as read for this user ("Mark all read")
     notif_read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # bumped on a password change or "sign out everywhere": session cookies carry it, older cookies stop working
+    session_version: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Setting(Base):
@@ -87,8 +89,8 @@ class Item(Base):
     content: Mapped[str] = mapped_column(Text, default="")
     tags: Mapped[list] = mapped_column(JSON, default=list)
     published_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-    collected_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-    severity: Mapped[int] = mapped_column(Integer, default=0)  # 0-100 heuristic
+    collected_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    severity: Mapped[int] = mapped_column(Integer, default=0, index=True)  # 0-100 heuristic
     # why the item scored what it did: [{"label": "zero-day", "points": 30}, ...]
     severity_detail: Mapped[list] = mapped_column(JSON, default=list)
     raw: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -105,11 +107,23 @@ class Item(Base):
     fraud_detail: Mapped[list] = mapped_column(JSON, default=list)
     fraud_loss_idr: Mapped[float] = mapped_column(Float, default=0.0)  # largest reported loss, in rupiah
     fraud_victims: Mapped[int] = mapped_column(Integer, default=0)  # largest reported victim count
+    # cross-source dedup (0.10.1): the same story syndicated to several outlets (Antara -> Republika, Okezone…)
+    # shares a fingerprint; copies point at the first item with ``dup_of`` and statistics count the story once
+    fingerprint: Mapped[str] = mapped_column(String(40), default="", index=True)
+    dup_of: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
 
     source: Mapped[Source] = relationship(lazy="joined")
     entity_links: Mapped[list[ItemEntity]] = relationship(
         back_populates="item", cascade="all, delete-orphan"
     )
+
+
+def with_links():
+    """Loader option for item lists whose template reads ``item.entity_links``: one extra query for the whole page
+    instead of one per item (audit 2026-11 E-2). ``ItemEntity.entity`` is joined in that same query."""
+    from sqlalchemy.orm import selectinload
+
+    return selectinload(Item.entity_links)
 
 
 class Entity(Base):
@@ -125,14 +139,14 @@ class Entity(Base):
     value: Mapped[str] = mapped_column(String(2048))  # normalized (lowercase etc.)
     display: Mapped[str] = mapped_column(String(2048), default="")
     category: Mapped[str] = mapped_column(String(32), default="")  # ransomware | stealer | rat ...
-    first_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-    last_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-    mention_count: Mapped[int] = mapped_column(Integer, default=0)
-    verdict: Mapped[str] = mapped_column(String(16), default="")  # malicious | suspicious | clean | unknown
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    mention_count: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    verdict: Mapped[str] = mapped_column(String(16), default="", index=True)  # malicious | suspicious | clean | unknown
     meta: Mapped[dict] = mapped_column(JSON, default=dict)
     llm_brief: Mapped[str] = mapped_column(Text, default="")
     llm_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    enriched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    enriched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     # infrastructure location of an IP (GeoIP / intel providers); never used as a target country
     country: Mapped[str] = mapped_column(String(2), default="", index=True)
 

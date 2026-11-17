@@ -8,7 +8,6 @@ or poll with ``since`` (ISO-8601, UTC) to fetch only what arrived after your las
 from __future__ import annotations
 
 import base64
-import csv
 import io
 from datetime import UTC, datetime, timedelta
 
@@ -18,10 +17,10 @@ from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse,
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from .. import __version__, apikeys, settings, sharing
+from .. import __version__, apikeys, csvsafe, settings, sharing
 from ..auth import LoginRequired, audit, current_user
 from ..db import get_db
-from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, ItemGeo, Source, User, utcnow
+from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, ItemGeo, Source, User, utcnow, with_links
 from ..processing import fraud, geo, trends
 from ..search import item_text_clause
 from ..web import render
@@ -174,7 +173,7 @@ def list_items(since: str | None = Query(None, description="Only items collected
     if cursor:
         stmt = stmt.where(Item.id < cursor if order == "desc" else Item.id > cursor)
     stmt = stmt.order_by(Item.id.desc() if order == "desc" else Item.id.asc()).limit(limit + 1)
-    rows, nxt = _page(db.execute(stmt).unique().scalars().all(), limit)
+    rows, nxt = _page(db.execute(stmt.options(with_links())).unique().scalars().all(), limit)
     targets = geo.targets_for(db, [i.id for i in rows])
     return {"data": [_item_dict(i, targets=targets.get(i.id)) for i in rows], "next_cursor": nxt}
 
@@ -211,7 +210,8 @@ def list_entities(type: str = Query(..., description=" | ".join(ENTITY_TYPES)),
 @router.get("/entities/{entity_id}", summary="One entity with related entities, indicators and recent items")
 def get_entity(entity_id: int, _: User = Depends(principal("read")), db: Session = Depends(get_db)):
     e = db.get(Entity, entity_id)
-    if not e:
+    # scammer identifiers (phone numbers, bank accounts...) are personal data and never leave JATMP
+    if not e or e.type in fraud.IDENT_TYPES:
         raise HTTPException(404, "entity not found")
     if e.type in trends.IOC_TYPES and not db.execute(
             select(Entity.id).where(Entity.id == e.id, sharing.shareable_entity_clause())).first():
@@ -370,7 +370,7 @@ def ioc_feed(fmt: str, request: Request,
                              "filters": {"type": types, "verdict": verdict, "family": family, "since_days": since_days,
                                          "min_confidence": min_confidence}, "data": rows}, headers=disp)
     buf = io.StringIO()
-    w = csv.writer(buf)
+    w = csvsafe.writer(buf)  # no formulas from feed text (audit 2026-11 S-5)
     w.writerow(["type", "value", "verdict", "confidence", "families", "first_seen", "last_seen", "mentions", "link"])
     for r in rows:
         w.writerow([r["type"], r["value"], r["verdict"], r["confidence"], ";".join(r["families"]), r["first_seen"],

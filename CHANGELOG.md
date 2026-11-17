@@ -2,6 +2,65 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.10.1
+
+Fixes from a security, data-processing and efficiency audit. Upgrade notes: [docs/upgrading.md](docs/upgrading.md).
+
+**Security**
+
+- The REST endpoint for a single entity (`/api/v1/entities/{id}`) returned scammer phone numbers and bank accounts;
+  identifiers now give 404 there too, like everywhere else they are never shared.
+- The stylesheet cleaner (0.10) could backtrack exponentially on crafted text and hang a collector thread for
+  hours. It now parses selectors without nested quantifiers and looks for rules from their declaration block, in
+  linear time.
+- **Outbound guard** for every request JATMP makes on its own (feeds, WordPress and Wayback backfill, RSS-Bridge,
+  providers, CVE intel, the AI, MISP, GeoIP, webhooks): only public addresses unless a host is allow-listed, checked
+  on every redirect hop, connecting to the checked address (no DNS rebinding), and bodies capped after
+  decompression (no memory exhaustion by a huge feed or a gzip bomb; the GeoIP unpacking is capped too).
+- CSV reports and the CSV IOC feed neutralise cells that a spreadsheet would run as a formula.
+- AI output is bounded: at most +20 severity, shown as *AI assessment*; new families from a single news item are
+  ignored until another source reports them; AI-proposed entities and tags carry an *AI* badge; tags are cleaned.
+- Manual enrichment, context lookups, deep dives and AI summaries are limited per user and minute and run once per
+  entity at a time; *Run now* on a source is ignored while that source runs.
+- First-run setup from another machine requires a one-time token from the log or `data/setup-token`.
+- API keys, the AI key and the Telegram session are stored encrypted (Fernet, key from `data/config.json`).
+- Changing a password, an admin resetting it, or the new *Sign out other sessions* button ends the user's other
+  sessions.
+- `requirements.lock` pins every dependency (Docker and CI install with it), CI runs `pip-audit`, Dependabot is on.
+- `/healthz` no longer reveals the version.
+
+**Data processing**
+
+- Scammer identifiers need a cue that names the scammer; a generic "hubungi nomor" next to a police station, branch
+  office or complaint line is not one. Crypto wallets must pass their checksum, and "alamat"/"address" no longer
+  count as a crypto cue.
+- Weak scam phrases need a scam word nearby, and a malware article with one passing scam sentence is no longer a
+  scam report. A brand that issues the warning is not counted as impersonated.
+- "Rp 2,5 T" and "Rp 5 M" are read as trillions and billions of rupiah.
+- Families and actors that are everyday words (Bitter, Patchwork, Pegasus, Oyster, Interlock…) need a qualifier;
+  actors now follow the same rule. Demonyms and platform names ("the Indonesian ransomware gang", "Facebook
+  malware") are no new family, a guessed family scores less than a known one, and it only trends once two sources
+  name it. Intel-feed tags name families only on intel sources and never as everyday words.
+- Family names from providers and the AI pass the extractor's filters; Indonesian patterns also run on mixed-
+  language items.
+- A sector needs more than one word in the title (unless the headline is about an attack on that one sector), and
+  "bank", "rekening", "nasabah" in a scam report are the victim's bank, not an attacked finance sector.
+- Syndicated copies of a story from other outlets are marked as such: trending, spread velocity and the executive
+  summary count the story once.
+- "critical" only scores next to a vulnerability ("critical flaw"), not in "critical infrastructure".
+- Long entry ids (URLs with tracking parameters) are hashed instead of cut at 500 characters, so they no longer
+  collide. Re-scoring passes each link's origin, so a heuristic family scores the same as at ingest.
+
+**Efficiency**
+
+- Indexes on `items.collected_at`, `items.severity` and the `entities` columns used for sorting and filtering.
+- Item lists load their entities in one query per page instead of one per item.
+- Trending lists are cached for 45 seconds and refreshed when new items arrive.
+- AI auto-summaries run in a job of their own with a 5-minute limit instead of inside collector runs.
+- *Re-score* and `manage.py reextract` work in chunks; `reextract` now also rebuilds sectors and intel-tag families.
+- PostgreSQL gets a full-text index for search instead of scanning every item's text.
+- Benign-domain checks look up each parent domain instead of scanning the whole list.
+
 ## 0.10.0
 
 - **Two dashboards.** The sidebar now opens with *Dashboard → Cyber threats* (the former dashboard) and

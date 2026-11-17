@@ -13,6 +13,8 @@ import logging
 import secrets
 import threading
 import traceback
+from collections import deque
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -324,27 +326,52 @@ def _after_ingest(db, new_ids: list[int]) -> None:
         run_now(run_misp_autopush, list(new_ids))
 
 
+# Auto-summaries run in their own single job, never inside a collector run: a slow model used to hold a collector
+# worker for up to 10 × 600 s (audit 2026-11 E-4). New ids wait in a bounded queue; one drain job works them off.
+_summary_queue: deque[int] = deque(maxlen=200)
+_summary_lock = threading.Lock()
+AUTO_SUMMARY_MAX_PER_RUN = 10
+
+
 def _maybe_auto_summarize(item_ids: list[int]) -> None:
     from .llm import client
 
     if not item_ids or not settings.get("llm_auto_summarize") or not client.is_configured():
         return
+    with _summary_lock:
+        _summary_queue.extend(item_ids)
+    try:
+        scheduler.add_job(run_auto_summaries, "date", run_date=_now() + timedelta(seconds=2), id="auto_summarize",
+                          replace_existing=True, max_instances=1, coalesce=True)
+    except Exception as e:  # scheduler not running (CLI): skip, the analyst can summarise by hand
+        log.debug("auto-summarize not scheduled: %s", e)
+
+
+def run_auto_summaries() -> str:
     from .llm.insights import summarize_item
 
     db = SessionLocal()
+    done = 0
     try:
-        for iid in item_ids[:10]:
-            item = db.get(Item, iid)
-            if item and item.severity >= 40 and not item.llm_summary:
-                try:
-                    summarize_item(db, item)
-                    db.commit()
-                except Exception as e:
-                    db.rollback()
-                    log.warning("auto-summarize failed: %s", e)
+        while done < AUTO_SUMMARY_MAX_PER_RUN:
+            with _summary_lock:
+                if not _summary_queue:
                     break
+                iid = _summary_queue.popleft()
+            item = db.get(Item, iid)
+            if not item or item.severity < 40 or item.llm_summary or item.dup_of:
+                continue
+            try:
+                summarize_item(db, item)
+                db.commit()
+                done += 1
+            except Exception as e:
+                db.rollback()
+                log.warning("auto-summarize failed: %s", e)
+                break  # the model is down or slow: do not try the whole queue against it
     finally:
         db.close()
+    return f"summarised {done} item(s)"
 
 
 # --------------------------------------------------------------------------- enrichment
@@ -516,6 +543,43 @@ def run_fraudtag(force: bool = False) -> str:
         db.close()
 
 
+DEDUP_VERSION = 1  # 1 (0.10.1): cross-source fingerprints (pipeline.fingerprint)
+
+
+def run_dedup(force: bool = False) -> str:
+    """Fingerprint the articles stored before cross-source dedup existed and mark syndicated copies, oldest first,
+    so the first outlet to publish a story stays the original. Runs once after an upgrade."""
+    from .processing.pipeline import find_original, fingerprint
+
+    if not force and int(settings.get("dedup_version") or 0) >= DEDUP_VERSION:
+        return "dedup fingerprints are up to date"
+    db = SessionLocal()
+    try:
+        ids = [i for (i,) in db.execute(select(Item.id).where(Item.kind == "article")
+                                        .order_by(Item.published_at, Item.id))]
+        dups = 0
+        for n in range(0, len(ids), 500):
+            items = {i.id: i for i in db.execute(select(Item).where(Item.id.in_(ids[n:n + 500]))).unique().scalars()}
+            for item_id in ids[n:n + 500]:  # keep the chronological order inside the chunk
+                item = items.get(item_id)
+                if item is None:
+                    continue
+                item.fingerprint = fingerprint(item.title, item.content)
+                db.flush()
+                item.dup_of = find_original(db, item)
+                dups += bool(item.dup_of)
+            db.commit()
+            db.expunge_all()
+        settings.set("dedup_version", DEDUP_VERSION)
+        return f"fingerprinted {len(ids)} article(s), {dups} syndicated cop{'y' if dups == 1 else 'ies'}"
+    except Exception as e:
+        db.rollback()
+        log.warning("dedup failed: %s", e)
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
 CONTENT_VERSION = 1  # 1 (0.10): stylesheet text printed into WordPress posts (pipeline.strip_css)
 
 
@@ -542,7 +606,7 @@ def run_content_cleanup(force: bool = False) -> str:
                 item.content = clean
                 fraud.retag_item(db, item)
                 keep = set(sectors.detect(item.title, f"{clean}\n{' '.join(item.tags or [])}",
-                                          sectors._feed_value(item.raw)))
+                                          sectors._feed_value(item.raw), scam=bool(item.fraud_score)))
                 for link in list(item.entity_links):
                     if link.entity.type == "sector" and link.entity.value not in keep:
                         link.entity.mention_count = max(0, (link.entity.mention_count or 0) - 1)
@@ -611,6 +675,13 @@ def run_geoip_update() -> str:
     return msg
 
 
+@dataclass(frozen=True)
+class _Scored:
+    """What score_item needs of a linked entity: its type and the origin of the link."""
+    type: str
+    origin: str
+
+
 def run_rescore() -> str:
     """Recompute the severity of every item with the current scoring rules, using the
     entities already linked to it (no re-extraction, no network)."""
@@ -621,21 +692,27 @@ def run_rescore() -> str:
     run = _start_run(db, "rescore")
     n = 0
     try:
-        for item in db.execute(select(Item)).scalars():
-            ents = [link.entity for link in item.entity_links]
-            score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}", ents, item.kind)
-            detail = reasons_to_json(reasons)
-            # keep the enrichment feedback that was applied to the old score
-            confirmed = max((VERDICT_BONUS.get(e.verdict or "", 0) for e in ents), default=0)
-            if confirmed:
-                best = max(ents, key=lambda e: VERDICT_BONUS.get(e.verdict or "", 0))
-                detail.append({"label": f"indicator confirmed {best.verdict} ({best.type})", "points": confirmed})
-                score = min(100, score + confirmed)
-            item.severity, item.severity_detail = score, detail
-            n += 1
-            if n % 500 == 0:
-                db.commit()
-        db.commit()
+        # chunks of 500 (a big install does not fit in memory at once), and each entity scored with the origin of
+        # its link, exactly as at ingest: a heuristic family must not score like a known one (audit 2026-11 D-12)
+        ids = [i for (i,) in db.execute(select(Item.id).order_by(Item.id))]
+        for c in range(0, len(ids), 500):
+            for item in db.execute(select(Item).where(Item.id.in_(ids[c:c + 500]))).unique().scalars():
+                ents = [link.entity for link in item.entity_links]
+                scored = [_Scored(link.entity.type, link.origin or "") for link in item.entity_links]
+                score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}", scored,
+                                            item.kind)
+                detail = reasons_to_json(reasons)
+                # keep the enrichment feedback that was applied to the old score
+                confirmed = max((VERDICT_BONUS.get(e.verdict or "", 0) for e in ents), default=0)
+                if confirmed:
+                    best = max(ents, key=lambda e: VERDICT_BONUS.get(e.verdict or "", 0))
+                    detail.append({"label": f"indicator confirmed {best.verdict} ({best.type})", "points": confirmed})
+                    score = min(100, score + confirmed)
+                item.severity, item.severity_detail = score, detail
+                n += 1
+            db.commit()
+            db.expunge_all()  # keep memory flat; the run row is loaded again below
+        run = db.get(CollectorRun, run.id)
         _finish(db, run, "ok", f"re-scored {n} item(s)")
         notify.notify(db, "success", "Re-scoring finished", f"{n} item(s) re-scored with the current rules", "/feed",
                       key=f"rescore:{run.id}")
@@ -643,6 +720,7 @@ def run_rescore() -> str:
         return f"re-scored {n} item(s)"
     except Exception as e:
         db.rollback()
+        run = db.get(CollectorRun, run.id) or run  # may have been expunged with a chunk
         _finish(db, run, "error", str(e))
         return f"error: {e}"
     finally:
@@ -913,6 +991,8 @@ def start() -> None:
     # stored text that predates a cleaning rule (0.10: CSS printed into posts), before the re-analysis below
     scheduler.add_job(run_content_cleanup, "date", run_date=_now() + timedelta(seconds=15), id="content_cleanup",
                       replace_existing=True)
+    # cross-source dedup fingerprints of stored articles (0.10.1)
+    scheduler.add_job(run_dedup, "date", run_date=_now() + timedelta(seconds=30), id="dedup", replace_existing=True)
     # and for the critical infrastructure sectors (0.10)
     scheduler.add_job(run_sectortag, "date", run_date=_now() + timedelta(seconds=60), id="sectortag",
                       replace_existing=True)

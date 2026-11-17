@@ -56,9 +56,12 @@ def resolve_family(label: str) -> tuple[str, str] | None:
     hit = canonical_malware(label)
     if hit:
         return hit
+    from .extractor import GENERIC_WORDS, LEGIT_TOOLS
+
     for tok in re.split(r"[./,:\s_\-]+", label.lower()):
-        # short / ambiguous tokens ("play", "hook", "fog") only count when they ARE the label
-        if len(tok) < 4 or tok in AMBIGUOUS or tok in {
+        # short / ambiguous tokens ("play", "hook", "fog") only count when they ARE the label; generic words,
+        # legitimate tools, platforms and demonyms never (the extractor's filters, audit 2026-11 D-14)
+        if len(tok) < 4 or tok in AMBIGUOUS or tok in GENERIC_WORDS or tok in LEGIT_TOOLS or tok in {
                 "trojan", "generic", "malware", "win32", "win64", "msil", "agent", "stealer", "ransom",
                 "backdoor", "downloader", "dropper", "heur", "variant", "family", "riskware", "adware",
                 "pua", "pup", "hacktool", "packed", "suspicious", "malicious", "virus", "worm", "script",

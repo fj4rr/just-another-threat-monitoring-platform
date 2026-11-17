@@ -281,13 +281,47 @@ def actor_table() -> dict[str, list[str]]:
     return table
 
 
-# Short/common words that are also family names: require a qualifier nearby.
+# Everyday English / Indonesian words that are also the name of a family or an actor. Such a name only counts
+# next to a qualifier ("Pegasus spyware", "the Bitter APT group"), never on its own: "a bitter dispute over the
+# patchwork of state laws" names no actor and "Pegasus airline booking" no spyware (audit 2026-11 D-5). The check
+# is by word, so families and actors added in knowledge_extra.json get the same treatment.
+_COMMON_WORDS = """
+    agenda akira alpha amber angel anchor apex arrow atlas aurora avalanche badger banshee bear beacon bee bitter
+    blackout blade blaze blizzard bloom bolt bravo brick broomstick bumblebee butterfly canary carbon cascade chaos
+    cheetah chimera cipher cobalt comet condor coral cosmos crane cricket crow crystal cyclone dagger delta diamond
+    dragon eagle echo eclipse elephant elfin ember embargo emerald enigma falcon fang ferret flame fog fortress fox
+    frost galaxy gecko ghost giant glacier godfather gold golem gorilla granite gravity griffin halo
+    harbor harvest havoc hawk hellcat helium hermit hive hook horizon hornet hunter hunters hurricane hydra
+    icarus inferno interlock iron jackal jaguar jester joker karma kitten koala kraken lantern legion
+    leopard lightning lion lizard lotus lynx magnet mammoth mantis marble mars matrix medusa mercury meteor
+    mirage mirai monarch moon mosquito mustang mythic nebula needle neptune nexus night ninja nomad
+    nova oasis octo octopus omega onyx oracle orbit orchid oyster panda panther paradox patchwork pegasus
+    pelican phantom phoenix phosphorus pirate play pluto polar predator prism prophet puma pulse python
+    quasar quartz radar raccoon raptor rattlesnake raven razor rebel redline reaper rhino rocket rogue
+    ruby sabre safepay saturn scarab scorpion sentinel serpent shadow shark sidewinder silver siren skull
+    sliver snake snowflake solar spark sparrow spectre sphinx spider spirit storm sunburst swan tempest thor
+    thunder tiger titan tornado trident triton tsunami typhoon unicorn vampire vector venom viper volcano
+    vortex vulture warlock wasp whisper wolf wolverine yeti zeus zephyr
+    agen api badai bayangan elang hantu harimau naga ombak petir rajawali serigala ular
+"""
+COMMON_WORDS = frozenset(_COMMON_WORDS.split())
+# Short or common words that are also family names: require a qualifier nearby (the curated list predates
+# COMMON_WORDS and keeps names that are no dictionary word but still collide, "conti", "vidar", "emotet").
 AMBIGUOUS = {
     "play", "hook", "octo", "snake", "chaos", "fog", "embargo", "medusa", "beacon", "havoc",
     "mythic", "sliver", "kraken", "predator", "hook android", "lynx", "quasar", "raccoon",
     "banshee", "vidar", "agenda", "warlock", "conti", "cerberus", "emotet", "brat", "spark",
-}
-QUALIFIERS = r"(?:ransomware|stealer|malware|rat|loader|botnet|trojan|backdoor|infostealer|gang|group|operators?|affiliates?|c2|implant|payload|variant|strain|banking|campaign)"
+} | COMMON_WORDS
+QUALIFIERS = r"(?:ransomware|stealer|malware|rat|loader|botnet|trojan|backdoor|infostealer|spyware|wiper|worm|rootkit|dropper|keylogger|miner|gang|group|operators?|affiliates?|c2|implant|payload|variant|strain|banking|campaign|samples?|infections?)"
+ACTOR_QUALIFIERS = (r"(?:apt|group|threat (?:actor|group)|actors?|hackers?|hacking (?:group|team|crew)|gang|crew|"
+                    r"operators?|espionage|cyber[\s-]?espionage|state[\s-](?:sponsored|backed)|nation[\s-]state|"
+                    r"campaigns?|intrusion set|kelompok|grup|peretas|aktor)")
+
+
+def ambiguous(term: str) -> bool:
+    """A family / actor name that is also an everyday word (or too short to stand alone)."""
+    low = (term or "").strip().lower()
+    return low in AMBIGUOUS or len(low) <= 4
 
 
 @lru_cache(maxsize=1)
@@ -308,7 +342,17 @@ def compiled_patterns() -> list[tuple[str, str, str, re.Pattern]]:
     for name, aliases in actor_table().items():
         for term in {name.lower(), *[a.lower() for a in aliases]}:
             esc = re.escape(term).replace(r"\ ", r"[\s\-_]?")
-            out.append(("actor", name, "", re.compile(rf"(?<![\w-]){esc}(?![\w-])", re.I)))
+            if term in AMBIGUOUS:
+                # capitalised, with a qualifier within two words: "Bitter APT", "the Lazarus Group",
+                # "APT group Patchwork", "threat actor known as Sidewinder"
+                cap = rf"(?-i:{re.escape(term[0].upper())}){re.escape(term[1:])}"
+                pat = re.compile(
+                    rf"(?<![\w-]){cap}(?![\w-])[\s\-]+(?:\w+\s+){{0,2}}?{ACTOR_QUALIFIERS}\b|"
+                    rf"\b{ACTOR_QUALIFIERS}[\s\-]+(?:\w+\s+){{0,2}}?(?:(?:called|named|dubbed|known as|bernama)\s+)?"
+                    rf"{cap}(?![\w-])", re.I)
+            else:
+                pat = re.compile(rf"(?<![\w-]){esc}(?![\w-])", re.I)
+            out.append(("actor", name, "", pat))
     return out
 
 
@@ -325,6 +369,24 @@ def _alias_index() -> dict[str, tuple[str, str]]:
         for key in (canon.lower(), canon.lower().replace(" ", ""), *aliases):
             idx.setdefault(key, (canon, cat))
     return idx
+
+
+@lru_cache(maxsize=1)
+def _actor_index() -> dict[str, str]:
+    idx: dict[str, str] = {}
+    for canon, aliases in actor_table().items():
+        for key in (canon.lower(), canon.lower().replace(" ", ""), *aliases):
+            idx.setdefault(key, canon)
+    return idx
+
+
+def canonical_actor(name: str) -> str | None:
+    """Map a free-text actor label (from an LLM or a provider) to the canonical actor name."""
+    low = (name or "").strip().lower()
+    if not low:
+        return None
+    idx = _actor_index()
+    return idx.get(low) or idx.get(low.replace(" ", ""))
 
 
 def canonical_malware(name: str) -> tuple[str, str] | None:

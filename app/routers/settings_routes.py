@@ -90,6 +90,12 @@ async def save_values(request: Request, user: User = Depends(require("admin")), 
         if settings.get(key) != val:
             settings.set(key, val)
             changed.append(key)
+    if group == "llm" and settings.get("llm_mode") == "local":
+        # a local model server is private on purpose: allow exactly that host for the outbound guard
+        from .. import netguard
+
+        if netguard.allow_host(str(settings.get("llm_base_url") or "")):
+            changed.append("outbound_private_hosts")
     audit(db, user, "settings_changed", ", ".join(changed), request)
     db.commit()
     if "enrichment_interval" in changed and jobs.scheduler.running:
