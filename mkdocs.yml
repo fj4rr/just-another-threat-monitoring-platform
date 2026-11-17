@@ -95,7 +95,11 @@ nav:
       - Reporting and AI: reporting-and-ai.md
       - History and storage: history-and-storage.md
       - Screenshots: screenshots.md
+  - Developer guide:
+      - Development: development.md
+      - Architecture: architecture.md
+      - Data model: data-model.md
+      - Extending JATMP: extending.md
   - Reference:
       - Security: security.md
-      - Development and architecture: development.md
       - Changelog: changelog.md
