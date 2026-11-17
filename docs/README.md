@@ -2,6 +2,24 @@
 
 [← Project README](../README.md)
 
+JATMP is a self-hosted platform for monitoring cyber threats and online fraud as they emerge. It reads security
+news, social media, threat-intelligence platforms and scam and fraud sources, and keeps track of:
+
+- **Cyber threats**: malware and ransomware families and their campaigns, threat actors, vulnerabilities (with
+  CISA KEV, EPSS and CVSS context), ATT&CK techniques and indicators of compromise, checked against intel
+  providers. → [Analysis](analysis.md)
+- **Scams and fraud**: scam types such as investment and loan fraud, phishing, malicious APKs and crypto drainers,
+  impersonated banks, e-wallets and government bodies, scammer identifiers and reported losses.
+  → [Scams and fraud](fraud.md)
+- **Critical infrastructure**: the sectors each item concerns, following Indonesia's Perpres 82/2022.
+  → [Analysis](analysis.md#critical-infrastructure-sectors)
+- **Geography**: target, source and hosting countries, Indonesian provinces, and an International / National
+  (Indonesia) view across the whole interface. → [Geography and Indonesia](geography.md)
+
+Everything runs through one pipeline and one entity graph, so a scam report links to the malware it installs and a
+ransomware campaign to the CVEs it exploits. Two dashboards show the result, one for cyber threats and one for
+scams and fraud, and the data can be shared out through the REST API, STIX / TAXII, IOC feeds, webhooks and MISP.
+
 ## Setting up
 
 | Page | What it covers |
@@ -25,10 +43,21 @@
 | [History and storage](history-and-storage.md) | Historical backfill, retention tiers, full-text search, PostgreSQL |
 | [Screenshots](screenshots.md) | A tour of the interface |
 
+## Developer guide
+
+Start with *Development* to get a working environment, read *Architecture* once, and keep *Extending JATMP* open
+while you change things.
+
+| Page | What it covers |
+|---|---|
+| [Development](development.md) | Setting up, running locally on throw-away data, conventions, the test suite and its fixtures, CI, dependencies and the lock file, the documentation site, the release checklist, troubleshooting |
+| [Architecture](architecture.md) | Process model, start-up sequence, request lifecycle, the path from a feed to the database, background jobs and versioned re-analysis, outbound HTTP, caches, database and migrations, front end, module map |
+| [Data model](data-model.md) | Every table, the columns that need explaining, entity types and link origins, invariants the code relies on, settings storage and `config.json` |
+| [Extending JATMP](extending.md) | Recipes: a collector, an enrichment provider, a setting, detection rules, a re-analysis job, a page, a UI action, the REST API, a column; outbound requests; a security checklist |
+
 ## Reference
 
 | Page | What it covers |
 |---|---|
-| [Security](security.md) | CSP, sessions, untrusted content, API keys, webhooks, deployment advice |
-| [Development and architecture](development.md) | Running lint and tests, and how the code is organised |
+| [Security](security.md) | CSP, sessions, untrusted content, outbound requests, API keys, webhooks, deployment advice |
 | [Changelog](../CHANGELOG.md) | Every release and what changed |
