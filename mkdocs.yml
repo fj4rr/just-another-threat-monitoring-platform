@@ -1,5 +1,5 @@
 site_name: JATMP
-site_description: Just Another Threat Monitoring Platform – self-hosted cyber threat and scam monitoring
+site_description: Just Another Threat Monitoring Platform – self-hosted cyber threat and online fraud monitoring
 site_url: https://fj4rr.github.io/just-another-threat-monitoring-platform/
 repo_url: https://github.com/fj4rr/just-another-threat-monitoring-platform
 repo_name: fj4rr/just-another-threat-monitoring-platform
@@ -95,7 +95,11 @@ nav:
       - Reporting and AI: reporting-and-ai.md
       - History and storage: history-and-storage.md
       - Screenshots: screenshots.md
+  - Developer guide:
+      - Development: development.md
+      - Architecture: architecture.md
+      - Data model: data-model.md
+      - Extending JATMP: extending.md
   - Reference:
       - Security: security.md
-      - Development and architecture: development.md
       - Changelog: changelog.md

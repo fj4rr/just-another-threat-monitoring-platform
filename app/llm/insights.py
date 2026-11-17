@@ -18,9 +18,11 @@ from . import client
 
 SYSTEM = (
     "You are a senior cyber threat intelligence analyst supporting a SOC. You write concise, "
-    "factual, defender-oriented analysis for monitoring malware campaigns. Base every claim on "
-    "the supplied source material; say so when information is missing instead of guessing. "
-    "Never invent IOCs. Focus on detection and mitigation value."
+    "factual, defender-oriented analysis for monitoring cyber threats and online fraud: malware "
+    "and ransomware campaigns, threat actors, exploited vulnerabilities, attacks on critical "
+    "infrastructure and scams aimed at the public. Base every claim on the supplied source "
+    "material; say so when information is missing instead of guessing. Never invent IOCs or "
+    "scammer identifiers. Focus on detection, mitigation and, for scams, prevention value."
 )
 
 

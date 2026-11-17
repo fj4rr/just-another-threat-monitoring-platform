@@ -5,13 +5,18 @@
 
 📖 **Documentation: [fj4rr.github.io/just-another-threat-monitoring-platform](https://fj4rr.github.io/just-another-threat-monitoring-platform/)**
 
-JATMP is a self-hosted platform for keeping track of new and emerging malware campaigns and scams. It collects
-**security news**, **social media** (X, Bluesky, Mastodon, Telegram) and **threat-intelligence platforms**,
-extracts the malware families, actors, CVEs and indicators in each item, checks the indicators against intel
-providers, correlates everything across sources and shows the result on a trend dashboard. Scam reports get a
-dashboard of their own on the same entity graph, and items are sorted into critical infrastructure
-sectors. Every item is placed on the map, and the whole interface switches between an
-International and a National (Indonesia) view.
+JATMP is a self-hosted platform for monitoring cyber threats and online fraud as they emerge. It follows
+**malware and ransomware campaigns**, **threat actors**, **vulnerabilities** and their exploitation,
+**indicators of compromise**, attacks on **critical infrastructure sectors**, and the **scams** aimed at the
+public: investment and loan fraud, phishing and malicious APKs, and impersonated banks, e-wallets and government
+bodies.
+
+It collects **security news**, **social media** (X, Bluesky, Mastodon, Telegram), **threat-intelligence
+platforms** and **scam and fraud sources**, extracts the threats, actors, CVEs, indicators, scam types and
+impersonated brands in each item, checks the indicators against intel providers and correlates everything on one
+entity graph across sources. Two dashboards show the result, one for cyber threats and one for scams and fraud.
+Every item is tagged with the sectors it concerns and placed on the map, and the whole interface switches between
+an International and a National (Indonesia) view.
 
 It runs as a single process with SQLite by default. There is no JavaScript build step and nothing is loaded from
 a CDN at runtime, so it works on an isolated network.
@@ -72,7 +77,8 @@ before exposing the port to a network. See [Getting started](https://fj4rr.githu
 |---|---|
 | **Set up** | [Getting started](https://fj4rr.github.io/just-another-threat-monitoring-platform/getting-started/) · [Configuration](https://fj4rr.github.io/just-another-threat-monitoring-platform/configuration/) · [Upgrading](https://fj4rr.github.io/just-another-threat-monitoring-platform/upgrading/) · [Maintenance commands](https://fj4rr.github.io/just-another-threat-monitoring-platform/maintenance/) |
 | **Use** | [Sources](https://fj4rr.github.io/just-another-threat-monitoring-platform/sources/) · [Using JATMP](https://fj4rr.github.io/just-another-threat-monitoring-platform/using-jatmp/) · [Analysis](https://fj4rr.github.io/just-another-threat-monitoring-platform/analysis/) · [Geography](https://fj4rr.github.io/just-another-threat-monitoring-platform/geography/) · [Scams and fraud](https://fj4rr.github.io/just-another-threat-monitoring-platform/fraud/) · [Integrations](https://fj4rr.github.io/just-another-threat-monitoring-platform/integrations/) · [Reporting and AI](https://fj4rr.github.io/just-another-threat-monitoring-platform/reporting-and-ai/) · [History and storage](https://fj4rr.github.io/just-another-threat-monitoring-platform/history-and-storage/) |
-| **Reference** | [Security](https://fj4rr.github.io/just-another-threat-monitoring-platform/security/) · [Development and architecture](https://fj4rr.github.io/just-another-threat-monitoring-platform/development/) · [Changelog](https://fj4rr.github.io/just-another-threat-monitoring-platform/changelog/) |
+| **Develop** | [Development](https://fj4rr.github.io/just-another-threat-monitoring-platform/development/) · [Architecture](https://fj4rr.github.io/just-another-threat-monitoring-platform/architecture/) · [Data model](https://fj4rr.github.io/just-another-threat-monitoring-platform/data-model/) · [Extending JATMP](https://fj4rr.github.io/just-another-threat-monitoring-platform/extending/) |
+| **Reference** | [Security](https://fj4rr.github.io/just-another-threat-monitoring-platform/security/) · [Changelog](https://fj4rr.github.io/just-another-threat-monitoring-platform/changelog/) |
 
 The site is built with MkDocs from the Markdown in [`docs/`](docs/); to read it offline, run
 `pip install -r requirements-docs.txt` and `mkdocs serve`.
