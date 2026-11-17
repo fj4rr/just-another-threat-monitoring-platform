@@ -2,6 +2,24 @@
 
 [← Project README](../README.md)
 
+JATMP is a self-hosted platform for monitoring cyber threats and online fraud as they emerge. It reads security
+news, social media, threat-intelligence platforms and scam and fraud sources, and keeps track of:
+
+- **Cyber threats**: malware and ransomware families and their campaigns, threat actors, vulnerabilities (with
+  CISA KEV, EPSS and CVSS context), ATT&CK techniques and indicators of compromise, checked against intel
+  providers. → [Analysis](analysis.md)
+- **Scams and fraud**: scam types such as investment and loan fraud, phishing, malicious APKs and crypto drainers,
+  impersonated banks, e-wallets and government bodies, scammer identifiers and reported losses.
+  → [Scams and fraud](fraud.md)
+- **Critical infrastructure**: the sectors each item concerns, following Indonesia's Perpres 82/2022.
+  → [Analysis](analysis.md#critical-infrastructure-sectors)
+- **Geography**: target, source and hosting countries, Indonesian provinces, and an International / National
+  (Indonesia) view across the whole interface. → [Geography and Indonesia](geography.md)
+
+Everything runs through one pipeline and one entity graph, so a scam report links to the malware it installs and a
+ransomware campaign to the CVEs it exploits. Two dashboards show the result, one for cyber threats and one for
+scams and fraud, and the data can be shared out through the REST API, STIX / TAXII, IOC feeds, webhooks and MISP.
+
 ## Setting up
 
 | Page | What it covers |
