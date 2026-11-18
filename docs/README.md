@@ -43,6 +43,23 @@ scams and fraud, and the data can be shared out through the REST API, STIX / TAX
 | [History and storage](history-and-storage.md) | Historical backfill, retention tiers, full-text search, PostgreSQL |
 | [Screenshots](screenshots.md) | A tour of the interface |
 
+## How it works
+
+What happens behind the screens, step by step, with the rules and numbers JATMP uses. Start with the overview: it
+follows one article from the feed to the dashboard.
+
+| Page | What it covers |
+|---|---|
+| [How JATMP works](how-it-works/index.md) | The five stages, one article followed end to end, the scheduler's day, where each number comes from, key terms |
+| [Collection](how-it-works/collection.md) | Scheduling, what one run of each collector fetches, topic filters, run outcomes and notifications, manual batches, backfill |
+| [Ingest and analysis](how-it-works/processing.md) | Duplicates, cleaning, syndicated copies, entity extraction, sectors, linking, blocklist verdicts, geography and the National view |
+| [Severity scoring](how-it-works/scoring.md) | Every signal and weight, dampeners, worked examples, enrichment and AI adjustments, re-scoring |
+| [Enrichment and verdicts](how-it-works/enrichment.md) | Which indicators are looked up when, providers, gaps and budgets, the consensus rules, family links, CVE intel |
+| [Trends and correlation](how-it-works/trends.md) | Counting rules, periods and baselines, the trend score, CVE priority, related items, the graph |
+| [AI processing](how-it-works/ai.md) | Item summaries and their guardrails, auto-summaries, briefs, the executive summary, questions, what is sent |
+| [Sharing and delivery](how-it-works/sharing.md) | TLP, redistribution and personal-data rules, webhook events, signing and retries, MISP push |
+| [Housekeeping and re-analysis](how-it-works/housekeeping.md) | The nightly clean-up, retention, identifier pruning, versioned re-analysis, restarts |
+
 ## Developer guide
 
 Start with *Development* to get a working environment, read *Architecture* once, and keep *Extending JATMP* open

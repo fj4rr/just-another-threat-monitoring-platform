@@ -5,7 +5,8 @@
 This page explains how JATMP is put together: the process model, what happens on start-up and on every request,
 how an item travels from a feed into the database, how background jobs work, and where each concern lives in the
 code. The tables and columns are described in [Data model](data-model.md); step-by-step recipes for common
-changes are in [Extending JATMP](extending.md).
+changes are in [Extending JATMP](extending.md). The behaviour of each process — the exact rules, weights,
+thresholds and timings — is described in [How it works](how-it-works/index.md).
 
 ## The big picture
 

@@ -2,6 +2,21 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## Unreleased
+
+**Documentation**
+
+- New section **How it works** ([docs/how-it-works/](docs/how-it-works/index.md)) that explains every process
+  behind the platform with the rules and numbers it uses: an overview that follows one article from the feed to
+  the dashboard (with real scores from the code), the scheduler's day and where each number comes from; then
+  [Collection](docs/how-it-works/collection.md), [Ingest and analysis](docs/how-it-works/processing.md),
+  [Severity scoring](docs/how-it-works/scoring.md), [Enrichment and verdicts](docs/how-it-works/enrichment.md),
+  [Trends and correlation](docs/how-it-works/trends.md), [AI processing](docs/how-it-works/ai.md),
+  [Sharing and delivery](docs/how-it-works/sharing.md) and
+  [Housekeeping and re-analysis](docs/how-it-works/housekeeping.md).
+- Data model: syndicated copies are counted once by trend scores, scam spread and the executive summary, not by
+  the dashboard item counts (the page said "statistics").
+
 ## 0.10.1
 
 Fixes from a security, data-processing and efficiency audit. Upgrade notes: [docs/upgrading.md](docs/upgrading.md).

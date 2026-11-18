@@ -95,6 +95,16 @@ nav:
       - Reporting and AI: reporting-and-ai.md
       - History and storage: history-and-storage.md
       - Screenshots: screenshots.md
+  - How it works:
+      - how-it-works/index.md
+      - Collection: how-it-works/collection.md
+      - Ingest and analysis: how-it-works/processing.md
+      - Severity scoring: how-it-works/scoring.md
+      - Enrichment and verdicts: how-it-works/enrichment.md
+      - Trends and correlation: how-it-works/trends.md
+      - AI processing: how-it-works/ai.md
+      - Sharing and delivery: how-it-works/sharing.md
+      - Housekeeping and re-analysis: how-it-works/housekeeping.md
   - Developer guide:
       - Development: development.md
       - Architecture: architecture.md

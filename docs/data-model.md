@@ -53,7 +53,7 @@ One collected article, post, pulse, scan or analysis. Unique on `(source_id, ext
 | `slimmed_at` | Set when the retention tier trimmed the text. |
 | `lang`, `src_country` | Detected language (`en`, `id`, `""`) and the outlet's country. |
 | `fraud_score`, `fraud_detail`, `fraud_loss_idr`, `fraud_victims` | Scam analysis. **`fraud_score > 0` is the definition of a scam report** everywhere (pages, statistics, API). |
-| `fingerprint`, `dup_of` | Cross-source dedup for articles. `dup_of` points at the original item (always an original, never another copy); statistics count `coalesce(dup_of, id)`. |
+| `fingerprint`, `dup_of` | Cross-source dedup for articles. `dup_of` points at the original item (always an original, never another copy); trend scores, scam spread velocity and the AI digest count `coalesce(dup_of, id)`, the dashboard item counts do not (see [Counting rules](how-it-works/trends.md#counting-rules)). |
 | `llm_summary`, `llm_at` | AI summary in Markdown. |
 
 `Item.source` is loaded with a join; `Item.entity_links` is loaded lazily, so list pages use

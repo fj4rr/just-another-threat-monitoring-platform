@@ -2,7 +2,10 @@
 
 [← Documentation index](README.md)
 
-How JATMP turns collected items into entities, scores, verdicts, correlations and trends.
+How JATMP turns collected items into entities, scores, verdicts, correlations and trends. This page is the
+overview; the exact rules, weights and formulas are in [How it works](how-it-works/index.md), in particular
+[Severity scoring](how-it-works/scoring.md), [Enrichment and verdicts](how-it-works/enrichment.md) and
+[Trends and correlation](how-it-works/trends.md).
 
 ## Entity extraction
 
