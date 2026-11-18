@@ -6,7 +6,7 @@
 {% set q = '&days=' ~ days %}
 <div class="page-head">
   <div><h1>Geography</h1>
-    <p class="muted">Where reported activity takes place ({{ s.tagged }} of {{ s.total }} items name a target country){% if days %}, last {{ days }} days{% else %}, all time{% endif %}
+    <p class="muted">Where reported activity takes place ({{ s.tagged }} of {{ s.total }} stories name a target country; a story that several outlets carry counts once){% if days %}, last {{ days }} days{% else %}, all time{% endif %}
       {% if region == 'id' %}· <span class="region-note">National view: Indonesia</span>{% endif %}</p></div>
   <form method="get" class="row" aria-label="Period">
     <select name="days" data-autosubmit aria-label="Period">
@@ -32,20 +32,20 @@
 <div class="geo-grid even">
   <div class="card">
     <div class="card-head"><h2>Target countries</h2><span class="muted small">victims and places of activity · click to open the feed</span></div>
-    <div class="geomap" data-map="world" data-values="v-world" data-link="/feed?country={code}{{ q }}" data-unit="items" aria-label="World map of target countries by number of items">
+    <div class="geomap" data-map="world" data-values="v-world" data-link="/feed?country={code}{{ q }}" data-unit="stories" aria-label="World map of target countries by number of stories">
       <div class="geo-loading muted small">Loading map…</div></div>
     <script type="application/json" id="v-world">{{ s.world_values|tojson }}</script>
   </div>
   <div class="card">
     <div class="card-head"><h2>Most targeted</h2><span class="muted small">{{ s.targets|length }} countries · with the families and actors named</span></div>
-    <div class="list-fill">{{ geolist(s.targets, '/feed?country={code}' ~ q, country_name, limit=250) }}</div>
+    <div class="list-fill">{{ geolist(s.targets, '/feed?country={code}' ~ q, country_name, limit=250, unit='stories') }}</div>
   </div>
 </div>
 
 <div class="geo-grid even" style="margin-top:16px">
   <div class="card">
     <div class="card-head"><h2>Indonesia by province</h2><span class="muted small">provinces, cities and regional institutions named in the items</span></div>
-    <div class="geomap warm" data-map="indonesia" data-values="v-id" data-link="/feed?province={code}{{ q }}" data-unit="items" aria-label="Map of Indonesian provinces by number of items">
+    <div class="geomap warm" data-map="indonesia" data-values="v-id" data-link="/feed?province={code}{{ q }}" data-unit="stories" aria-label="Map of Indonesian provinces by number of stories">
       <div class="geo-loading muted small">Loading map…</div></div>
     <script type="application/json" id="v-id">{{ s.id_values|tojson }}</script>
     <p class="muted small" style="margin:8px 0 0">The public-domain outlines predate Kalimantan Utara and the four Papua provinces created in 2022;
@@ -53,7 +53,7 @@
   </div>
   <div class="card">
     <div class="card-head"><h2>Provinces</h2><a class="small" href="/feed?country=ID{{ q }}">all Indonesian items →</a></div>
-    <div class="list-fill">{{ geolist(s.provinces, '/feed?province={code}' ~ q, province_name, warm=true, limit=38) }}</div>
+    <div class="list-fill">{{ geolist(s.provinces, '/feed?province={code}' ~ q, province_name, warm=true, limit=38, unit='stories') }}</div>
   </div>
 </div>
 

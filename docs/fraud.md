@@ -49,6 +49,9 @@ Phone numbers and bank accounts are personal data under Indonesia's Personal Dat
   housekeeping (`fraud_identifier_days`; crypto wallets are not personal data and stay).
 - Identifiers **never leave JATMP**: they are left out of the REST API, the IOC feeds, STIX / TAXII, webhooks
   (also for watched identifiers) and MISP pushes.
+- Item text sent to a **cloud** AI model has phone numbers, bank accounts, e-wallets, e-mail addresses and long ID
+  numbers replaced with placeholders first, whether or not they were extracted (setting *Personal data in
+  prompts*, Settings → AI).
 - Extraction can be turned off entirely (*Extract scammer phone numbers…* under Settings → Scam & fraud).
 
 Bank accounts link to [cekrekening.id](https://cekrekening.id/home) and wallets to a block explorer so an analyst can

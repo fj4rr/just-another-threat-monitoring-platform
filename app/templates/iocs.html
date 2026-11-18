@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import verdict, th, pager, period_select, quota_panel %}
+{% from "_macros.html" import verdict, th, pager, period_select, quota_panel, queue_line, enrichment_panel %}
 {% block title %}IOCs{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Indicators of compromise</h1>
@@ -9,10 +9,10 @@
   {% if user.role in ('admin','analyst') %}<div class="job">
     <button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…" data-job-button="enrich">⇄ Run enrichment batch</button>
     <div class="job-status small muted" data-job-status="enrich" aria-live="polite"></div></div>{% endif %}</div>
-{% if quota %}<details class="card quota-strip"{% if quota|selectattr('exhausted')|list %} open{% endif %}>
-  <summary class="small"><b>Provider quota today</b> <span class="muted">· {% for q in quota %}{{ q.label }} {{ q.used }}/{{ q.limit or '∞' }}{{ ' · ' if not loop.last }}{% endfor %}</span></summary>
-  <div style="margin-top:10px">{{ quota_panel(quota) }}</div>
-  {% if user.role == 'admin' %}<p class="muted small" style="margin:8px 0 0">Budgets are set under <a href="/settings?tab=enrichment">Settings → Enrichment</a>.</p>{% endif %}
+{% if queue %}<details class="card quota-strip"{% if quota|selectattr('exhausted')|list or queue.behind %} open{% endif %}>
+  <summary class="small"><b>Enrichment</b> <span class="muted">· {{ queue_line(queue) }}{% if quota %} · quota {% for q in quota %}{{ q.label }} {{ q.used }}/{{ q.limit or '∞' }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}</span></summary>
+  <div style="margin-top:10px">{{ enrichment_panel(queue, quota, pace) }}</div>
+  {% if user.role == 'admin' %}<p class="muted small" style="margin:8px 0 0">Batch size, interval and budgets are set under <a href="/settings?tab=enrichment">Settings → Enrichment</a>.</p>{% endif %}
 </details>{% endif %}
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search value" aria-label="Search IOC value" maxlength="200">
@@ -49,7 +49,7 @@
         <div class="sub small">{% if ss %}<span class="muted">seen in</span> {% for name, cat in ss[:3] %}<span class="badge cat-{{ cat }}" title="{{ name }}">{{ name|truncate(26, True) }}</span> {% endfor %}{% if ss|length > 3 %}<span class="muted" title="{{ ss[3:]|map(attribute=0)|join(', ') }}">+{{ ss|length - 3 }}</span>{% endif %}{% else %}<span class="muted">no direct mentions</span>{% endif %}</div>
         {% if fams %}<div class="ent-row">{% for fid, name in fams.items() %}<a class="chip" href="/entities/{{ fid }}" data-preview="/entities/{{ fid }}/preview"><span class="t">malware</span>{{ name }}</a>{% endfor %}</div>{% endif %}
       </td>
-      <td class="col-narrow">{{ verdict(e.verdict if e.enriched_at else '') }}</td>
+      <td class="col-narrow">{{ verdict(e.verdict if e.enriched_at else '', e.verdict_at or e.enriched_at) }}{% if verdict_stale(e) %}<div class="small warn-text" title="Verdict older than the feed limit: left out of the export feeds until confirmed again">aged</div>{% endif %}</td>
       <td class="num col-narrow">{{ e.mention_count }}</td>
       <td class="col-time muted small" title="{{ e.first_seen }} UTC">{{ e.first_seen.strftime('%Y-%m-%d') }}</td>
       <td class="col-time muted small" title="{{ e.last_seen }} UTC">{{ e.last_seen|timeago }}</td></tr>

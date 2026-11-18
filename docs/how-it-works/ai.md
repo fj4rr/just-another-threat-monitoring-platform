@@ -126,6 +126,16 @@ nothing. Answers are stored as insights of kind `answer` and deleted after 90 da
 
 With a **Local** model (Ollama, LM Studio, llama.cpp, vLLM…) the prompts stay on your infrastructure. With a
 **Cloud** provider, the prompts above — item titles and text, entity names, enrichment summaries, statistics — are
-sent to that provider. Item text can contain personal data (scammer phone numbers quoted in a news article, for
-instance), so choose a local model when that must not leave your network. Requests go through the same outbound
-guard as everything else (see [Security](../security.md)).
+sent to that provider. Requests go through the same outbound guard as everything else (see
+[Security](../security.md)).
+
+**Personal data is redacted first** (`llm/redact.py`, UU PDP data minimisation). Item text can quote scammers'
+and victims' phone numbers, bank accounts and e-mail addresses. Before a prompt goes to a cloud model, every
+phone and e-wallet number, every account number named as such ("rekening BCA …"), every run of 10 to 18 digits
+(NIK, card and account numbers) and every e-mail address is replaced with a placeholder that stays the same for
+the same value in one prompt: `[phone 1]`, `[account 1]`, `[number 1]`, `[email 1]`. Amounts written with
+separators ("Rp 1.500.000"), IPs, domains, hashes, CVE ids and crypto wallets stay; they are what the analysis is
+about. The setting *Personal data in prompts* (`llm_redact`, Settings → AI) is `cloud` by default: redact when the
+model is Anthropic or an OpenAI-compatible / Ollama server on a public host name; loopback, private addresses and
+single-label or `.local` / `.internal` names count as local. `always` and `never` do what they say. Summaries
+of redacted items mention the placeholders, not the numbers.

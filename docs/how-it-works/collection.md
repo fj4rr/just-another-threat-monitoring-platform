@@ -72,6 +72,24 @@ what changed since the previous run.
 An error while fetching or storing rolls back what the run stored, so a source either contributes a consistent
 batch or nothing. The next scheduled run tries again.
 
+## Source health
+
+A source can fail quietly: a feed that moved returns an empty page, a blocked client gets a 200 with nothing in
+it, and every run is `ok` with zero new items. `app/sourcehealth.py` looks at each source's live items and its
+last 30 days of run history, and the Sources tab shows the result next to each source:
+
+| Figure | How |
+|---|---|
+| Last new item | The latest live item it collected (backfills do not count) |
+| This week · usual | Live items of the last 7 days, against the weekly average of the 4 weeks before; *below usual* under a third of it |
+| Usual gap | The median time between its runs that brought something new; needs at least 3 such gaps |
+| Failing for | Since the first failed run of the current streak |
+| Summary only | Its news items average fewer than **400** characters of text: the feed carries summaries only, so extraction and severity have little to work with |
+
+Every hour `jobs.run_source_health` raises a notification, once per source, condition and day, when a source is
+**quiet** (no new item for **3** times its usual gap, and at least 12 hours) or has been **failing for 24 hours**.
+The Sources tab lists the sources that need attention above the table.
+
 ## What one run fetches
 
 Each scheduled run asks the provider for its *current* list; entries already stored are skipped at ingest, so

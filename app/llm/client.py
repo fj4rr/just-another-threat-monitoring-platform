@@ -45,6 +45,13 @@ def complete(system: str, prompt: str, max_tokens: int = 4000) -> str:
     p = provider()
     if p == "none":
         raise LLMNotConfigured("No LLM provider configured (Settings → AI)")
+    from . import redact
+
+    if redact.enabled():  # personal data never goes to a cloud model (setting llm_redact; PM review, item 14)
+        r = redact.Redactor()
+        system, prompt = r(system), r(prompt)
+        if r.count:
+            log.info("redacted %d personal data value(s) from the AI prompt", r.count)
     if p == "ollama":
         return _ollama(system, prompt, max_tokens)
     if p == "openai_compatible":

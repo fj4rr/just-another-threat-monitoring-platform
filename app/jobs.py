@@ -710,10 +710,27 @@ class _Scored:
     origin: str
 
 
-def run_rescore() -> str:
+def run_rescore_if_outdated() -> str:
+    """Re-score every stored item once after the severity rules changed (``severity.RULES_VERSION``)."""
+    from .processing.severity import RULES_VERSION
+
+    if int(settings.get("severity_version") or 0) >= RULES_VERSION:
+        return "severity scores are up to date"
+    db = SessionLocal()
+    try:
+        empty = db.execute(select(Item.id).limit(1)).first() is None
+    finally:
+        db.close()
+    if empty:  # a fresh install: nothing to re-score, and no notification about it
+        settings.set("severity_version", RULES_VERSION)
+        return "no items yet"
+    return run_rescore(reason="the severity rules changed")
+
+
+def run_rescore(reason: str = "") -> str:
     """Recompute the severity of every item with the current scoring rules, using the
     entities already linked to it (no re-extraction, no network)."""
-    from .processing.severity import carry_over, reasons_to_json, score_item
+    from .processing.severity import RULES_VERSION, carry_over, reasons_to_json, score_item
 
     db = SessionLocal()
     run = _start_run(db, "rescore")
@@ -736,9 +753,11 @@ def run_rescore() -> str:
             db.expunge_all()  # keep memory flat; the run row is loaded again below
         run = db.get(CollectorRun, run.id)
         _finish(db, run, "ok", f"re-scored {n} item(s)")
-        notify.notify(db, "success", "Re-scoring finished", f"{n} item(s) re-scored with the current rules", "/feed",
-                      key=f"rescore:{run.id}")
+        notify.notify(db, "success", "Re-scoring finished",
+                      f"{n} item(s) re-scored with the current rules" + (f" ({reason})" if reason else "")
+                      + "; enrichment bonuses and AI assessments were kept", "/feed", key=f"rescore:{run.id}")
         db.commit()
+        settings.set("severity_version", RULES_VERSION)  # every stored item now uses the current rules
         return f"re-scored {n} item(s)"
     except Exception as e:
         db.rollback()
@@ -767,6 +786,23 @@ def run_context_lookup(entity_id: int) -> str:
     except Exception as e:
         db.rollback()
         log.warning("context lookup %s failed: %s", entity_id, e)
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
+def run_source_health() -> str:
+    """Hourly: notify about sources that went quiet or keep failing (app/sourcehealth.py)."""
+    from . import sourcehealth
+
+    db = SessionLocal()
+    try:
+        n = sourcehealth.check(db)
+        db.commit()
+        return f"{n} source health notification(s)"
+    except Exception as e:
+        db.rollback()
+        log.warning("source health check failed: %s", e)
         return f"error: {e}"
     finally:
         db.close()
@@ -1037,6 +1073,8 @@ def start() -> None:
     scheduler.add_job(run_cve_intel, "interval", hours=6, id="cve_intel",
                       next_run_time=_now() + timedelta(minutes=3), replace_existing=True)
     scheduler.add_job(run_webhooks, "interval", seconds=30, id="webhooks", replace_existing=True)
+    scheduler.add_job(run_source_health, "interval", hours=1, id="source_health",
+                      next_run_time=_now() + timedelta(minutes=15), replace_existing=True)
     schedule_daily_jobs()
     # one-off geo attribution of existing items after an upgrade (no-op when up to date)
     scheduler.add_job(run_geotag, "date", run_date=_now() + timedelta(seconds=20), id="geotag", replace_existing=True)
@@ -1050,6 +1088,9 @@ def start() -> None:
     scheduler.add_job(run_dedup, "date", run_date=_now() + timedelta(seconds=30), id="dedup", replace_existing=True)
     # and for the critical infrastructure sectors (0.10)
     scheduler.add_job(run_sectortag, "date", run_date=_now() + timedelta(seconds=60), id="sectortag",
+                      replace_existing=True)
+    # and the severity scores, after the analyses above have settled the entities they read (0.12)
+    scheduler.add_job(run_rescore_if_outdated, "date", run_date=_now() + timedelta(seconds=90), id="rescore_rules",
                       replace_existing=True)
     if settings.get("geoip_auto_update"):
         scheduler.add_job(run_geoip_update, "cron", day=5, hour=4, minute=0, id="geoip_update", replace_existing=True)

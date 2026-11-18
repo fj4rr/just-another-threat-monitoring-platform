@@ -217,7 +217,8 @@ def test_quota_status_and_warnings(client):
             n = db.execute(select(Notification).where(Notification.key == f"quota:greynoise:{today}")).scalars().all()
             assert len(n) == 1 and "GreyNoise" in n[0].title
         assert "GreyNoise" in client.get("/settings?tab=enrichment").text
-        assert "Provider quota today" in client.get("/iocs").text
+        page = client.get("/iocs").text
+        assert "<b>Enrichment</b>" in page and "GreyNoise 40/40" in page
     finally:
         for k in ("greynoise_api_key", "_budget_greynoise", "_budget_abuseipdb"):
             settings.set(k, None if k.startswith("_") else "")

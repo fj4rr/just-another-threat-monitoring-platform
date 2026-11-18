@@ -74,6 +74,7 @@ so several analyses carry a **rules version**:
 | `run_dedup` | 30 s | `jobs.DEDUP_VERSION` → `dedup_version` | Fingerprints of every article, oldest first, so the first outlet to publish a story stays the original |
 | `run_fraudtag` | 40 s | `fraud.RULES_VERSION` → `fraud_version` | Scam types, brands, identifiers, losses, victims and fraud score of every item, oldest first (so the *spreading* check sees earlier reports) |
 | `run_sectortag` | 60 s | `sectors.RULES_VERSION` → `sector_version` | Critical infrastructure sectors of every item |
+| `run_rescore_if_outdated` | 90 s | `severity.RULES_VERSION` → `severity_version` | Severity of every item from its text and linked entities, keeping the enrichment bonus and the last AI assessment (as *Re-score all items*); last, so it sees the entities the jobs above settled |
 
 They work through the items in chunks of 500 (200 for the content clean-up), commit per chunk and show progress
 in the job status. The staggered start keeps them from competing with each other and with the first collection
@@ -82,8 +83,9 @@ and `sectortag`, and the geography and scam re-analysis also from the UI (Settin
 scam & fraud dashboard), which ends with a notification. The content clean-up and dedup jobs only run after an
 upgrade.
 
-**Not versioned: entity extraction and severity.** Re-extracting would rebuild every link, which is expensive and
-changes counts that analysts may rely on, so it only happens on request:
+**Not versioned: entity extraction.** Re-extracting would rebuild every link, which is expensive and changes
+counts that analysts may rely on, so it only happens on request. Severity is versioned since 0.12 (above) and can
+also be recomputed by hand:
 
 | Tool | Does | Notes |
 |---|---|---|

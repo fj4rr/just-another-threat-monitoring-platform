@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import quota_panel %}
+{% from "_macros.html" import quota_panel, queue_line, enrichment_panel %}
 {% block title %}Settings{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Settings</h1><p class="muted">Sources, API keys, enrichment and LLM. Values set through environment variables are locked here.</p></div></div>
@@ -60,6 +60,8 @@
   };
   tlpSel.addEventListener("change", tlpSync); tlpSync();
 </script>
+{% set needs = [] %}{% for s in sources %}{% set h = (health or {}).get(s.id) %}{% if h and (h.quiet or h.failing_long) %}{% set _ = needs.append(s.name) %}{% endif %}{% endfor %}
+{% if needs %}<div class="alert small" style="margin-bottom:12px"><b>{{ needs|length }} source(s) need attention:</b> {{ needs|join(', ') }}. A source is <em>quiet</em> when it has brought nothing new for {{ 3 }}× its usual gap, and flagged when it has failed for 24 hours; JATMP also raises a notification once a day for each.</div>{% endif %}
 <div class="card table-wrap" style="margin-bottom:16px">
   <div class="card-head"><h2>Sources ({{ sources|length }})</h2>
     <div class="row">
@@ -80,11 +82,16 @@
         {% if s.redistribute == false or (s.redistribute is none and s.kind in ('anyrun','ransomwarelive')) %}<span class="badge" title="Never shared through the API, exports, webhooks or MISP">not shared</span>{% endif %}
         <div class="muted small mono" style="word-break:break-all">{% for k, v in (s.config or {}).items() if k not in ('user_id','since_id','account_id') %}{{ k }}={{ v }} {% endfor %}</div></td>
       <td>{{ s.kind }}</td>
+      {% set h = (health or {}).get(s.id) %}
       <td>{% if not s.enabled %}<span class="muted">disabled</span>{% else %}<span class="status-dot {{ s.last_status }}"></span>{{ s.last_status }}{% endif %}
+        {% if h and h.failing_for %}<div class="small {{ 'warn-text' if h.failing_long else 'muted' }}">failing for {{ h.failing_for }}</div>{% endif %}
+        {% if h and h.quiet %}<span class="badge warn" title="No new item for {{ h.silent }}; it usually brings something every {{ h.usual_gap_text }}">quiet {{ h.silent }}</span>{% endif %}
+        {% if h and h.state == 'low' %}<span class="badge" title="Fewer than a third of its usual weekly items this week">below usual</span>{% endif %}
+        {% if h and h.summary_only %}<span class="badge" title="Its items average {{ h.avg_text }} characters of text: the feed carries summaries only, so extraction and severity see little">summary only</span>{% endif %}
         {% if s.last_error %}<div class="muted small" title="{{ s.last_error }}">{{ s.last_error|truncate(80) }}</div>{% endif %}</td>
-      <td class="num">{{ s.items_count }}</td>
+      <td class="num">{{ s.items_count }}{% if h %}<div class="small muted" title="Live items collected in the last 7 days; usual = weekly average of the 4 weeks before">{{ h.week }} this week{% if h.usual_week %} · usual {{ h.usual_week|round|int }}{% endif %}</div>{% endif %}</td>
       <td>{{ s.interval_minutes }}m</td>
-      <td class="muted small" title="{{ s.last_run or '' }}">{{ s.last_run|timeago }}</td>
+      <td class="muted small" title="{{ s.last_run or '' }}">{{ s.last_run|timeago }}{% if h and h.last_new %}<div title="Latest live item from this source{% if h.usual_gap_text %}; usually one every {{ h.usual_gap_text }}{% endif %}">new: {{ h.last_new|timeago }}</div>{% endif %}</td>
       <td class="actions">
         <button class="btn sm" data-post="/api/sources/{{ s.id }}/run" data-busy="…" title="Run this collector now">Run</button>
         <form method="post" action="/settings/sources/{{ s.id }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf }}">
@@ -142,7 +149,7 @@
       <label><input type="radio" name="llm_mode" value="local" {{ 'checked' if ai.mode == 'local' }} {{ 'disabled' if lock.llm_provider }}> <strong>Local</strong>
         <div class="muted small">Runs on this machine or your LAN (Ollama, LM Studio…). Free and private; needs enough RAM/GPU.</div></label>
       <label><input type="radio" name="llm_mode" value="cloud" {{ 'checked' if ai.mode == 'cloud' }} {{ 'disabled' if lock.llm_provider }}> <strong>Cloud</strong>
-        <div class="muted small">A hosted API (Anthropic, OpenAI, OpenRouter…). Needs an API key; article text is sent to the provider.</div></label>
+        <div class="muted small">A hosted API (Anthropic, OpenAI, OpenRouter…). Needs an API key; article text is sent to the provider, with personal data redacted first.</div></label>
     </div>
 
     <div data-mode-section="local" hidden>
@@ -182,8 +189,12 @@
       </details>
       <h3>What the AI should do</h3>
       <div class="field"><label class="check"><input type="checkbox" name="llm_auto_extract" {{ 'checked' if ai.vals.llm_auto_extract }}> Discover malware families that are not in the knowledge base yet</label></div>
-      <div class="field"><label class="check"><input type="checkbox" name="llm_daily_digest" {{ 'checked' if ai.vals.llm_daily_digest }}> Write a daily executive summary (06:00 UTC)</label></div>
+      <div class="field"><label class="check"><input type="checkbox" name="llm_daily_digest" {{ 'checked' if ai.vals.llm_daily_digest }}> Write a daily executive summary (at the time set under General, default 06:00 UTC)</label></div>
       <div class="field"><label class="check"><input type="checkbox" name="llm_auto_summarize" {{ 'checked' if ai.vals.llm_auto_summarize }}> Summarise new high-severity items automatically <span class="muted">(uses more tokens)</span></label></div>
+      <div class="field"><label for="llm-redact" title="UU PDP data minimisation. Placeholders keep values apart ([phone 1], [account 2]); crypto wallets, IPs, domains and hashes are kept">Personal data in prompts</label>
+        <select id="llm-redact" name="llm_redact">
+          {% for v, l in [('cloud', 'Redact when the AI runs in the cloud (recommended)'), ('always', 'Always redact'), ('never', 'Never redact')] %}<option value="{{ v }}" {{ 'selected' if (ai.vals.llm_redact or 'cloud') == v }}>{{ l }}</option>{% endfor %}</select>
+        <div class="muted small">Phone numbers, bank accounts, e-wallets, e-mail addresses and long ID numbers in item text are replaced with placeholders before the prompt is sent.</div></div>
       <div class="field"><label for="llm-lang">Language for AI output</label><input id="llm-lang" type="text" name="llm_language" value="{{ ai.vals.llm_language or 'English' }}" placeholder="English, Bahasa Indonesia, Deutsch…"></div>
     </div>
 
@@ -357,8 +368,10 @@ document.addEventListener("DOMContentLoaded", () => {
     · next housekeeping: <b>{{ next_runs.housekeeping.strftime('%Y-%m-%d %H:%M %Z') if next_runs and next_runs.housekeeping else 'not scheduled' }}</b>.
     The summary covers the 24 hours before it runs. Times on the pages stay in UTC.</div>
   {% elif tab == 'enrichment' %}
-  <div style="margin-top:18px"><h3>Quota used today</h3>
-    {% if quota %}{{ quota_panel(quota) }}
+  <div style="margin-top:18px"><h3>Queue</h3>
+    <p class="small" style="margin:0 0 10px">{{ queue_line(queue) }}</p>
+    <h3>Quota used today</h3>
+    {% if quota %}{{ enrichment_panel(queue, quota, pace) }}
     <p class="muted small" style="margin:10px 0 0">Lookups counted against each daily budget above (context providers share the context budget, counted per provider). When a budget is used up, a notification is raised once that day and the provider is skipped until midnight (server time); the other providers keep working.</p>
     {% else %}<p class="muted small">No provider with a daily budget is configured. Keys are entered under <a href="?tab=intel">Threat-intel APIs</a>.</p>{% endif %}</div>
   {% elif tab == 'sharing' %}

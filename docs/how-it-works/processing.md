@@ -85,9 +85,9 @@ and never at another copy). Items in the same batch are checked against each oth
 
 Copies are stored like any other item. The feed hides them unless *Show copies* is ticked (the page says how
 many it left out), a *copy* badge marks them where they are listed, and the item page and preview say
-"Copy of *original*" on a copy and "Also carried by *N* other outlets" on the original. Trend scores, the scam
-*spreading* check and the AI executive summary count `coalesce(dup_of, id)`, so the story counts once there; item
-counts on the dashboard tiles and charts include copies (see
+"Copy of *original*" on a copy and "Also carried by *N* other outlets" on the original. Every count of stories
+(dashboards, trend scores, scam spread, the executive summary, reports) counts `coalesce(dup_of, id)`, so the story
+counts once; only per-outlet figures such as *Items per source* count the copies (see
 [Counting rules](trends.md#counting-rules)). Posts, pulses and scans are not fingerprinted.
 
 ## 4. Entity extraction

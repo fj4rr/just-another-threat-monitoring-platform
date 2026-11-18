@@ -137,6 +137,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge.good { color: var(--text-primary); border-color: var(--good); }
 .badge.good::before { content: "✓"; color: var(--good); }
 .badge.new { border-color: var(--accent); color: var(--text-primary); }
+.warn-text { color: var(--warning); }
 .dup-note { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; overflow-wrap: anywhere; }
 .badge.cat-news::before, .badge.cat-social::before, .badge.cat-intel::before { content: ""; width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 .badge.cat-news::before { background: var(--series-1); }

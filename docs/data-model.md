@@ -53,7 +53,7 @@ One collected article, post, pulse, scan or analysis. Unique on `(source_id, ext
 | `slimmed_at` | Set when the retention tier trimmed the text. |
 | `lang`, `src_country` | Detected language (`en`, `id`, `""`) and the outlet's country. |
 | `fraud_score`, `fraud_detail`, `fraud_loss_idr`, `fraud_victims` | Scam analysis. **`fraud_score > 0` is the definition of a scam report** everywhere (pages, statistics, API). |
-| `fingerprint`, `dup_of` | Cross-source dedup for articles. `dup_of` points at the original item (always an original, never another copy); trend scores, scam spread velocity and the AI digest count `coalesce(dup_of, id)`, the dashboard item counts do not (see [Counting rules](how-it-works/trends.md#counting-rules)). The feed hides copies unless *Show copies* is ticked. |
+| `fingerprint`, `dup_of` | Cross-source dedup for articles. `dup_of` points at the original item (always an original, never another copy); every count of stories (dashboards, trends, reports) counts `coalesce(dup_of, id)` once; only per-outlet figures count items (see [Counting rules](how-it-works/trends.md#counting-rules)). The feed hides copies unless *Show copies* is ticked. |
 | `llm_summary`, `llm_at` | AI summary in Markdown. |
 
 `Item.source` is loaded with a join; `Item.entity_links` is loaded lazily, so list pages use
@@ -68,7 +68,7 @@ Anything tracked across items. Unique on `(type, value)`; `value` is normalised 
 |---|---|
 | `malware`, `actor` | From the knowledge base, a pattern, a feed, a provider or the AI. `category` is the malware category or actor kind. |
 | `cve`, `technique` | CVE ids and MITRE ATT&CK technique ids. CVE intel (KEV, EPSS, CVSS) is in `meta`. |
-| `ip`, `domain`, `url`, `md5`, `sha1`, `sha256` | Indicators (`trends.IOC_TYPES`). `verdict` and `enriched_at` come from enrichment; `country` is the hosting country of an IP, never a target. |
+| `ip`, `domain`, `url`, `md5`, `sha1`, `sha256` | Indicators (`trends.IOC_TYPES`). `verdict` and `enriched_at` come from enrichment; `verdict_at` (0.12) is when the verdict was last given or confirmed (IPs, domains and URLs age, see [Verdicts that age](how-it-works/enrichment.md#verdicts-that-age)); `country` is the hosting country of an IP, never a target. |
 | `scam_type`, `brand` | Fraud taxonomy (`fraud.NAMED_TYPES`). |
 | `phone`, `bank_account`, `ewallet`, `crypto_wallet` | Scammer identifiers (`fraud.IDENT_TYPES`): personal data, **never** returned by the API, feeds, STIX / TAXII, webhooks or MISP; phones, accounts and e-wallets are deleted after `fraud_identifier_days` without mentions. |
 | `sector` | Critical infrastructure sector key (`sectors.SECTOR_KEYS`). |

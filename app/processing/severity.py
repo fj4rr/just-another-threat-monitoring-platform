@@ -23,6 +23,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+# Bump when the terms, weights or dampeners change: stored items are then re-scored once at start-up
+# (jobs.run_rescore_if_outdated), keeping their enrichment bonus and AI assessment (carry_over), so old and new
+# items are scored by the same rules before trends compare them (PM review 2026-11, item 4).
+# 1 (0.12): first versioned rules (the 0.10.1 rules were never applied to older items automatically)
+RULES_VERSION = 1
+
 # Signal groups: (group label, [(regex, weight, short reason)]). Order is cosmetic.
 GROUPS: list[tuple[str, list[tuple[str, int, str]]]] = [
     ("exploitation", [

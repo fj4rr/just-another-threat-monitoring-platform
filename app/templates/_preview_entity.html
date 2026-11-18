@@ -1,11 +1,11 @@
 {# Side-preview fragment for an entity (family, actor, CVE, technique or IOC). #}
-{% from "_macros.html" import verdict, dchip, cve_badges %}
+{% from "_macros.html" import verdict, verdict_age, dchip, cve_badges %}
 {% set m = ent.meta or {} %}
 <div data-preview-meta data-kind="{{ ent.type|upper if ent.type in ('cve','ip','url','md5','sha1','sha256') else ent.type|capitalize }}" data-full="/entities/{{ ent.id }}" data-title="{{ ent.display }}">
   <div class="pv-meta">
     <span class="badge">{{ ent.type }}</span>
     {% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
-    {% if is_ident %}<span class="badge warn">scammer identifier</span>{% elif is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
+    {% if is_ident %}<span class="badge warn">scammer identifier</span>{% elif is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '', ent.verdict_at or ent.enriched_at) }} {{ verdict_age(ent) }}{% endif %}
     {% if ent.type == 'cve' %}{{ cve_badges(m) }}{% endif %}
     {% if trend and trend.is_new %}<span class="badge new">new</span>{% endif %}
   </div>

@@ -62,3 +62,21 @@ def status() -> list[dict]:
             "exhausted": bool(limit and used >= limit), "configured": name in configured,
         })
     return out
+
+
+def pace(rows: list[dict] | None = None) -> list[dict]:
+    """How long each enrichment budget lasts at the current batch and interval, and the batch that would spread it
+    over the whole day (PM review 2026-11, item 11). Assumes every indicator in a batch goes to the provider, which
+    is true for VirusTotal and an upper bound for the IP-only providers."""
+    rows = rows if rows is not None else status()
+    interval = max(2, int(settings.get("enrichment_interval") or 10))
+    batch = max(1, int(settings.get("enrichment_batch") or 8))
+    runs_per_day = 1440 // interval
+    out = []
+    for q in rows:
+        if q["group"] != "enrichment" or not q["limit"] or not q["configured"]:
+            continue
+        hours = q["limit"] / batch * interval / 60
+        out.append({**q, "lasts_hours": round(hours, 1), "all_day": hours >= 24,
+                    "spread_batch": max(1, q["limit"] // runs_per_day)})
+    return out

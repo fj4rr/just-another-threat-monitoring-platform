@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from app import jobs, settings
+from app import jobs, settings, sourcehealth
 from app.processing import enrichment, pipeline, severity
 
 DOCS = Path(__file__).resolve().parent.parent / "docs" / "how-it-works"
@@ -58,6 +58,24 @@ CHECKS = [
                       r"hours\*\* ago, or came back \*\*unknown\*\* more than \*\*(\d+) days\*\*",
      (enrichment.RECHECK_MAX_AGE.days, int(enrichment.RECHECK_ERROR_AFTER.total_seconds() // 3600),
       enrichment.RECHECK_UNKNOWN_AFTER.days)),
+    # verdicts that age (0.12)
+    ("enrichment.md", r"older than \*\*`verdict_recheck_days`\*\* \(default (\d+)\) and that were mentioned in the "
+                      r"last \*\*(\d+) days\*\*", (_default("verdict_recheck_days"), enrichment.STALE_RECHECK_SEEN.days)),
+    ("enrichment.md", r"whose verdict is older than \*\*(\d+) days\*\* and that was mentioned in the last (\d+) days",
+     (_default("verdict_recheck_days"), enrichment.STALE_RECHECK_SEEN.days)),
+    ("enrichment.md", r"Once the verdict is older than \*\*(\d+) days\*\*", _default("verdict_feed_days")),
+    ("enrichment.md", r"`valid_until` = verdict date \+ (\d+) days", _default("verdict_feed_days")),
+    ("sharing.md", r"`verdict_feed_days` \((\d+) by default\)", _default("verdict_feed_days")),
+    # source health (0.12)
+    ("collection.md", r"fewer than \*\*(\d+)\*\* characters", sourcehealth.SUMMARY_ONLY_CHARS),
+    ("collection.md", r"no new item for \*\*(\d+)\*\* times its usual gap, and at least (\d+) hours",
+     (sourcehealth.QUIET_FACTOR, int(sourcehealth.QUIET_MIN.total_seconds() // 3600))),
+    ("collection.md", r"\*\*failing for (\d+) hours\*\*", int(sourcehealth.FAILING_ALERT.total_seconds() // 3600)),
+    ("collection.md", r"weekly average of the (\d+) weeks before", sourcehealth.BASELINE_WEEKS),
+    ("collection.md", r"needs at least (\d+) such gaps", sourcehealth.MIN_GAPS),
+    # enrichment capacity (0.12)
+    ("enrichment.md", r"batch × runs per day: (\d+) × (\d+) =",
+     (_default("enrichment_batch"), 1440 // _default("enrichment_interval"))),
     # cross-source dedup
     ("processing.md", r"published within \*\*(\d+) days\*\*", pipeline.DUP_WINDOW.days),
     # daily schedule defaults

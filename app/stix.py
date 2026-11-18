@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import sharing
+from . import settings, sharing
 from .config import load_config
 from .models import Entity, EntityLink, Item, ItemEntity, Source, utcnow
 
@@ -130,6 +130,11 @@ class Bundle:
                      confidence=_confidence(e.verdict or "", bool(e.enriched_at), 1, 1), labels=[verdict])
             if verdict in ("malicious", "suspicious"):
                 o["indicator_types"] = ["malicious-activity"]
+                # IPs, domains and URLs change hands: the indicator is valid until the verdict ages (0.12)
+                feed_days = int(settings.get("verdict_feed_days") or 0)
+                at = e.verdict_at or e.enriched_at
+                if feed_days and at and e.type in ("ip", "domain", "url"):
+                    o["valid_until"] = ts(max(at + timedelta(days=feed_days), e.first_seen + timedelta(seconds=1)))
             self._mark(o, "CLEAR")
         else:
             return None

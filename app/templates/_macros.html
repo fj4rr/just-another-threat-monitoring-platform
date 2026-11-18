@@ -6,8 +6,14 @@
 <span class="sev fraud {{ 's-high' if n >= 60 else 's-med' if n >= 35 else '' }}" title="Fraud score {{ n }} / 100">{{ n }}</span>
 {%- endmacro %}
 
-{% macro verdict(v) -%}
-{% if v %}<span class="badge {{ verdict_class(v) }}">{{ v }}</span>{% else %}<span class="badge">pending</span>{% endif %}
+{% macro verdict(v, at=None) -%}
+{% if v %}<span class="badge {{ verdict_class(v) }}"{% if at %} title="Verdict as of {{ at.strftime('%Y-%m-%d') }}"{% endif %}>{{ v }}</span>{% else %}<span class="badge">pending</span>{% endif %}
+{%- endmacro %}
+
+{# "as of" line for an indicator's verdict; stale = older than verdict_feed_days (left out of the export feeds) #}
+{% macro verdict_age(e) -%}
+{% set at = e.verdict_at or e.enriched_at %}
+{% if at and e.verdict %}<span class="small {{ 'warn-text' if verdict_stale(e) else 'muted' }}" title="{{ 'The verdict is older than the feed limit (Settings → Enrichment): this indicator is left out of the export feeds until a provider confirms it again' if verdict_stale(e) else 'When a provider or blocklist last gave or confirmed this verdict' }}">verdict as of {{ at.strftime('%Y-%m-%d') }}{{ ' · aged out of the feeds' if verdict_stale(e) }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro chip(e) -%}
@@ -111,6 +117,22 @@
     {% if q.limit %}<div class="meter"><span class="{{ 'hot' if q.pct >= 80 }}" style="width:{{ [q.pct, 2]|max }}%"></span></div>{% endif %}
   </div>{% endfor %}
 </div>
+{%- endmacro %}
+
+{# Enrichment queue (processing/enrichment.queue_status) and how long the budgets last (intel/quota.pace) #}
+{% macro queue_line(q) -%}
+<span title="Indicators from items of the last 14 days that were never looked up">{{ '{:,}'.format(q.waiting) }} waiting{% if q.waiting %} (oldest {{ q.oldest_days }} day{{ 's' if q.oldest_days != 1 }}){% endif %}</span>
+· <span title="New indicators per day (7-day average) against what the job can look up per day ({{ q.batch }} every {{ q.interval }} min)">~{{ '{:,}'.format(q.arrivals_per_day) }} new a day, capacity ~{{ '{:,}'.format(q.capacity_per_day) }}</span>
+{%- if q.recheck %} · {{ q.recheck }} re-check{{ 's' if q.recheck != 1 }} due{% endif %}
+{%- if q.stale %} · {{ q.stale }} stale verdict{{ 's' if q.stale != 1 }}{% endif %}
+{%- endmacro %}
+
+{% macro enrichment_panel(q, quota, pace) -%}
+{% if not q.enabled %}<p class="small warn-text" style="margin:0 0 8px">Automatic enrichment is off (Settings → Enrichment): nothing is looked up on schedule.</p>{% endif %}
+{% if q.behind %}<p class="small warn-text" style="margin:0 0 8px">More indicators arrive than the job can look up: the queue grows, and indicators older than 14 days are only looked up when the queue is empty. Raise the batch size, shorten the interval or add providers.</p>{% endif %}
+{% if q.never > q.waiting %}<p class="muted small" style="margin:0 0 8px">{{ '{:,}'.format(q.never - q.waiting) }} other indicator(s) were never looked up: older than 14 days{{ ' or only in backfilled history' }}; they get the slots left over.</p>{% endif %}
+{% if quota %}{{ quota_panel(quota) }}{% endif %}
+{% for p in pace if not p.all_day %}<p class="muted small" style="margin:8px 0 0">{{ p.label }}: {{ p.limit }} a day last about {{ p.lasts_hours|round|int }} h at {{ q.batch }} indicators every {{ q.interval }} min (after that, the other providers carry on alone). A batch of {{ p.spread_batch }} would spread them over the day.</p>{% endfor %}
 {%- endmacro %}
 
 {% macro feed_item(i, show_snippet=True) -%}

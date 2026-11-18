@@ -4,6 +4,26 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.12.0
+
+Trust and coverage items from the product review. No new dependency. One new column (`entities.verdict_at`) is
+created on start-up.
+
+- **Counts change.** Every dashboard figure now counts a story that several outlets carry once: *Items
+  collected* became *Stories collected* and is lower than before, and so are the timelines, breakdowns, map
+  counts, entity mentions and the PDF / Word report totals. *Items per source* still counts every copy.
+- **One re-score after the upgrade.** About 90 seconds after the first start, every stored item is re-scored with
+  the current severity rules (a background job, no network; it keeps enrichment bonuses and AI assessments) and a
+  notification says when it is done. On a large install it takes a few minutes.
+- **Verdicts age.** *Malicious* and *suspicious* IPs, domains and URLs are looked up again after 30 days
+  (`verdict_recheck_days`) and may come back lower; they leave the IOC export feeds and TAXII once their verdict
+  is older than 60 days and was not confirmed again (`verdict_feed_days`). Both are under Settings → Enrichment;
+  0 turns them off. Expect your blocklist feed to shrink over the first weeks, and a few more lookups per run.
+- **Personal data is redacted** from prompts to a cloud AI model by default. Set *Personal data in prompts* to
+  *Never redact* under Settings → AI to keep the old behaviour.
+- **Source health notifications**: expect a notification for sources that have been quiet for three times their
+  usual gap or failing for a day; the Sources tab lists them.
+
 ## Upgrading to 0.11.0
 
 Quick wins from a product review. New dependency `tzdata` (time zones on slim images and Windows): run

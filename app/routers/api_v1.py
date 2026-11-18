@@ -99,6 +99,7 @@ def _entity_dict(e: Entity) -> dict:
         out["category"] = e.category
     if e.type in trends.IOC_TYPES:
         out["verdict"] = (e.verdict or "unknown") if e.enriched_at else "pending"
+        out["verdict_at"] = _iso(e.verdict_at or e.enriched_at) if e.enriched_at else None
     if e.type == "ip" and e.country:
         out["country"] = e.country  # hosting country (GeoIP / providers), not a target
     if e.type == "cve":
@@ -262,7 +263,9 @@ def _confidence(verdict: str, enriched: bool, n_mal: int, n_sus: int) -> int:
 
 
 def _ioc_rows(db: Session, types: list[str], verdicts: list[str], family: str, since: datetime | None,
-              min_confidence: int, cursor: int, limit: int) -> list[dict]:
+              min_confidence: int, cursor: int, limit: int, fresh_only: bool = False) -> list[dict]:
+    """``fresh_only`` (export feeds): leave out infrastructure whose malicious verdict has aged (verdict_feed_days)."""
+    from ..processing.enrichment import fresh_verdict_clause
     from .pages import _ioc_filter_for_entity
 
     mal = (select(Enrichment.entity_id, func.count().label("n")).where(Enrichment.verdict == "malicious")
@@ -289,6 +292,9 @@ def _ioc_rows(db: Session, types: list[str], verdicts: list[str], family: str, s
         stmt = stmt.where(_ioc_filter_for_entity(fam.id))
     if since is not None:
         stmt = stmt.where(Entity.last_seen >= since)
+    fresh = fresh_verdict_clause() if fresh_only else None
+    if fresh is not None:
+        stmt = stmt.where(fresh)
     if cursor:
         stmt = stmt.where(Entity.id < cursor)
     out = []
@@ -298,6 +304,7 @@ def _ioc_rows(db: Session, types: list[str], verdicts: list[str], family: str, s
             continue
         out.append({"id": e.id, "type": e.type, "value": e.value,
                     "verdict": (e.verdict or "unknown") if e.enriched_at else "pending", "confidence": conf,
+                    "verdict_at": _iso(e.verdict_at or e.enriched_at) if e.enriched_at else None,
                     "first_seen": _iso(e.first_seen), "last_seen": _iso(e.last_seen), "mentions": e.mention_count})
         if len(out) >= limit:
             break
@@ -356,7 +363,8 @@ def ioc_feed(fmt: str, request: Request,
         raise HTTPException(404, "feed format must be csv, json or txt")
     types = _split(type, trends.IOC_TYPES) or list(trends.IOC_TYPES)
     since = utcnow() - timedelta(days=since_days) if since_days else None
-    rows = _ioc_rows(db, types, _split(verdict, VERDICTS), family.strip(), since, min_confidence, 0, limit)
+    rows = _ioc_rows(db, types, _split(verdict, VERDICTS), family.strip(), since, min_confidence, 0, limit,
+                     fresh_only=True)  # aged verdicts leave blocklists unless confirmed again (verdict_feed_days)
     key = getattr(request.state, "api_key", None)
     if key is not None:
         audit(db, user, "api_export", f"iocs.{fmt} key={key.prefix} rows={len(rows)}", request)
@@ -371,10 +379,11 @@ def ioc_feed(fmt: str, request: Request,
                                          "min_confidence": min_confidence}, "data": rows}, headers=disp)
     buf = io.StringIO()
     w = csvsafe.writer(buf)  # no formulas from feed text (audit 2026-11 S-5)
-    w.writerow(["type", "value", "verdict", "confidence", "families", "first_seen", "last_seen", "mentions", "link"])
+    w.writerow(["type", "value", "verdict", "confidence", "families", "first_seen", "last_seen", "mentions", "link",
+                "verdict_at"])
     for r in rows:
         w.writerow([r["type"], r["value"], r["verdict"], r["confidence"], ";".join(r["families"]), r["first_seen"],
-                    r["last_seen"], r["mentions"], r["link"] or ""])
+                    r["last_seen"], r["mentions"], r["link"] or "", r["verdict_at"] or ""])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8", headers=disp)
 
 

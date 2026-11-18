@@ -2,6 +2,48 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.12.0
+
+Trust and coverage items from the product review of 2026-11. Upgrade notes: [docs/upgrading.md](docs/upgrading.md).
+
+**Trust in the numbers**
+
+- **One counting rule.** A story that several outlets carry counts once in every figure: KPI tiles and sparklines,
+  timelines, malware / actor / sector / scam-type / brand breakdowns, target countries and provinces, entity
+  mentions, scam report counts and the PDF / Word reports, as it already did in trend scores and the executive
+  summary. Only per-outlet figures (*Items per source*, source country, language) count copies. The tile is now
+  *Stories collected* and shows the item count including copies.
+- **Severity rules version.** When the scoring rules change, stored items are re-scored once at start-up (keeping
+  enrichment bonuses and AI assessments), so trends never compare items scored by different rules.
+- **Verdicts that age.** Indicators store when their verdict was last given or confirmed and pages show "verdict
+  as of …". Malicious and suspicious IPs, domains and URLs are looked up again after 30 days and the answer may
+  lower the verdict (the items that mention them lose the bonus with it); after 60 days without confirmation they
+  leave the IOC export feeds and TAXII, and STIX indicators carry `valid_until`. A blocklist that lists an
+  indicator again keeps its verdict fresh. File hashes never age.
+
+**Collection and enrichment**
+
+- **Source health** on the Sources tab: last new item, items this week against the usual rate, the usual gap,
+  how long a source has been failing, and *summary only* for feeds whose items carry little text. An hourly check
+  notifies about sources that went quiet or have been failing for 24 hours.
+- **Enrichment queue** on the IOC page and Settings → Enrichment: indicators waiting and the oldest, arrivals
+  against capacity per day, re-checks and stale verdicts due, and how long each daily budget lasts at the current
+  pace with the batch size that would spread it over the day.
+- **Every provider at its own pace**: a run looks up its batch with one thread per provider, so it takes as long
+  as the slowest provider instead of the sum of all of them. The per-provider gap no longer holds a lock while it
+  waits, which made VirusTotal's 16-second gap stall every other provider.
+
+**AI**
+
+- **Personal data out of cloud prompts**: phone and e-wallet numbers, bank accounts, long ID numbers and e-mail
+  addresses are replaced with consistent placeholders before a prompt goes to a cloud model (setting *Personal
+  data in prompts*: cloud by default, always or never). IOCs, crypto wallets and amounts stay.
+
+**Fixes**
+
+- The dashboard, the AI settings and the docs still said the executive summary runs at 06:00 UTC; they now point
+  at the schedule settings of 0.11.
+
 ## 0.11.0
 
 Quick wins from a product review of the platform (trust in the numbers, operations). Upgrade notes:

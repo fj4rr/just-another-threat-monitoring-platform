@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% from "_macros.html" import verdict, chip, cve_badges %}
+{% from "_macros.html" import verdict, verdict_age, chip, cve_badges %}
 {% block title %}{{ ent.display|truncate(50) }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div style="min-width:0">
     <div class="row small muted"><span class="badge">{{ ent.type }}</span>{% if ent.category %}<span class="badge">{{ ent.category }}</span>{% endif %}
       {% if is_ident %}<span class="badge warn" title="Published in a scam report as the scammer's">scammer identifier</span>
-      {% elif is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '') }}{% endif %}
+      {% elif is_ioc %}{{ verdict(ent.verdict if ent.enriched_at else '', ent.verdict_at or ent.enriched_at) }} {{ verdict_age(ent) }}{% endif %}
       {% set geo = (ent.meta or {}).get('geo') %}{% if geo and geo.country %}<span class="badge" title="{{ geo.as_name or '' }} ({{ geo.source }})">{{ geo.country }}{% if geo.asn %} · {{ geo.asn if (geo.asn|string).startswith('AS') else 'AS' ~ geo.asn }}{% endif %}</span>{% endif %}
       {% if ent.country %}<a class="badge" href="/iocs?type=ip&country={{ ent.country }}" title="Hosting country (offline GeoIP or the intel providers); not a target">hosted in {{ country_name(ent.country) }}</a>{% endif %}
       {% set gn = (ent.meta or {}).get('greynoise') %}{% if gn and gn.riot %}<span class="badge good" title="GreyNoise RIOT: known benign business service">benign service</span>{% elif gn and gn.noise %}<span class="badge warn" title="GreyNoise: seen mass-scanning the internet (opportunistic, not targeted)">mass scanner</span>{% endif %}

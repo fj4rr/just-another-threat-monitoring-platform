@@ -123,6 +123,11 @@ def _page(db: Session, key: str, added_after: datetime | None, nxt: str | None, 
         col, idc = Entity.enriched_at, Entity.id
         stmt = select(Entity).where(Entity.type.in_(stix.IOC_TYPES), Entity.enriched_at.is_not(None),
                                     Entity.verdict.in_(("malicious", "suspicious")), sharing.shareable_entity_clause())
+        from ..processing.enrichment import fresh_verdict_clause
+
+        fresh = fresh_verdict_clause()  # aged infrastructure verdicts are not shared until confirmed again (0.12)
+        if fresh is not None:
+            stmt = stmt.where(fresh)
     else:
         col, idc = Item.collected_at, Item.id
         stmt = select(Item).join(Source, Source.id == Item.source_id).where(sharing.shareable_item_clause())

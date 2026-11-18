@@ -33,8 +33,10 @@ The cyber threats dashboard, from top to bottom:
   from one to the next and shows each one's count and the families and actors named there. Drag it to turn it,
   hover a country for its count, click one to open its feed, or use the numbered buttons, + / − and ⟲. Pointing
   at the globe pauses the tour, and ▶ / ❚❚ starts or stops it.
-- **KPI tiles**: items collected, IOCs seen, active malware families, threat actors and CVEs discussed in the
-  period, each against the period before and with a sparkline.
+- **KPI tiles**: stories collected (a story that several outlets carry counts once; the tile also shows the item
+  count including copies), IOCs seen, active malware families, threat actors and CVEs discussed in the period, each
+  against the period before and with a sparkline. Every chart and list counts stories the same way; only *Items
+  per source* counts each outlet's copies.
 - **Executive summary**, only when an LLM is configured ([Reporting and AI](reporting-and-ai.md#ai-optional)).
 - **Collection volume** per day (or week) and source type.
 - **Trending malware**, **Trending CVEs** and **Trending threat actors**, each scrolling on its own. Hover the

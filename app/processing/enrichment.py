@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from datetime import timedelta
 
 from sqlalchemy import and_, func, or_, select
@@ -34,6 +35,30 @@ RECHECK_ERROR_AFTER = timedelta(hours=6)
 RECHECK_MAX_AGE = timedelta(days=21)
 # Tier 1 of a batch: indicators never looked up that an item of the last 14 days mentions
 FRESH_WINDOW = timedelta(days=14)
+# Verdicts that age (PM review 2026-11, item 5): IPs, domains and URLs change owners, file hashes do not.
+INFRA_TYPES = ("ip", "domain", "url")
+# a stale verdict is only looked up again while the indicator is still mentioned somewhat recently
+STALE_RECHECK_SEEN = timedelta(days=90)
+# when the verdict was given: verdict_at, or enriched_at for rows from before 0.12
+verdict_given_at = func.coalesce(Entity.verdict_at, Entity.enriched_at)
+
+
+def verdict_is_stale(entity: Entity, days: int | None = None) -> bool:
+    """A malicious / suspicious IP, domain or URL whose verdict is older than ``days`` (default: the feed limit)."""
+    days = int(settings.get("verdict_feed_days") or 0) if days is None else days
+    at = entity.verdict_at or entity.enriched_at
+    return bool(days and at and entity.type in INFRA_TYPES and entity.verdict in ("malicious", "suspicious")
+                and at < utcnow() - timedelta(days=days))
+
+
+def fresh_verdict_clause():
+    """Condition for the export feeds and TAXII: hashes always, other indicators unless a malicious / suspicious
+    verdict is older than ``verdict_feed_days`` and was not confirmed again. None when aging is off."""
+    days = int(settings.get("verdict_feed_days") or 0)
+    if not days:
+        return None
+    return or_(Entity.type.not_in(INFRA_TYPES), Entity.verdict.not_in(("malicious", "suspicious")),
+               verdict_given_at >= utcnow() - timedelta(days=days))
 
 
 PROVIDER_CLASSES = (VirusTotal, OTX, URLScan, AnyRun, MalwareBazaar, URLhaus, GreyNoise, AbuseIPDB)
@@ -49,6 +74,41 @@ def available_providers() -> list:
             out.append(cls())
         except NotConfigured:
             continue
+    return out
+
+
+def _supports(p, etype: str) -> bool:
+    return etype in getattr(p, "supports", {etype}) or etype in getattr(p, "FIELD", {etype})
+
+
+def prefetch(todo: list[tuple[int, str, str]], providers: list, progress=None) -> dict[int, dict[str, object]]:
+    """Look a batch up with every provider at its own pace (PM review 2026-11, item 11): one thread per provider
+    works through the indicators it supports, so a run takes as long as the slowest provider instead of the sum
+    of all of them. ``todo`` holds plain (entity id, type, value) tuples: no database access in the threads.
+    Returns {entity id: {provider name: LookupResult | None | Exception}} for enrich_entity(prefetched=...)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    out: dict[int, dict[str, object]] = {eid: {} for eid, _, _ in todo}
+    work = [(p, [(eid, t, v) for eid, t, v in todo if _supports(p, t)]) for p in providers]
+    total = sum(len(w) for _, w in work) or 1
+    done = [0]
+    lock = threading.Lock()
+
+    def run(p, rows):
+        for eid, etype, value in rows:
+            try:
+                res: object = p.lookup(etype, value)
+            except Exception as e:  # recorded; enrich_entity reports it like a failed call
+                res = e
+            with lock:
+                out[eid][p.name] = res
+                done[0] += 1
+                if progress:
+                    progress(done[0], total)
+
+    with ThreadPoolExecutor(max_workers=max(1, len(work)), thread_name_prefix="enrich") as pool:
+        for f in [pool.submit(run, p, rows) for p, rows in work if rows]:
+            f.result()
     return out
 
 
@@ -98,11 +158,12 @@ def _link(db: Session, src: Entity, dst: Entity, relation: str, provider: str) -
         db.add(EntityLink(src_id=src.id, dst_id=dst.id, relation=relation, provider=provider))
 
 
-def _consensus(entity: Entity, results: list[LookupResult]) -> str:
+def _consensus(entity: Entity, results: list[LookupResult], base: str | None = None) -> str:
     """Combine provider verdicts. Any provider saying *malicious* wins; otherwise the strongest
     verdict, except that a lone OTX pulse mention is only *suspicious* unless pulses attribute
     a family (OTX pulses include plenty of benign infrastructure)."""
-    best = entity.verdict or ""
+    # a verdict normally only rises; a re-check of a stale verdict starts from scratch (base="") so it may fall
+    best = (entity.verdict or "") if base is None else base
     gn = next((r for r in results if r.provider == "greynoise"), None)
     benign = bool(gn and gn.verdict == "clean")
     for res in results:
@@ -144,18 +205,48 @@ def _bump_items(db: Session, entity: Entity, old: str, new: str) -> int:
     return n
 
 
-def enrich_entity(db: Session, entity: Entity, providers: list | None = None, auto_context: bool = True) -> list[str]:
-    """Look an IOC up on every configured provider. Returns list of messages."""
+def _sync_bonus(db: Session, entity: Entity) -> int:
+    """After a verdict fell: give each item that mentions ``entity`` the bonus of its strongest remaining indicator."""
+    db.flush()  # the session does not autoflush: the queries below must see the new verdict
+    items = db.execute(select(Item).join(ItemEntity, ItemEntity.item_id == Item.id)
+                       .where(ItemEntity.entity_id == entity.id)).unique().scalars().all()
+    n = 0
+    for item in items:
+        rows = db.execute(select(Entity.type, Entity.verdict).join(ItemEntity, ItemEntity.entity_id == Entity.id)
+                          .where(ItemEntity.item_id == item.id, Entity.type.in_(IOC_TYPES))).all()
+        best = max(rows, key=lambda tv: VERDICT_BONUS.get(tv[1] or "", 0), default=None)
+        full = VERDICT_BONUS.get(best[1] or "", 0) if best else 0
+        mine = [d for d in (item.severity_detail or []) if str(d.get("label", "")).startswith("indicator confirmed")]
+        had = max((int(d.get("points") or 0) for d in mine), default=0)
+        if had == full:
+            continue
+        item.severity_detail = [d for d in (item.severity_detail or []) if d not in mine] + (
+            [{"label": f"indicator confirmed {best[1]} ({best[0]})", "points": full}] if full else [])
+        item.severity = max(0, min(100, (item.severity or 0) + full - had))
+        n += 1
+    return n
+
+
+def enrich_entity(db: Session, entity: Entity, providers: list | None = None, auto_context: bool = True,
+                  recheck: bool = False, prefetched: dict | None = None) -> list[str]:
+    """Look an IOC up on every configured provider. Returns list of messages. ``recheck``: the verdict is stale
+    and the providers' answer today replaces it, even when it is lower. ``prefetched``: answers already fetched by
+    prefetch() for this entity (provider name -> result or exception); no call is made for those."""
     msgs = []
     providers = providers if providers is not None else available_providers()
     results: list[LookupResult] = []
     attempted = failed = 0
     for p in providers:
-        if entity.type not in getattr(p, "supports", {entity.type}) and entity.type not in getattr(p, "FIELD", {entity.type}):
+        if not _supports(p, entity.type):
             continue
         attempted += 1
         try:
-            res = p.lookup(entity.type, entity.value)
+            if prefetched is not None:
+                res = prefetched.get(p.name)
+                if isinstance(res, Exception):
+                    raise res
+            else:
+                res = p.lookup(entity.type, entity.value)
         except Exception as e:  # provider errors must not stop the batch
             failed += 1
             msgs.append(f"{p.name}: {e}")
@@ -179,8 +270,14 @@ def enrich_entity(db: Session, entity: Entity, providers: list | None = None, au
         msgs.append(f"{p.name}: {res.verdict}")
     old = entity.verdict or ""
     if results:
-        new = _consensus(entity, results) or "unknown"
+        new = _consensus(entity, results, base="" if recheck else None) or "unknown"
         entity.verdict = new
+        entity.verdict_at = utcnow()
+        if VERDICT_RANK.get(new, 0) < VERDICT_RANK.get(old, 0):
+            msgs.append(f"verdict lowered from {old} to {new}")
+            n = _sync_bonus(db, entity)
+            if n:
+                msgs.append(f"severity lowered on {n} item(s)")
         if new == "malicious" and old != "malicious":
             from .. import webhooks
 
@@ -320,6 +417,17 @@ def run_batch(db: Session, progress=None) -> str:
             extra_q = extra_q.where(or_(Entity.id.in_(live), Entity.id.in_(linked)))
         extra = db.execute(extra_q.order_by(Entity.first_seen.desc()).limit(batch - len(iocs))).scalars()
         iocs += [e for e in extra if e not in iocs]
+    # 4) stale verdicts: malicious / suspicious infrastructure whose verdict is older than verdict_recheck_days
+    #    and that is still mentioned; the answer today replaces the old verdict (PM review 2026-11, item 5)
+    stale: list[Entity] = []
+    stale_days = int(settings.get("verdict_recheck_days") or 0)
+    if stale_days:
+        now = utcnow()
+        sq = (select(Entity).where(Entity.type.in_(INFRA_TYPES), Entity.verdict.in_(("malicious", "suspicious")),
+                                   verdict_given_at < now - timedelta(days=stale_days),
+                                   Entity.last_seen >= now - STALE_RECHECK_SEEN)
+              .order_by(verdict_given_at.asc()).limit(max(1, batch // 4)))
+        stale = [e for e in db.execute(sq).scalars() if e not in iocs]
     # 3) re-check: "unknown" results age (providers learn about an IOC days later) and
     #    errored lookups (quota / network) deserve a retry. Uses up to a quarter of the batch.
     recheck_slots = max(1, batch // 4) if len(iocs) < batch else max(0, batch // 4)
@@ -334,13 +442,16 @@ def run_batch(db: Session, progress=None) -> str:
             .order_by(Entity.mention_count.desc(), Entity.enriched_at.asc())
             .limit(recheck_slots)
         )
-        rechecked = [e for e in db.execute(rq).scalars() if e not in iocs]
+        rechecked = [e for e in db.execute(rq).scalars() if e not in iocs and e not in stale]
     done = 0
     fam_slots = 2 if settings.get("enrich_families") else 0
-    total = len(iocs) + len(rechecked) + fam_slots
-    progress(0, total, "indicators")
-    for ent in iocs + rechecked:
-        enrich_entity(db, ent, providers)
+    todo = iocs + rechecked + stale
+    total = len(todo) + fam_slots
+    # every provider at its own pace, in parallel; then the verdicts are applied one indicator at a time
+    answers = prefetch([(e.id, e.type, e.value) for e in todo], providers,
+                       lambda d, t: progress(round(d / t * len(todo)), total, "lookups"))
+    for ent in todo:
+        enrich_entity(db, ent, providers, recheck=ent in stale, prefetched=answers.get(ent.id, {}))
         db.commit()
         done += 1
         progress(done, total, "indicators")
@@ -359,4 +470,36 @@ def run_batch(db: Session, progress=None) -> str:
                 progress(done + fam_done, total, "families")
                 if fam_done >= 2:
                     break
-    return f"enriched {done} IOC(s) ({len(rechecked)} re-checked), {fam_done} family(ies)"
+    return (f"enriched {done} IOC(s) ({len(rechecked)} re-checked, {len(stale)} stale verdict(s)), "
+            f"{fam_done} family(ies)")
+
+
+def queue_status(db: Session) -> dict:
+    """What the enrichment job has in front of it (PM review 2026-11, item 11), for the IOC page and Settings."""
+    now = utcnow()
+    live = select(ItemEntity.entity_id).join(Item, Item.id == ItemEntity.item_id).where(
+        Item.published_at >= now - FRESH_WINDOW, func.coalesce(Item.origin, "live") != "backfill")
+    pending = select(func.count(Entity.id), func.min(Entity.first_seen)).where(
+        Entity.type.in_(IOC_TYPES), Entity.enriched_at.is_(None))
+    waiting, oldest = db.execute(pending.where(Entity.id.in_(live))).one()
+    never, _ = db.execute(pending).one()
+    recheck = db.scalar(select(func.count(Entity.id)).where(
+        Entity.type.in_(IOC_TYPES), Entity.enriched_at.is_not(None), Entity.last_seen >= now - RECHECK_MAX_AGE,
+        or_(and_(Entity.verdict == "", Entity.enriched_at < now - RECHECK_ERROR_AFTER),
+            and_(Entity.verdict == "unknown", Entity.enriched_at < now - RECHECK_UNKNOWN_AFTER)))) or 0
+    stale_days = int(settings.get("verdict_recheck_days") or 0)
+    stale = db.scalar(select(func.count(Entity.id)).where(
+        Entity.type.in_(INFRA_TYPES), Entity.verdict.in_(("malicious", "suspicious")),
+        verdict_given_at < now - timedelta(days=stale_days), Entity.last_seen >= now - STALE_RECHECK_SEEN)) or 0 \
+        if stale_days else 0
+    arrivals = round((db.scalar(select(func.count(Entity.id)).where(
+        Entity.type.in_(IOC_TYPES), Entity.first_seen >= now - timedelta(days=7))) or 0) / 7)
+    interval = max(2, int(settings.get("enrichment_interval") or 10))
+    batch = int(settings.get("enrichment_batch") or 8)
+    capacity = batch * (1440 // interval)
+    return {
+        "waiting": waiting or 0, "oldest": oldest, "oldest_days": (now - oldest).days if oldest else 0,
+        "never": never or 0, "recheck": recheck, "stale": stale, "arrivals_per_day": arrivals,
+        "capacity_per_day": capacity, "batch": batch, "interval": interval,
+        "enabled": bool(settings.get("enrichment_enabled")), "behind": bool(waiting and arrivals > capacity),
+    }

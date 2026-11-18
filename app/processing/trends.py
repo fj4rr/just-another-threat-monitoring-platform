@@ -15,6 +15,17 @@ from .geo import region_clause, scoped
 
 IOC_TYPES = ("md5", "sha1", "sha256", "ip", "domain", "url")
 
+# ---- the counting rule (PM review 2026-11, item 1)
+# A story that several outlets carry is one story: every figure of "how much was reported" (KPI tiles, timelines,
+# breakdowns, trend scores, entity lists, reports) counts ``coalesce(dup_of, id)`` once. Only per-outlet figures
+# (items per source, source country, language) count items, because they describe what each outlet published.
+STORY = func.coalesce(Item.dup_of, Item.id)
+
+
+def n_stories():
+    """``count(distinct story)``: the aggregate for every story count."""
+    return func.count(distinct(STORY))
+
 
 def _since(days: int) -> datetime:
     return utcnow() - timedelta(days=days)
@@ -80,9 +91,10 @@ def _ent_scoped(stmt, region: str, since: datetime | None = None):
 def overview(db: Session, days: int = 7, region: str = "") -> dict:
     since = _since(days)
     prev = _since(days * 2)
-    items_now = db.scalar(scoped(select(func.count(Item.id)).where(Item.published_at >= since), region)) or 0
+    items_now = db.scalar(scoped(select(n_stories()).where(Item.published_at >= since), region)) or 0
+    items_all = db.scalar(scoped(select(func.count(Item.id)).where(Item.published_at >= since), region)) or 0
     items_prev = db.scalar(scoped(
-        select(func.count(Item.id)).where(Item.published_at >= prev, Item.published_at < since), region)) or 0
+        select(n_stories()).where(Item.published_at >= prev, Item.published_at < since), region)) or 0
     new_fams = db.scalar(_ent_scoped(
         select(func.count(Entity.id)).where(Entity.type == "malware", Entity.first_seen >= since), region, since)) or 0
     active_fams = db.scalar(scoped(
@@ -110,7 +122,8 @@ def overview(db: Session, days: int = 7, region: str = "") -> dict:
     sources_ok = db.scalar(select(func.count(Source.id)).where(Source.enabled, Source.last_status == "ok")) or 0
     sources_total = db.scalar(select(func.count(Source.id)).where(Source.enabled)) or 0
     return {
-        "items": items_now, "items_prev": items_prev, "active_families": active_fams,
+        # "items" is the number of stories (copies once); "items_all" counts every stored copy
+        "items": items_now, "items_all": items_all, "items_prev": items_prev, "active_families": active_fams,
         "new_families": new_fams, "iocs": iocs, "malicious_iocs": malicious, "cves": cves,
         "actors": actors, "new_actors": new_actors, "sources_ok": sources_ok, "sources_total": sources_total, "days": days, "region": region or "intl",
     }
@@ -121,7 +134,7 @@ def timeline(db: Session, days: int = 30, region: str = "") -> dict:
     since = _since(days)
     day = func.date(Item.published_at)
     rows = db.execute(scoped(
-        select(day, Source.category, func.count(Item.id))
+        select(day, Source.category, n_stories())
         .join(Source, Source.id == Item.source_id)
         .where(Item.published_at >= since), region)
         .group_by(day, Source.category)
@@ -137,7 +150,7 @@ def timeline(db: Session, days: int = 30, region: str = "") -> dict:
 def family_timeline(db: Session, entity_ids: list[int], days: int = 30, region: str = "", extra=None) -> dict:
     since = _since(days)
     day = func.date(Item.published_at)
-    q = (select(ItemEntity.entity_id, day, func.count(Item.id))
+    q = (select(ItemEntity.entity_id, day, n_stories())
          .join(Item, Item.id == ItemEntity.item_id)
          .where(ItemEntity.entity_id.in_(entity_ids), Item.published_at >= since))
     if extra is not None:
@@ -154,12 +167,12 @@ def top_entities(db: Session, etype: str, days: int = 7, limit: int = 10, catego
                  region: str = "") -> list[dict]:
     since = _since(days)
     q = (
-        scoped(select(Entity.id, Entity.display, Entity.category, func.count(distinct(Item.id)).label("n"),
+        scoped(select(Entity.id, Entity.display, Entity.category, n_stories().label("n"),
                       func.count(distinct(Item.source_id)).label("srcs"))
                .join(ItemEntity, ItemEntity.entity_id == Entity.id)
                .join(Item, Item.id == ItemEntity.item_id)
                .where(Entity.type == etype, Item.published_at >= since), region)
-        .group_by(Entity.id).order_by(func.count(distinct(Item.id)).desc()).limit(limit)
+        .group_by(Entity.id).order_by(n_stories().desc()).limit(limit)
     )
     if category:
         q = q.where(Entity.category == category)
@@ -169,11 +182,11 @@ def top_entities(db: Session, etype: str, days: int = 7, limit: int = 10, catego
 def category_breakdown(db: Session, days: int = 30, region: str = "") -> list[dict]:
     since = _since(days)
     rows = db.execute(scoped(
-        select(Entity.category, func.count(distinct(Item.id)))
+        select(Entity.category, n_stories())
         .join(ItemEntity, ItemEntity.entity_id == Entity.id)
         .join(Item, Item.id == ItemEntity.item_id)
         .where(Entity.type == "malware", Item.published_at >= since), region)
-        .group_by(Entity.category).order_by(func.count(distinct(Item.id)).desc())
+        .group_by(Entity.category).order_by(n_stories().desc())
     ).all()
     return [{"category": c or "other", "count": n} for c, n in rows]
 
@@ -215,13 +228,13 @@ def actor_breakdown(db: Session, days: int = 30, region: str = "") -> list[dict]
 
     since = _since(days)
     rows = db.execute(scoped(
-        select(Entity.display, Item.id)
+        select(Entity.display, STORY)
         .join(ItemEntity, ItemEntity.entity_id == Entity.id)
         .join(Item, Item.id == ItemEntity.item_id)
         .where(Entity.type == "actor", Item.published_at >= since), region)).all()
     items: dict[str, set[int]] = defaultdict(set)
-    for name, item_id in rows:
-        items[actor_category(name)].add(item_id)
+    for name, story in rows:
+        items[actor_category(name)].add(story)
     out = [{"category": c, "label": c, "count": len(items[c])} for c in ACTOR_CATEGORIES if items[c]]
     return sorted(out, key=lambda d: (d["category"] == "unclassified", -d["count"]))
 
@@ -353,7 +366,7 @@ def kpi_series(db: Session, days: int = 14, region: str = "") -> dict:
             .join(Entity, Entity.id == ItemEntity.entity_id).where(Item.published_at >= since))
     return {
         "labels": labels, "step": step,
-        "items": per_day(select(day, func.count(Item.id)).where(Item.published_at >= since).group_by(day)),
+        "items": per_day(select(day, n_stories()).where(Item.published_at >= since).group_by(day)),
         "families": per_day(base.where(Entity.type == "malware").group_by(day)),
         "iocs": per_day(base.where(Entity.type.in_(IOC_TYPES)).group_by(day)),
         "cves": per_day(base.where(Entity.type == "cve").group_by(day)),
@@ -365,7 +378,7 @@ def sector_breakdown(db: Session, days: int = 30, region: str = "", extra=None) 
     """Items per critical infrastructure sector (app/processing/sectors.py) in the period, busiest first, all eight sectors."""
     from .sectors import SECTOR_KEYS, SECTOR_NAMES, SECTOR_NAMES_ID
 
-    q = (select(Entity.id, Entity.value, func.count(distinct(Item.id)))
+    q = (select(Entity.id, Entity.value, n_stories())
          .join(ItemEntity, ItemEntity.entity_id == Entity.id).join(Item, Item.id == ItemEntity.item_id)
          .where(Entity.type == "sector", Item.published_at >= _since(days)))
     if extra is not None:
@@ -484,7 +497,7 @@ def geo_stats(db: Session, days: int = 30, region: str = "", families_per: int =
             stmt = stmt.where(extra)
         return stmt if since is None else stmt.where(Item.published_at >= since)
 
-    n_items = func.count(distinct(Item.id))
+    n_items = n_stories()  # target countries and provinces count stories; outlet country and language count items
     targets = db.execute(window(select(ItemGeo.country, n_items).join(Item, Item.id == ItemGeo.item_id))
                          .group_by(ItemGeo.country).order_by(n_items.desc())).all()
     provinces = db.execute(window(select(ItemGeo.region, n_items).join(Item, Item.id == ItemGeo.item_id)
@@ -501,7 +514,7 @@ def geo_stats(db: Session, days: int = 30, region: str = "", families_per: int =
     infra = db.execute(infra_q.group_by(Entity.country).order_by(func.count(Entity.id).desc())).all()
     infra_bad = dict(db.execute(infra_q.where(Entity.verdict == "malicious").group_by(Entity.country)).all())
     tagged = db.scalar(window(select(n_items).join(ItemGeo, ItemGeo.item_id == Item.id))) or 0
-    total = db.scalar(window(select(func.count(Item.id)))) or 0
+    total = db.scalar(window(select(n_stories()))) or 0
 
     # most mentioned families / actors per target country (top countries only)
     top_cc = [c for c, _ in targets[:12]]

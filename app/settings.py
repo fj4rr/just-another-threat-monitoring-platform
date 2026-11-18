@@ -66,6 +66,11 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "context_on_malicious": (False, "", "Run context lookups automatically when an indicator turns malicious", "bool",
                              "enrichment"),
     "context_daily_budget": (100, "", "Context lookups per provider per day", "int", "enrichment"),
+    "verdict_recheck_days": (30, "", "Look malicious / suspicious IPs, domains and URLs up again once their verdict "
+                             "is older than N days; the new answer may lower it (0 = never)", "int", "enrichment"),
+    "verdict_feed_days": (60, "", "Leave IPs, domains and URLs out of the IOC export feeds and TAXII once their "
+                          "verdict is older than N days and was not confirmed again (0 = keep them)", "int",
+                          "enrichment"),
     "enrich_backfill": (False, "", "Also enrich indicators that only appear in backfilled (historical) items",
                         "bool", "enrichment"),
     "enrich_families": (True, "", "Pull IOCs for trending malware families from OTX / ANY.RUN", "bool", "enrichment"),
@@ -82,6 +87,8 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "llm_auto_extract": (True, "", "Let the LLM discover malware families not in the knowledge base", "bool", "llm"),
     "llm_daily_digest": (True, "", "Write a daily AI executive summary", "bool", "llm"),
     "llm_language": ("English", "", "Language for AI output (e.g. English, Bahasa Indonesia)", "text", "llm"),
+    "llm_redact": ("cloud", "", "Replace phone numbers, bank accounts, e-wallets, e-mail addresses and ID numbers with "
+                   "placeholders before text goes to the AI", "select:cloud,always,never", "llm"),
     # Sharing: what may leave JATMP through the REST API, exports, webhooks and MISP
     "api_max_tlp": ("GREEN", "", "Highest TLP shared through the API, exports, webhooks and MISP",
                     "select:CLEAR,GREEN,AMBER,RED", "sharing"),
@@ -136,6 +143,8 @@ INT_BOUNDS: dict[str, tuple[int, int]] = {
     "abuseipdb_daily_budget": (0, 100_000),
     "api_rate_limit": (1, 100_000),
     "context_daily_budget": (0, 100_000),
+    "verdict_recheck_days": (0, 3650),
+    "verdict_feed_days": (0, 3650),
     "webhook_min_severity": (0, 100),
     "misp_sharing_group_id": (0, 1_000_000),
     "misp_autopush_min_severity": (0, 100),

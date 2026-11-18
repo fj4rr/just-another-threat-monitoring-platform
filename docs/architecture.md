@@ -173,8 +173,8 @@ All jobs are functions in `app/jobs.py`.
 | `run_enrichment` | every `enrichment_interval` min; manual | Look up indicators with the providers |
 | `run_cve_intel` | every 6 h; manual | CISA KEV, FIRST EPSS, NVD CVSS into `Entity.meta` |
 | `run_webhooks` | every 30 s | Deliver queued webhook events with back-off |
-| `run_digest` | daily 06:00 UTC | AI executive summary |
-| `run_housekeeping` | daily 03:30 UTC | Retention (slimming, deletion), identifier pruning, old runs and notifications |
+| `run_digest` | daily, `digest_time` (default 06:00 UTC) | AI executive summary |
+| `run_housekeeping` | daily, `housekeeping_time` (default 03:30 UTC) | Retention (slimming, deletion), identifier pruning, old runs and notifications |
 | `run_auto_summaries` | after ingest, when enabled | AI summaries of new high-severity items, one job at a time |
 | `run_backfill` | manual | Historical backfill, one source after another |
 | `run_geoip_update` | monthly, when enabled | Refresh the offline GeoIP database |

@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from .. import geoip
@@ -202,12 +202,17 @@ def mark_listed(db: Session, indicators: list[Extracted], provider: str, summary
     ids = [e.id for e in ents]
     done = {eid for (eid,) in db.execute(select(Enrichment.entity_id).where(Enrichment.entity_id.in_(ids),
                                                                             Enrichment.provider == provider))}
+    if done:  # listed again: the list confirms the verdict today
+        db.execute(update(Enrichment).where(Enrichment.entity_id.in_(done), Enrichment.provider == provider)
+                   .values(fetched_at=now))
     for ent in ents:
         if ent.id not in done:
             db.add(Enrichment(entity_id=ent.id, provider=provider, verdict="malicious", score=1.0,
                               summary=summary[:500], permalink=permalink, data={}, fetched_at=now))
         if not ent.enriched_at:
             ent.verdict, ent.enriched_at = "malicious", now
+        if ent.verdict == "malicious":
+            ent.verdict_at = now  # a blocklist that still lists the indicator keeps its verdict fresh
     return len(ents)
 
 

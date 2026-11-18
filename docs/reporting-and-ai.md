@@ -16,7 +16,7 @@ appended. The number of findings, families and indicators is adjustable.
 ## AI (optional)
 
 With an LLM configured, JATMP can summarise and analyse individual items, write a threat brief per family or
-actor, write a daily executive summary at 06:00 UTC and answer questions over the collected data.
+actor, write a daily executive summary (06:00 UTC by default; time and time zone under Settings → General) and answer questions over the collected data.
 
 The **executive summary** (dashboard card, *AI summary* button, history under AI insights) is short on purpose: a
 one-sentence headline, an overall threat level (low, elevated, high, critical), three or four key points and up to

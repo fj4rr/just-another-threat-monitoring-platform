@@ -23,13 +23,26 @@ With the default `enrichment_batch` of **8**:
 | 1. Fresh | Indicators **never looked up**, mentioned in an item **published in the last 14 days** | Highest severity of the items that mention them, then most mentioned, then most recently seen |
 | 2. Top-up (only when tier 1 has fewer than 8) | Other never-looked-up indicators: ones mentioned by live items, or linked by enrichment (a family's indicators pulled from OTX). Indicators that appear **only in backfilled items** are skipped unless `enrich_backfill` is on | Newest first |
 | 3. Re-check (2 extra slots) | Indicators seen in the last **21 days** whose last lookup **failed** more than **6 hours** ago, or came back **unknown** more than **3 days** ago | Most mentioned, then longest since the last check |
-| 4. Families (when *enrich families* is on) | Up to **2** of the top 5 trending malware families not enriched in the last 24 hours | Trend score |
+| 4. Stale verdicts (2 extra slots) | *Malicious* or *suspicious* IPs, domains and URLs whose verdict is older than **`verdict_recheck_days`** (default 30) and that were mentioned in the last **90 days**; see [Verdicts that age](#verdicts-that-age) | Oldest verdict first |
+| 5. Families (when *enrich families* is on) | Up to **2** of the top 5 trending malware families not enriched in the last 24 hours | Trend score |
 
-So one run handles up to 8 + 2 indicators and 2 families. Indicators from curated blocklists never wait here:
+So one run handles up to 8 + 2 + 2 indicators and 2 families. Indicators from curated blocklists never wait here:
 they are marked malicious at ingest (see [Blocklist verdicts](processing.md#9-blocklist-verdicts)).
 
-Each indicator is committed as soon as it is done, so a run that fails half-way keeps the lookups it finished,
-and progress ("Running… 5/12 indicators") is shown live.
+**Every provider at its own pace.** The lookups of a run happen first, with one thread per provider working
+through the indicators it supports (`enrichment.prefetch`), so a run takes as long as its slowest provider instead
+of the sum of all of them; then the answers are applied one indicator at a time, each committed as soon as it is
+done (a run that fails half-way keeps what it finished). Progress shows "lookups", then "indicators".
+
+### The queue
+
+The IOC page (analysts and admins) and Settings → Enrichment show what the job has in front of it
+(`enrichment.queue_status`): indicators from the last 14 days that were never looked up and the age of the oldest,
+new indicators per day (7-day average) against the job's capacity per day (batch × runs per day: 8 × 144 = 1,152
+with the defaults), re-checks due and stale verdicts. When more arrive than the job can look up, a note says so.
+For every provider with a daily budget the panel also says how long the budget lasts at the current pace and which
+batch size would spread it over the day (`quota.pace`): VirusTotal's 400 a day last about 8 hours at 8 indicators
+every 10 minutes; a batch of 2 would spread them over the day, at the cost of a longer queue.
 
 ## Providers
 
@@ -46,9 +59,10 @@ Every provider with a key is asked about every indicator type it supports, one a
 | GreyNoise | IP | 2 s | 40 (`greynoise_daily_budget`) |
 | AbuseIPDB | IP | 1 s | 900 (`abuseipdb_daily_budget`; free tier 1,000) |
 
-- **Gaps** are enforced per provider across all threads (the calling thread waits). They keep JATMP inside the
-  free tiers' per-minute limits; with VirusTotal configured, one run of 10 indicators therefore takes at least
-  2½ minutes.
+- **Gaps** are enforced per provider across all threads (the calling thread waits; the wait of one provider no
+  longer holds up the others). They keep JATMP inside the free tiers' per-minute limits; with VirusTotal
+  configured, one run of 10 indicators still takes at least 2½ minutes, but the other providers finish theirs in
+  the meantime.
 - **Budgets** are counted per provider and calendar day of the server (UTC in the Docker image) in the settings table. When a budget is used up, that
   provider's lookups fail with "daily budget exhausted" and the others keep working; the failed indicator is
   retried 6 hours later. One notification per provider and day says when its budget is used up (every
@@ -78,7 +92,7 @@ Provider-specific rules applied before the consensus:
 
 The provider answers of one lookup are combined into the indicator's **verdict** (`_consensus`):
 
-1. Start from the indicator's current verdict.
+1. Start from the indicator's current verdict (from nothing when a stale verdict is re-checked).
 2. **OTX alone is weak evidence:** an OTX *malicious* without a family label and with fewer than 5 pulses counts
    as *suspicious*.
 3. **GreyNoise filters noise:** if GreyNoise says the IP is benign, *malicious* and *suspicious* answers from the
@@ -90,8 +104,22 @@ The provider answers of one lookup are combined into the indicator's **verdict**
    *suspicious*, the verdict is **clean**.
 
 Because step 1 starts from the current verdict, a verdict normally only rises: a later lookup where every
-provider says *unknown* does not turn a *malicious* indicator back. The one way down is step 5: a GreyNoise
-*benign* answer turns *suspicious* (or *unknown*) into *clean*. Nothing turns *malicious* back automatically.
+provider says *unknown* does not turn a *malicious* indicator back. Two ways lead down: step 5 (a GreyNoise
+*benign* answer turns *suspicious* or *unknown* into *clean*), and the re-check of a stale verdict below.
+
+### Verdicts that age
+
+IPs, domains and URLs change owners: last year's command-and-control address may host a shop today. Since 0.12
+every indicator stores when its verdict was last given or confirmed (`verdict_at`; older rows use `enriched_at`),
+and pages show "verdict as of *date*".
+
+| Step | Rule | Setting |
+|---|---|---|
+| Re-check | A *malicious* or *suspicious* IP, domain or URL whose verdict is older than **30 days** and that was mentioned in the last 90 days is looked up again (tier 4 above). The answer **replaces** the verdict, also when it is lower; the items that mention it then get the bonus of their strongest remaining indicator, or none | `verdict_recheck_days` (0 = never) |
+| Leave the feeds | Once the verdict is older than **60 days** and was not confirmed again, the indicator is left out of the IOC export feeds (txt, csv, json) and TAXII; STIX indicators carry `valid_until` = verdict date + 60 days. Pages and the REST list still show it, marked *aged* | `verdict_feed_days` (0 = keep) |
+| Confirmed again | Any lookup with an answer, or a blocklist that lists the indicator again (ScamSniffer), sets the verdict date to today | — |
+
+File hashes never age: a file stays what it is.
 
 | Outcome of the lookup | Stored verdict | Next lookup |
 |---|---|---|
@@ -111,6 +139,7 @@ When a lookup finishes:
 | **Family attribution.** Up to 5 family labels per provider (`trojan.lumma/lummastealer`, `Win32/Formbook`) are mapped to a known family; generic words (trojan, generic, win32, agent, android…), legitimate tools and platforms are skipped. The indicator gets an `attributed-to` link to the family, so a hash posted on Bluesky connects to every article about that family | Always |
 | **Related indicators.** Up to 8 per provider (a domain's IPs, a URL's host) are created and linked as `related` | Always |
 | **Severity feedback.** Every item that mentions the indicator gets +12 (*malicious*) or +5 (*suspicious*), replacing an earlier *indicator confirmed* reason; see [Severity scoring](scoring.md#after-ingest) | The verdict rose |
+| **Severity feedback down.** Each item that mentions the indicator gets the bonus of its strongest remaining indicator (or loses it) | The verdict fell (a stale verdict re-checked) |
 | **Webhook** `ioc.malicious` | The verdict turned *malicious*, and the indicator may be shared |
 | **Context lookup** (Shodan, Censys…) queued | The verdict turned *malicious* and *run context lookups when an indicator turns malicious* is on |
 | **Hosting country** of an IP: the offline GeoIP database first, then the country reported by IPinfo, Censys, Shodan, VirusTotal, AbuseIPDB, CrowdSec or OTX, in that order | IP indicators |

@@ -50,6 +50,11 @@ An indicator is shareable when **at least one shareable item mentions it**, or w
 whose data may be redistributed (OTX, ThreatFox, MalwareBazaar, URLhaus, MISP). An IP that only ever appeared in
 an ANY.RUN task or an AMBER pulse is not exported; the same IP mentioned in a public news article is.
 
+The IOC export feeds and TAXII also leave out IPs, domains and URLs whose *malicious* or *suspicious* verdict is
+older than `verdict_feed_days` (60 by default) and was not confirmed again, so a blocklist built from them does
+not keep blocking addresses that changed hands. See
+[Verdicts that age](enrichment.md#verdicts-that-age).
+
 ## Webhooks
 
 ### Events

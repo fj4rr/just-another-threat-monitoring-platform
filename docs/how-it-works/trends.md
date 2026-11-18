@@ -14,10 +14,15 @@ Three rules decide what a number on the dashboards counts:
   published in, not the day it was collected.
 - **Region.** In the *National (ID)* view every count is limited to items that target Indonesia or come from an
   Indonesian outlet without another target (see [The National view](processing.md#the-national-indonesia-view)).
-- **Stories or items.** Trend scores, the scam *spreading* check and the AI executive summary count a syndicated
-  article and its copies **once** (`count(distinct coalesce(dup_of, id))`, see
-  [Cross-source duplicates](processing.md#3-cross-source-duplicates)). The KPI tiles, the timeline and the
-  breakdown charts count **items**, so a story carried by three outlets counts three times there.
+- **Stories, not copies.** Since 0.12 one rule applies everywhere: a syndicated article and its copies count
+  **once** (`trends.n_stories()`, which is `count(distinct coalesce(dup_of, id))`; see
+  [Cross-source duplicates](processing.md#3-cross-source-duplicates)). That covers the KPI tiles and their
+  sparklines, the timelines, the breakdown charts (malware and actor types, sectors, scam types, brands), the
+  target countries and provinces, the mentions in the entity lists, trend scores, the scam *spreading* check, the
+  AI executive summary and the PDF / Word reports. The *Stories collected* tile also shows the number of items
+  including copies when it differs.
+- **Per-outlet figures count items.** *Items per source*, the source countries, the languages and the sources on
+  an entity page describe what each outlet published, so a copy counts for the outlet that carried it.
 
 ## Periods and baselines
 

@@ -117,9 +117,11 @@ All times are UTC; the two daily jobs follow the schedule time zone when one is 
 | Start + 30 s | `run_dedup` | Fingerprints stored articles if the dedup rules changed |
 | Start + 40 s | `run_fraudtag` | Re-runs the scam analysis if the rules changed |
 | Start + 60 s | `run_sectortag` | Re-tags sectors if the rules changed |
-| Start + 2 min, then every 10 min | `run_enrichment` | Looks up 8 indicators (plus re-checks and 2 trending families when enabled) |
+| Start + 90 s | `run_rescore_if_outdated` | Re-scores stored items if the severity rules changed |
+| Start + 2 min, then every 10 min | `run_enrichment` | Looks up 8 indicators (plus re-checks, stale verdicts and 2 trending families when enabled), every provider at its own pace |
 | Start + 3 min, then every 6 h | `run_cve_intel` | KEV, EPSS and CVSS for up to 60 recently mentioned CVEs |
 | Every 30 s | `run_webhooks` | Delivers up to 50 due webhook events |
+| Start + 15 min, then hourly | `run_source_health` | Notifies about quiet and long-failing sources |
 | Every 30–180 min per source | `run_source` | Collects and ingests one source |
 | 03:30 daily (`housekeeping_time`) | `run_housekeeping` | Old runs, notifications and deliveries; slimming; deletion (if enabled); identifier pruning |
 | 06:00 daily (`digest_time`) | `run_digest` | AI executive summary (when an LLM is configured and the digest is on) |

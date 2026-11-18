@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from . import __version__, csvsafe
 from .models import Entity, EntityLink, Insight, Item, ItemEntity, Source, utcnow
 from .processing import trends
+from .processing.trends import n_stories
 
 IOC_TYPES = trends.IOC_TYPES
 HASH_TYPES = ("sha256", "sha1", "md5")
@@ -100,8 +101,9 @@ def gather(db: Session, since: datetime, until: datetime, sections: set[str], *,
     }
 
     # ---- numbers used by the summary paragraph (always computed, cheap)
-    total = db.scalar(select(func.count(Item.id)).where(in_range)) or 0
-    by_cat = dict(db.execute(select(Source.category, func.count(Item.id)).join(Item, Item.source_id == Source.id)
+    # stories, not copies (the counting rule in processing/trends.py); per-source counts stay item counts
+    total = db.scalar(select(n_stories()).where(in_range)) or 0
+    by_cat = dict(db.execute(select(Source.category, n_stories()).join(Item, Item.source_id == Source.id)
                              .where(in_range).group_by(Source.category)).all())
     fam_count = db.scalar(select(func.count(distinct(ItemEntity.entity_id))).join(Item, Item.id == ItemEntity.item_id)
                           .join(Entity, Entity.id == ItemEntity.entity_id).where(in_range, Entity.type == "malware")) or 0
@@ -112,7 +114,7 @@ def gather(db: Session, since: datetime, until: datetime, sections: set[str], *,
     malicious = db.scalar(select(func.count(Entity.id)).where(Entity.type.in_(IOC_TYPES), Entity.verdict == "malicious",
                                                               Entity.last_seen >= since, Entity.last_seen < until,
                                                               ent_scope)) or 0
-    high = db.scalar(select(func.count(Item.id)).where(in_range, Item.severity >= 60)) or 0
+    high = db.scalar(select(n_stories()).where(in_range, Item.severity >= 60)) or 0
     cve_count = db.scalar(select(func.count(distinct(ItemEntity.entity_id))).join(Item, Item.id == ItemEntity.item_id)
                           .join(Entity, Entity.id == ItemEntity.entity_id).where(in_range, Entity.type == "cve")) or 0
     rep["stats"] = {"items": total, "by_category": {c: by_cat.get(c, 0) for c in ("news", "social", "intel")},
@@ -149,7 +151,7 @@ def gather(db: Session, since: datetime, until: datetime, sections: set[str], *,
 
     # ---- 2. top malware families
     if "families" in sections:
-        n = func.count(distinct(Item.id))
+        n = n_stories()
         rows = db.execute(
             select(Entity.id, Entity.display, Entity.category, Entity.first_seen, n, func.max(Item.severity))
             .join(ItemEntity, ItemEntity.entity_id == Entity.id).join(Item, Item.id == ItemEntity.item_id)
@@ -241,16 +243,16 @@ def gather(db: Session, since: datetime, until: datetime, sections: set[str], *,
         day = func.date(Item.published_at)
         rep["overview"] = {
             **rep["stats"],
-            "items_prev": db.scalar(select(func.count(Item.id)).where(prev)) or 0,
+            "items_prev": db.scalar(select(n_stories()).where(prev)) or 0,
             "actors": db.scalar(select(func.count(distinct(ItemEntity.entity_id))).join(Item, Item.id == ItemEntity.item_id)
                                 .join(Entity, Entity.id == ItemEntity.entity_id).where(in_range, Entity.type == "actor")) or 0,
             "top_sources": [{"name": n_, "category": c, "count": k} for n_, c, k in by_src],
-            "daily": [(str(d), k) for d, k in db.execute(select(day, func.count(Item.id)).where(in_range).group_by(day)
+            "daily": [(str(d), k) for d, k in db.execute(select(day, n_stories()).where(in_range).group_by(day)
                                                          .order_by(day)).all()],
         }
 
     def _entity_table(etype: str, limit: int = 25) -> list[dict]:
-        n = func.count(distinct(Item.id))
+        n = n_stories()
         rows = db.execute(
             select(Entity.id, Entity.display, Entity.first_seen, n, func.count(distinct(Item.source_id)), func.max(Item.severity))
             .join(ItemEntity, ItemEntity.entity_id == Entity.id).join(Item, Item.id == ItemEntity.item_id)

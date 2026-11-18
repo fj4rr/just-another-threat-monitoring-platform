@@ -36,12 +36,19 @@ def settings_ctx(db: Session, user: User, tab: str, msg: str = "") -> dict:
 
         ctx["providers"] = [(c.name, ok(c)) for c in PROVIDER_CLASSES]
         ctx["context_providers"] = [(c.name, ok(c)) for c in (*CONTEXT_CLASSES, RansomwareLive, HudsonRock)]
+    if tab == "sources":
+        from .. import sourcehealth
+
+        ctx["health"] = sourcehealth.report(db)
     if tab == "general":
         ctx["next_runs"] = jobs.next_daily_runs()
     if tab == "enrichment":
         from ..intel import quota
+        from ..processing.enrichment import queue_status
 
         ctx["quota"] = quota.status()
+        ctx["pace"] = quota.pace(ctx["quota"])
+        ctx["queue"] = queue_status(db)
     if tab == "webhooks":
         from .webhooks_routes import webhooks_ctx
 
@@ -66,7 +73,8 @@ def settings_page(request: Request, tab: str = "sources", msg: str = "", user: U
             "model": settings.get("llm_model") or "", "base_url": settings.get("llm_base_url") or "",
             "key_set": bool(settings.get("llm_api_key")), "locked": {k: settings.env_locked(k) for k in
                        ("llm_provider", "llm_base_url", "llm_model", "llm_api_key")},
-            "vals": {k: settings.get(k) for k in ("llm_auto_summarize", "llm_auto_extract", "llm_daily_digest", "llm_language")},
+            "vals": {k: settings.get(k) for k in ("llm_auto_summarize", "llm_auto_extract", "llm_daily_digest", "llm_language",
+                                                  "llm_redact")},
         }
     return render(request, "settings.html", ctx)
 

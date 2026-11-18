@@ -27,12 +27,14 @@ class _Throttle:
         self.last: dict[str, float] = {}
 
     def wait(self, provider: str, min_interval: float) -> None:
+        """Wait until ``provider`` may be called again. The slot is reserved under the lock and the sleep happens
+        outside it: sleeping inside made a VirusTotal gap of 16 s stall every other provider (0.12)."""
         with self.lock:
             now = time.monotonic()
-            delta = now - self.last.get(provider, 0)
-            if delta < min_interval:
-                time.sleep(min_interval - delta)
-            self.last[provider] = time.monotonic()
+            slot = max(now, self.last.get(provider, 0) + min_interval)
+            self.last[provider] = slot
+        if slot > now:
+            time.sleep(slot - now)
 
 
 throttle = _Throttle()

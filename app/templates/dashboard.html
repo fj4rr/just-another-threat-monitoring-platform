@@ -61,7 +61,7 @@
       <a class="small" href="/geo">geography →</a></div>
     <div class="globe {{ 'warm' if national }}" data-globe="{{ 'indonesia' if national else 'world' }}" data-values="v-dash-geo" data-top="v-dash-top"
          data-link="{{ '/feed?province={code}&days=' ~ days if national else '/feed?country={code}&days=' ~ days }}"
-         aria-label="{{ 'Globe of Indonesian provinces' if national else 'Globe of target countries' }} by number of items in the last {{ plabel }}">
+         aria-label="{{ 'Globe of Indonesian provinces' if national else 'Globe of target countries' }} by number of stories in the last {{ plabel }}">
       <div class="geo-loading muted small">Loading globe…</div></div>
     <script type="application/json" id="v-dash-geo">{{ (geo.id_values if national else geo.world_values)|tojson }}</script>
     <script type="application/json" id="v-dash-top">{{ globe_top(rows, national)|tojson }}</script>
@@ -72,9 +72,9 @@
   {% set d = ov['items'] - ov['items_prev'] %}
   <div class="card lift tile">
     {{ icon('<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>', '/feed?days=' ~ days, 'Open the feed') }}
-    <div class="label">Items collected</div>
+    <div class="label" title="A story that several outlets carry counts once ({{ ov['items_all'] }} items including copies)">Stories collected</div>
     <div class="value count-up" data-count="{{ ov['items'] }}" data-kpi="items">0</div>
-    <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous {{ plabel }}</div>
+    <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous {{ plabel }}{% if ov['items_all'] > ov['items'] %} · {{ ov['items_all'] }} items{% endif %}</div>
     <svg class="spark" data-series="items" data-color="--series-1"></svg>
   </div>
   <div class="card lift tile">
@@ -112,14 +112,14 @@
   <div class="card-head"><h2>Executive summary</h2>
     <span class="muted small">{% if digest %}AI · last 24 hours · {{ digest.created_at|timeago }} · <a href="/insights">history</a>{% else %}AI{% endif %}</span></div>
   <div id="digest">
-    {% if digest %}{% with d = digest %}{% include "_exec_summary.html" %}{% endwith %}{% else %}<p class="muted">No summary yet – written daily at 06:00 UTC, or press “AI summary”.</p>{% endif %}
+    {% if digest %}{% with d = digest %}{% include "_exec_summary.html" %}{% endwith %}{% else %}<p class="muted">No summary yet – written daily at the time set under Settings → General, or press “AI summary”.</p>{% endif %}
   </div>
 </div>
 {% endif %}
 
 <div class="card lift" style="margin-top:16px" data-reveal="6">
-  <div class="card-head"><h2>Collection volume by source type</h2><span class="muted small">{{ plabel }}, {{ 'weekly' if days > 90 else 'daily' }}</span></div>
-  <div class="chart-wrap volume"><canvas id="c-timeline" aria-label="Items per day by source type"></canvas></div>
+  <div class="card-head"><h2>Collection volume by source type</h2><span class="muted small">stories, {{ plabel }}, {{ 'weekly' if days > 90 else 'daily' }}</span></div>
+  <div class="chart-wrap volume"><canvas id="c-timeline" aria-label="Stories per day by source type"></canvas></div>
 </div>
 
 <div class="grid g-3 trend-row" style="margin-top:16px" data-reveal="7">
@@ -191,7 +191,7 @@
     <div class="chart-wrap"><canvas id="c-trend" aria-labelledby="trend-title"></canvas></div>
   </div>
   <div class="card lift">
-    <div class="card-head"><h2 id="sector-title">Critical infrastructure sectors</h2><span class="muted small">items, {{ plabel }}</span></div>
+    <div class="card-head"><h2 id="sector-title">Critical infrastructure sectors</h2><span class="muted small">stories, {{ plabel }}</span></div>
     <div class="chart-wrap"><canvas id="c-sector" aria-labelledby="sector-title"></canvas></div>
     <p class="muted small" style="margin:6px 0 0">The eight critical information infrastructure sectors of Indonesia's Perpres 82/2022, from the organisations and services an item names as targets. Click a bar for its items.</p>
   </div>
@@ -199,7 +199,7 @@
 
 <div class="grid g-3" style="margin-top:16px" data-reveal="11">
   <div class="card lift">
-    <div class="card-head"><h2>Malware by type</h2><span class="muted small">items, {{ plabel }}</span></div>
+    <div class="card-head"><h2>Malware by type</h2><span class="muted small">stories, {{ plabel }}</span></div>
     <div class="chart-wrap short"><canvas id="c-cat"></canvas></div>
   </div>
   <div class="card lift">
@@ -207,7 +207,7 @@
     <div class="chart-wrap short"><canvas id="c-cve-risk"></canvas></div>
   </div>
   <div class="card lift">
-    <div class="card-head"><h2>Threat actors by type</h2><span class="muted small">items, {{ plabel }}</span></div>
+    <div class="card-head"><h2>Threat actors by type</h2><span class="muted small">stories, {{ plabel }}</span></div>
     <div class="chart-wrap short"><canvas id="c-actor-cat"></canvas></div>
   </div>
 </div>
@@ -243,17 +243,17 @@ document.addEventListener("DOMContentLoaded", () => {
   J.trendLines(tc, 5, days, tt.value);
   tt.addEventListener("change", () => J.trendLines(tc, 5, days, tt.value));
   J.hbar(document.getElementById("c-sector"), `/api/stats/categories?type=sector&days=${days}`,
-         { labelKey: "label", color: 6, label: "Items", empty: "No sector named in this period.",
+         { labelKey: "label", color: 6, label: "Stories", empty: "No sector named in this period.",
            keep: (r) => r.count > 0, note: (rest) => "None in this period: " + rest.map((r) => r.label).join(", ") + ".",
            link: (r) => `/feed?entity=${r.id}&days=${days}` });
   J.hbar(document.getElementById("c-cat"), `/api/stats/categories?days=${days}`,
-         { labelKey: "category", link: (r) => `/malware?category=${r.category}&days=${days}`, empty: "No data.", label: "Items" });
+         { labelKey: "category", link: (r) => `/malware?category=${r.category}&days=${days}`, empty: "No data.", label: "Stories" });
   J.hbar(document.getElementById("c-cve-risk"), `/api/stats/categories?type=cve&days=${days}`,
          { labelKey: "label", color: 7, empty: "No rated CVEs discussed in this period.", label: "CVEs",
            keep: (r) => !["unscored", "pending"].includes(r.category),
            note: (rest) => "Not shown: " + rest.map((r) => `${r.count} ${r.category === "pending" ? "not looked up yet" : "with low EPSS and no CVSS"}`).join(", ") + "." });
   J.hbar(document.getElementById("c-actor-cat"), `/api/stats/categories?type=actor&days=${days}`,
-         { labelKey: "label", color: 4, empty: "No threat actors mentioned in this period.", label: "Items" });
+         { labelKey: "label", color: 4, empty: "No threat actors mentioned in this period.", label: "Stories" });
   J.iocs(document.getElementById("c-ioc"), days);
   J.sources(document.getElementById("c-src"), days);
 });

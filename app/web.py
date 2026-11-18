@@ -67,6 +67,15 @@ VERDICT_CLASS = {"malicious": "crit", "suspicious": "warn", "clean": "good", "un
 templates.env.globals["verdict_class"] = lambda v: VERDICT_CLASS.get(v or "", "muted")
 
 
+def _verdict_stale(e) -> bool:
+    from .processing.enrichment import verdict_is_stale
+
+    return verdict_is_stale(e)
+
+
+templates.env.globals["verdict_stale"] = _verdict_stale  # aged out of the export feeds (verdict_feed_days)
+
+
 def current_region(request: Request) -> str:
     """The International / National (Indonesia) view. ``?region=`` switches it and is remembered in the
     session, so sort and pager links do not need to carry it."""

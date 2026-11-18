@@ -147,6 +147,9 @@ class Entity(Base):
     llm_brief: Mapped[str] = mapped_column(Text, default="")
     llm_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     enriched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    # when the current verdict was last given or confirmed by a provider or a blocklist (0.12); older rows fall
+    # back to enriched_at. IPs, domains and URLs change hands: their verdicts age (enrichment.verdict_age)
+    verdict_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # infrastructure location of an IP (GeoIP / intel providers); never used as a target country
     country: Mapped[str] = mapped_column(String(2), default="", index=True)
 

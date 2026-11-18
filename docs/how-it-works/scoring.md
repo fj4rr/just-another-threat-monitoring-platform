@@ -171,8 +171,9 @@ points are taken off first). Both adjustments are capped at 100.
 
 ### Recomputing scores
 
-Scores are not recomputed automatically when the rules change in a new version (unlike fraud, sectors and
-geography). Two tools do it:
+When the terms, weights or dampeners change, `severity.RULES_VERSION` goes up and every stored item is
+re-scored once, about 90 seconds after the first start of the new version (`jobs.run_rescore_if_outdated`), so old
+and new items are scored by the same rules before trends compare them. Two tools do the same by hand:
 
 | Tool | Recomputes from | Keeps the enrichment bonus | Keeps the AI points |
 |---|---|---|---|

@@ -266,7 +266,7 @@ def _entity_list(request, user, db, etype: str, title: str, category: str = "", 
     if sort in ("cvss", "epss", "kev") and etype != "cve":
         sort = "mentions"
     direction = _dir(direction, ENTITY_SORTS[sort][1])
-    recent = func.count(distinct(Item.id))
+    recent = trends.n_stories()  # stories, copies once (the counting rule)
     if days:
         recent = recent.filter(Item.published_at >= utcnow() - timedelta(days=days))
     stmt = (
@@ -412,8 +412,18 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
     return render(request, "iocs.html", {
         "user": user, "rows": rows, "fam": fam, "srcs": srcs, "total": total, "page": page,
         "pages": max(1, -(-total // IOC_PAGE)), "f": f, "types": trends.IOC_TYPES, "entity": ent,
-        "quota": quota.status() if user.role in ("admin", "analyst") else [],
+        **_enrichment_ctx(db, user),
     })
+
+
+def _enrichment_ctx(db: Session, user: User) -> dict:
+    """Queue, quota and pace for the Enrichment strip of the IOC page (analysts and admins)."""
+    if user.role not in ("admin", "analyst"):
+        return {"queue": None, "quota": [], "pace": []}
+    from ..processing.enrichment import queue_status
+
+    rows = quota.status()
+    return {"queue": queue_status(db), "quota": rows, "pace": quota.pace(rows)}
 
 
 @router.get("/entities/{entity_id}")
