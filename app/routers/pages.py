@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, aliased
 from .. import gazetteer
 from ..auth import current_user
 from ..db import get_db
+from ..intel import quota
 from ..knowledge import CATEGORIES
 from ..llm import client as llm
 from ..models import (
@@ -118,8 +119,8 @@ def _province(value: str) -> str:
 @router.get("/feed")
 def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: int = 0, entity: int = 0,
          min_sev: int = 0, days: int = 30, page: int = 1, sort: str = "time", dir: str = "", country: str = "",
-         province: str = "", lang: str = "", src_country: str = "", user: User = Depends(current_user),
-         db: Session = Depends(get_db),
+         province: str = "", lang: str = "", src_country: str = "", copies: int = 0,
+         user: User = Depends(current_user), db: Session = Depends(get_db),
          region: str = Depends(current_region)):
     days, min_sev, page = _clamp(days, 0, 3650), _clamp(min_sev, 0, 100), _clamp(page, 1, 100_000)
     q = q.strip()[:200]
@@ -150,6 +151,13 @@ def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: i
         stmt = stmt.where(Item.published_at >= utcnow() - timedelta(days=days))
     if q:
         stmt = stmt.where(item_text_clause(q))
+    # syndicated copies of a story are hidden by default (PM review 2026-11, item 2): the feed then lists each
+    # story once, like the trend scores do; the note under the title says how many copies were left out
+    copies = 1 if copies else 0
+    hidden = 0
+    if not copies:
+        hidden = db.scalar(select(func.count()).select_from(stmt.where(Item.dup_of.is_not(None)).subquery())) or 0
+        stmt = stmt.where(Item.dup_of.is_(None))
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     cols = FEED_SORTS[sort][0]()
     order = [c.asc() if direction == "asc" else c.desc() for c in cols] + [Item.id.desc()]
@@ -159,13 +167,25 @@ def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: i
     ent = db.get(Entity, entity) if entity else None
     f = {"cat": cat, "kind": kind, "q": q, "source": source, "entity": entity, "min_sev": min_sev, "days": days,
          "sort": sort, "dir": direction, "country": country, "province": province, "lang": lang,
-         "src_country": src_country}
+         "src_country": src_country, "copies": copies}
     f["qs"] = _qs(cat=cat, kind=kind, q=q, source=source, entity=entity, min_sev=min_sev, days=_keep(days),
-                  country=country, province=province, lang=lang, src_country=src_country)
+                  country=country, province=province, lang=lang, src_country=src_country, copies=copies)
     return render(request, "feed.html", {
         "user": user, "items": items, "total": total, "page": page, "pages": max(1, -(-total // PAGE)),
         "sources": sources, "f": f, "entity": ent, "targets": geo.targets_for(db, [i.id for i in items]),
+        "hidden_copies": hidden,
     })
+
+
+def copy_info(db: Session, item: Item, limit: int = 10) -> dict:
+    """Cross-source duplicates of one item, for the item page and preview: the original it copies, or the
+    copies other outlets carried (``dup_of`` always points at the original, never at another copy)."""
+    if item.dup_of:
+        return {"original": db.get(Item, item.dup_of), "copies": [], "copies_total": 0}
+    q = select(Item).where(Item.dup_of == item.id)
+    total = db.scalar(select(func.count()).select_from(q.subquery())) or 0
+    copies = db.execute(q.order_by(Item.published_at).limit(limit)).scalars().all() if total else []
+    return {"original": None, "copies": copies, "copies_total": total}
 
 
 @router.get("/items/{item_id}")
@@ -181,7 +201,8 @@ def item_detail(item_id: int, request: Request, user: User = Depends(current_use
         for e in db.execute(select(Enrichment).where(Enrichment.entity_id.in_(ent_ids))).scalars():
             enr.setdefault(e.entity_id, []).append(e)
     return render(request, "item.html", {"user": user, "item": item, "ents": ents, "related": related,
-                                         "enr": enr, "llm_on": llm.is_configured(), "geo": item_geo(db, item)})
+                                         "enr": enr, "llm_on": llm.is_configured(), "geo": item_geo(db, item),
+                                         "dup": copy_info(db, item)})
 
 
 def item_geo(db: Session, item: Item) -> dict:
@@ -391,6 +412,7 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
     return render(request, "iocs.html", {
         "user": user, "rows": rows, "fam": fam, "srcs": srcs, "total": total, "page": page,
         "pages": max(1, -(-total // IOC_PAGE)), "f": f, "types": trends.IOC_TYPES, "entity": ent,
+        "quota": quota.status() if user.role in ("admin", "analyst") else [],
     })
 
 
@@ -517,7 +539,7 @@ def item_preview(item_id: int, request: Request, user: User = Depends(current_us
     return render(request, "_preview_item.html", {
         "user": user, "item": item, "named": named, "iocs": iocs[:12], "ioc_total": len(iocs),
         "related": trends.correlated_items(db, item, limit=6), "llm_on": llm.is_configured(),
-        "geo": item_geo(db, item),
+        "geo": item_geo(db, item), "dup": copy_info(db, item, limit=5),
     })
 
 

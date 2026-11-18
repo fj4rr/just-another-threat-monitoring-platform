@@ -331,6 +331,8 @@ def _after_ingest(db, new_ids: list[int]) -> None:
 _summary_queue: deque[int] = deque(maxlen=200)
 _summary_lock = threading.Lock()
 AUTO_SUMMARY_MAX_PER_RUN = 10
+AUTO_SUMMARY_MIN_SEVERITY = 40
+AUTO_SUMMARY_REQUEUE_HOURS = 24
 
 
 def _maybe_auto_summarize(item_ids: list[int]) -> None:
@@ -359,7 +361,7 @@ def run_auto_summaries() -> str:
                     break
                 iid = _summary_queue.popleft()
             item = db.get(Item, iid)
-            if not item or item.severity < 40 or item.llm_summary or item.dup_of:
+            if not item or item.severity < AUTO_SUMMARY_MIN_SEVERITY or item.llm_summary or item.dup_of:
                 continue
             try:
                 summarize_item(db, item)
@@ -374,18 +376,44 @@ def run_auto_summaries() -> str:
     return f"summarised {done} item(s)"
 
 
+def requeue_auto_summaries() -> int:
+    """The queue lives in memory: after a restart, queue again what it would still hold (PM review 2026-11, item 15),
+    i.e. live items of the last 24 hours that qualify and have no summary yet, the most severe first."""
+    from .llm import client
+
+    if not settings.get("llm_auto_summarize") or not client.is_configured():
+        return 0
+    db = SessionLocal()
+    try:
+        ids = [i for (i,) in db.execute(
+            select(Item.id).where(Item.severity >= AUTO_SUMMARY_MIN_SEVERITY, Item.dup_of.is_(None),
+                                  Item.origin == "live", func.coalesce(Item.llm_summary, "") == "",
+                                  Item.collected_at >= utcnow() - timedelta(hours=AUTO_SUMMARY_REQUEUE_HOURS))
+            .order_by(Item.severity.desc(), Item.id.desc()).limit(_summary_queue.maxlen))]
+    finally:
+        db.close()
+    _maybe_auto_summarize(ids)
+    return len(ids)
+
+
 # --------------------------------------------------------------------------- enrichment
 def _check_quota(db) -> None:
-    """One warning per day when the VirusTotal budget is used up."""
-    limit = int(settings.get("vt_daily_budget") or 0)
-    if not limit or not settings.get("virustotal_api_key"):
-        return
-    state = settings.get("_budget_virustotal") or {}
-    if isinstance(state, dict) and state.get("day") == date.today().isoformat() and state.get("count", 0) >= limit:
-        notify.notify(db, "warning", "VirusTotal daily quota reached",
-                      f"All {limit} lookups for today are used; VirusTotal lookups resume tomorrow. "
-                      "Other providers keep working. The budget is under Settings → Enrichment.",
-                      "/settings?tab=enrichment", key=f"quota:virustotal:{state['day']}")
+    """One warning per provider and day when its daily budget is used up (every provider with a budget, not only
+    VirusTotal: PM review 2026-11, item 12)."""
+    from .intel import quota
+
+    day = date.today().isoformat()
+    sent = False
+    for q in quota.status():
+        if not q["exhausted"]:
+            continue
+        what = "lookups" if q["group"] == "enrichment" else "context lookups"
+        notify.notify(db, "warning", f"{q['label']} daily quota reached",
+                      f"All {q['limit']} {what} for today are used; {q['label']} lookups resume tomorrow. "
+                      "Other providers keep working. Budgets are under Settings → Enrichment.",
+                      "/settings?tab=enrichment", key=f"quota:{q['provider']}:{day}")
+        sent = True
+    if sent:
         db.commit()
 
 
@@ -685,8 +713,7 @@ class _Scored:
 def run_rescore() -> str:
     """Recompute the severity of every item with the current scoring rules, using the
     entities already linked to it (no re-extraction, no network)."""
-    from .processing.enrichment import VERDICT_BONUS
-    from .processing.severity import reasons_to_json, score_item
+    from .processing.severity import carry_over, reasons_to_json, score_item
 
     db = SessionLocal()
     run = _start_run(db, "rescore")
@@ -701,14 +728,9 @@ def run_rescore() -> str:
                 scored = [_Scored(link.entity.type, link.origin or "") for link in item.entity_links]
                 score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}", scored,
                                             item.kind)
-                detail = reasons_to_json(reasons)
-                # keep the enrichment feedback that was applied to the old score
-                confirmed = max((VERDICT_BONUS.get(e.verdict or "", 0) for e in ents), default=0)
-                if confirmed:
-                    best = max(ents, key=lambda e: VERDICT_BONUS.get(e.verdict or "", 0))
-                    detail.append({"label": f"indicator confirmed {best.verdict} ({best.type})", "points": confirmed})
-                    score = min(100, score + confirmed)
-                item.severity, item.severity_detail = score, detail
+                # keep what did not come from the text: the enrichment bonus and the last AI assessment
+                item.severity, item.severity_detail = carry_over(score, reasons_to_json(reasons), item.severity_detail,
+                                                                 [(e.type, e.verdict) for e in ents])
                 n += 1
             db.commit()
             db.expunge_all()  # keep memory flat; the run row is loaded again below
@@ -740,6 +762,7 @@ def run_context_lookup(entity_id: int) -> str:
             return "no context providers for this indicator"
         msgs = enrich_entity(db, ent, providers, auto_context=False)
         db.commit()
+        _check_quota(db)
         return "; ".join(msgs)
     except Exception as e:
         db.rollback()
@@ -966,6 +989,39 @@ def _abort_stale_runs() -> None:
         db.close()
 
 
+def schedule_tz():
+    """Time zone of the daily jobs (setting ``schedule_timezone``); UTC when the name is unknown."""
+    from zoneinfo import ZoneInfo
+
+    name = str(settings.get("schedule_timezone") or "UTC")
+    if not settings.valid_timezone(name):
+        log.warning("unknown time zone %r for the schedule, using UTC", name)
+        name = "UTC"
+    return ZoneInfo(name)
+
+
+DAILY_JOBS = {"digest": ("digest_time", "06:00"), "housekeeping": ("housekeeping_time", "03:30")}
+
+
+def schedule_daily_jobs() -> None:
+    """(Re)schedule the executive summary and housekeeping at their configured local times (PM review, item 16).
+    Called at start-up and when the General settings change."""
+    tz = schedule_tz()
+    funcs = {"digest": run_digest, "housekeeping": run_housekeeping}
+    for job_id, (key, default) in DAILY_JOBS.items():
+        h, m = settings.parse_hhmm(settings.get(key)) or settings.parse_hhmm(default)
+        scheduler.add_job(funcs[job_id], "cron", hour=h, minute=m, timezone=tz, id=job_id, replace_existing=True)
+
+
+def next_daily_runs() -> dict[str, datetime | None]:
+    """Next run of each daily job, in the schedule's time zone (for Settings → General)."""
+    out = {}
+    for job_id in DAILY_JOBS:
+        job = scheduler.get_job(job_id) if scheduler.running else None
+        out[job_id] = job.next_run_time if job else None
+    return out
+
+
 def start() -> None:
     if scheduler.running:
         return
@@ -981,8 +1037,7 @@ def start() -> None:
     scheduler.add_job(run_cve_intel, "interval", hours=6, id="cve_intel",
                       next_run_time=_now() + timedelta(minutes=3), replace_existing=True)
     scheduler.add_job(run_webhooks, "interval", seconds=30, id="webhooks", replace_existing=True)
-    scheduler.add_job(run_digest, "cron", hour=6, minute=0, id="digest", replace_existing=True)
-    scheduler.add_job(run_housekeeping, "cron", hour=3, minute=30, id="housekeeping", replace_existing=True)
+    schedule_daily_jobs()
     # one-off geo attribution of existing items after an upgrade (no-op when up to date)
     scheduler.add_job(run_geotag, "date", run_date=_now() + timedelta(seconds=20), id="geotag", replace_existing=True)
     # same for the scam & fraud analysis (0.9)
@@ -999,6 +1054,11 @@ def start() -> None:
     if settings.get("geoip_auto_update"):
         scheduler.add_job(run_geoip_update, "cron", day=5, hour=4, minute=0, id="geoip_update", replace_existing=True)
     scheduler.start()
+    try:
+        if n := requeue_auto_summaries():
+            log.info("auto-summary queue rebuilt with %d item(s)", n)
+    except Exception as e:  # never block the start-up on it
+        log.warning("auto-summary queue not rebuilt: %s", e)
     log.info("scheduler started with %d jobs", len(scheduler.get_jobs()))
 
 

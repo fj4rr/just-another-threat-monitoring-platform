@@ -91,6 +91,28 @@
 </svg>
 {%- endmacro %}
 
+{# Cross-source duplicates of an item (pages.copy_info): "Copy of <original>" or "Also carried by ..." #}
+{% macro dup_note(dup, preview=False) -%}
+{% if dup and dup.original %}
+<div class="dup-note small"><span class="badge" title="Another outlet published this story first. Trend scores, scam spread and the AI summary count the story once; the feed hides copies unless “Show copies” is ticked.">copy</span>
+  Copy of <a href="/items/{{ dup.original.id }}" {% if preview %}data-preview="/items/{{ dup.original.id }}/preview"{% endif %}>{{ dup.original.title|truncate(90) or '(untitled)' }}</a>
+  <span class="muted">· {{ dup.original.source.name }}, {{ dup.original.published_at|timeago }}</span></div>
+{% elif dup and dup.copies_total %}
+<div class="dup-note small"><span class="muted">Also carried by {{ dup.copies_total }} other outlet{{ 's' if dup.copies_total != 1 }} (counted once):</span>
+  {% for c in dup.copies %}<a href="/items/{{ c.id }}" {% if preview %}data-preview="/items/{{ c.id }}/preview"{% endif %}>{{ c.source.name }}</a>{{ ', ' if not loop.last }}{% endfor %}{% if dup.copies_total > dup.copies|length %} <span class="muted">+{{ dup.copies_total - dup.copies|length }}</span>{% endif %}</div>
+{% endif %}
+{%- endmacro %}
+
+{# Daily lookup budgets (app/intel/quota.py): used / limit per provider today #}
+{% macro quota_panel(rows) -%}
+<div class="quota-grid">
+  {% for q in rows %}<div class="quota-row{{ ' is-out' if q.exhausted }}" title="{{ q.label }}: {{ q.used }} lookup(s) today{% if q.limit %} of {{ q.limit }}{% else %}, no daily limit set{% endif %}{% if q.group == 'context' %} (on-demand context lookups){% endif %}. Counters reset at midnight (server time).">
+    <div class="quota-head"><span>{{ q.label }}</span><span class="num small {{ 'muted' if not q.exhausted }}">{{ q.used }} / {{ q.limit or '∞' }}{% if q.exhausted %} · used up{% endif %}</span></div>
+    {% if q.limit %}<div class="meter"><span class="{{ 'hot' if q.pct >= 80 }}" style="width:{{ [q.pct, 2]|max }}%"></span></div>{% endif %}
+  </div>{% endfor %}
+</div>
+{%- endmacro %}
+
 {% macro feed_item(i, show_snippet=True) -%}
 <div class="feed-item">
   <div class="feed-side">{{ sev(i.severity) }}<time class="muted small" datetime="{{ i.published_at.isoformat() }}Z" title="{{ i.published_at }} UTC">{{ i.published_at|timeago }}</time></div>
@@ -101,6 +123,7 @@
       <span>{{ i.kind }}</span>
       {% if i.author %}<span>{{ i.author|truncate(40) }}</span>{% endif %}
       {% if i.llm_summary %}<span class="badge new">AI summary</span>{% endif %}
+      {% if i.dup_of %}<a class="badge" href="/items/{{ i.dup_of }}" title="Another outlet published this story first; statistics count it once">copy</a>{% endif %}
     </div>
     {% if show_snippet and i.content %}<div class="snippet">{{ i.content|truncate(260) }}</div>{% endif %}
     {% set ents = i.entity_links|selectattr('entity.type', 'in', ['malware','actor','cve'])|list %}

@@ -162,12 +162,12 @@ a scam report it is serious, and it ranks high on the scam & fraud dashboard.
 | Event | Effect on the stored score | Reason shown |
 |---|---|---|
 | An indicator of the item turns **malicious** in enrichment | +12 | *indicator confirmed malicious (ip)* |
-| An indicator turns **suspicious** | +5 (and +7 more if it later turns malicious) | *indicator confirmed suspicious (…)* |
+| An indicator turns **suspicious** | +5 (and +7 more if it later turns malicious; the reason then shows +12) | *indicator confirmed suspicious (…)* |
 | The AI summary rates the item higher than its score | Raised toward the model's number, **at most +20**; never lowered | *AI assessment (capped)*, with an *AI* badge |
 
 Only one *indicator confirmed* reason is kept per item, for the strongest verdict; several malicious indicators
-do not add +12 each. The AI reason is likewise replaced, not added, when an item is summarised again. Both
-adjustments are capped at 100.
+do not add +12 each. The AI reason is likewise replaced, not added, when an item is summarised again (its old
+points are taken off first). Both adjustments are capped at 100.
 
 ### Recomputing scores
 
@@ -176,8 +176,14 @@ geography). Two tools do it:
 
 | Tool | Recomputes from | Keeps the enrichment bonus | Keeps the AI points |
 |---|---|---|---|
-| *Re-score all items* (Settings), `manage.py rescore` | The stored text and the entities already linked (with their origins); no re-extraction, no network | Yes | No |
-| `manage.py reextract` | A fresh extraction of the stored text; rebuilds the `regex`, `kb` and `heuristic` links and the scam and sector analysis | No | No |
+| *Re-score all items* (Settings), `manage.py rescore` | The stored text and the entities already linked (with their origins); no re-extraction, no network | Yes | Yes |
+| `manage.py reextract` | A fresh extraction of the stored text; rebuilds the `regex`, `kb` and `heuristic` links and the scam and sector analysis | Yes | Yes |
+
+Both tools add the points that do not come from the text again (`severity.carry_over`): the *indicator confirmed*
+bonus of the strongest verdict among the item's indicators now, and the last *AI assessment*. The AI reason
+stores the severity the model proposed, so it is applied against the new score with the same cap (+20 at most,
+nothing when the new score already reaches it). AI reasons stored before 0.11 have no proposed severity and keep
+their points.
 
 Slimmed items (past the full-text retention) are re-scored on their snippet, so their score may drop. See
 [Housekeeping and re-analysis](housekeeping.md).

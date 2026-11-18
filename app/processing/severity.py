@@ -228,3 +228,37 @@ def score_item(title: str, body: str, entities, kind: str = "article") -> tuple[
 
 def reasons_to_json(reasons: list[Reason]) -> list[dict]:
     return [r.as_dict() for r in reasons]
+
+
+# ---- points that do not come from the text: kept when an item is scored again (PM review 2026-11, item 3)
+# Enrichment adds VERDICT_BONUS when an indicator of the item is confirmed; the AI assessment may add up to
+# LLM_SEVERITY_MAX. *Re-score all items* and ``manage.py reextract`` start from the text again, and used to drop
+# one or both, so a confirmed-malicious item could fall below the webhook threshold after maintenance.
+VERDICT_BONUS = {"malicious": 12, "suspicious": 5}
+LLM_SEVERITY_MAX = 20
+
+
+def carry_over(score: int, detail: list[dict], old_detail: list[dict] | None, verdicts) -> tuple[int, list[dict]]:
+    """Add the enrichment bonus and the last AI assessment to a freshly computed ``(score, detail)``.
+
+    ``verdicts`` are ``(entity type, verdict)`` pairs of the item's indicators now; ``old_detail`` is the
+    breakdown stored before the re-score. The AI entry stores the severity the model proposed (``target``)
+    and is applied again against the new score with the same cap; entries from before 0.11 have no target
+    and keep their points."""
+    detail = list(detail)
+    best = max(verdicts, key=lambda tv: VERDICT_BONUS.get(tv[1] or "", 0), default=None)
+    bonus = VERDICT_BONUS.get(best[1] or "", 0) if best else 0
+    if bonus:
+        detail.append({"label": f"indicator confirmed {best[1]} ({best[0]})", "points": bonus})
+        score = min(100, score + bonus)
+    ai = next((d for d in (old_detail or []) if isinstance(d, dict) and d.get("origin") == "llm"), None)
+    if ai:
+        target = ai.get("target")
+        if isinstance(target, int) and not isinstance(target, bool):
+            bump = min(LLM_SEVERITY_MAX, target - score)
+        else:
+            bump = min(LLM_SEVERITY_MAX, int(ai.get("points") or 0))
+        if bump > 0:
+            score = min(100, score + bump)
+            detail.append({**ai, "points": bump})
+    return score, detail

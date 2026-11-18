@@ -8,7 +8,8 @@
     {%- if f.province %} in <b>{{ province_name(f.province) }}</b>{% endif %}
     {%- if f.src_country %} reported from <b>{{ country_name(f.src_country) }}</b>{% endif %}
     {%- if f.lang %} in <b>{{ {'id': 'Bahasa Indonesia', 'en': 'English'}[f.lang] }}</b>{% endif %}
-    {%- if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %} · click a title to preview, a column header to sort</p></div>
+    {%- if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %}
+    {%- if hidden_copies %} · <span title="Articles another outlet published first (syndicated or reposted). Each story is listed once; the item page lists its copies.">{{ hidden_copies }} cop{{ 'y' if hidden_copies == 1 else 'ies' }} hidden</span>{% endif %} · click a title to preview, a column header to sort</p></div>
 </div>
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content" aria-label="Search" maxlength="200">
@@ -23,11 +24,12 @@
   {{ period_select(f) }}
   <select name="lang" aria-label="Language"><option value="">All languages</option>
     {% for v, l in [('en','English'),('id','Bahasa Indonesia')] %}<option value="{{ v }}" {{ 'selected' if f.lang == v }}>{{ l }}</option>{% endfor %}</select>
+  <label class="check small" title="Also list articles that another outlet published first (syndicated copies). Off: each story once."><input type="checkbox" name="copies" value="1" {{ 'checked' if f.copies }}> Show copies</label>
   {% if f.entity %}<input type="hidden" name="entity" value="{{ f.entity }}">{% endif %}
   {% for k in ('country', 'province', 'src_country') if f[k] %}<input type="hidden" name="{{ k }}" value="{{ f[k] }}">{% endfor %}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
   <button class="btn">Filter</button>
-  {% if f.q or f.cat or f.kind or f.source or f.min_sev or f.days != 30 or f.entity or f.country or f.province or f.lang or f.src_country %}<a class="btn" href="/feed">Reset</a>{% endif %}
+  {% if f.q or f.cat or f.kind or f.source or f.min_sev or f.days != 30 or f.entity or f.country or f.province or f.lang or f.src_country or f.copies %}<a class="btn" href="/feed">Reset</a>{% endif %}
 </form>
 <div class="card table-wrap data-table">
   <table>
@@ -55,6 +57,7 @@
         </div>{% endif %}
         {% set tg = targets.get(i.id) %}{% if tg %}<div class="target-line" title="Target countries">→ {% for t in tg %}<a href="/feed?country={{ t.code }}">{{ country_name(t.code) }}</a>{% if t.provinces %} ({% for p in t.provinces %}<a href="/feed?province={{ p }}">{{ province_name(p) }}</a>{{ ', ' if not loop.last }}{% endfor %}){% endif %}{{ ' · ' if not loop.last }}{% endfor %}</div>{% endif %}
         {% if i.origin == 'backfill' %}<span class="badge" title="Collected by a historical backfill; does not count as trending now">history</span>{% endif %}
+        {% if i.dup_of %}<a class="badge" href="/items/{{ i.dup_of }}" data-preview="/items/{{ i.dup_of }}/preview" title="Another outlet published this story first; statistics count it once">copy</a>{% endif %}
       </td>
       <td class="col-src"><span class="badge cat-{{ i.source.category }}">{{ i.source.category }}</span>
         <div class="small" style="margin-top:3px"><a class="muted" href="?{{ f.qs }}{{ '&' if f.qs }}source={{ i.source.id }}&sort={{ f.sort }}&dir={{ f.dir }}" title="Only this source">{{ i.source.name }}</a>

@@ -169,7 +169,13 @@ class ThreatFoxCollector(Collector):
             tf = ThreatFox()
         except NotConfigured as e:
             raise SkipCollector(str(e)) from e
-        return self._group(tf.recent(days=1), lambda _row: utcnow().strftime("%Y-%m-%d"))
+        # one item per family and the day ThreatFox first saw the IOCs (as in the backfill); IOCs reported later
+        # that day are added to the stored item (RawItem.merge_title) instead of being dropped (PM review, item 7)
+        return self._group(tf.recent(days=1), self._day)
+
+    @staticmethod
+    def _day(row: dict) -> str:
+        return str(row.get("first_seen") or "")[:10] or utcnow().strftime("%Y-%m-%d")
 
     def backfill_capability(self) -> BackfillCapability:
         return BackfillCapability(True, "recent IOCs grouped per family and day", 7,
@@ -184,7 +190,7 @@ class ThreatFoxCollector(Collector):
         progress(f"get_iocs for {days} day(s)")
         rows = [r for r in tf.recent(days=days)
                 if (dt := parse_dt(r.get("first_seen"))) is None or since <= dt <= until]
-        yield self._group(rows, lambda row: str(row.get("first_seen") or "")[:10] or utcnow().strftime("%Y-%m-%d"))
+        yield self._group(rows, self._day)
 
     def _group(self, rows: list[dict], day_of) -> list[RawItem]:
         # group IOCs by malware family into one item per family per day
@@ -213,6 +219,7 @@ class ThreatFoxCollector(Collector):
                 kind="pulse",
                 tags=[fam] + sorted({t for r in items for t in (r.get("tags") or [])})[:20],
                 indicators=inds,
+                merge_title=f"ThreatFox: {{n}} IOC(s) for {fam}",
             ))
         return out
 

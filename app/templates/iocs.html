@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import verdict, th, pager, period_select %}
+{% from "_macros.html" import verdict, th, pager, period_select, quota_panel %}
 {% block title %}IOCs{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Indicators of compromise</h1>
@@ -9,6 +9,11 @@
   {% if user.role in ('admin','analyst') %}<div class="job">
     <button class="btn" data-post="/api/enrichment/run" data-busy="Queuing…" data-job-button="enrich">⇄ Run enrichment batch</button>
     <div class="job-status small muted" data-job-status="enrich" aria-live="polite"></div></div>{% endif %}</div>
+{% if quota %}<details class="card quota-strip"{% if quota|selectattr('exhausted')|list %} open{% endif %}>
+  <summary class="small"><b>Provider quota today</b> <span class="muted">· {% for q in quota %}{{ q.label }} {{ q.used }}/{{ q.limit or '∞' }}{{ ' · ' if not loop.last }}{% endfor %}</span></summary>
+  <div style="margin-top:10px">{{ quota_panel(quota) }}</div>
+  {% if user.role == 'admin' %}<p class="muted small" style="margin:8px 0 0">Budgets are set under <a href="/settings?tab=enrichment">Settings → Enrichment</a>.</p>{% endif %}
+</details>{% endif %}
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search value" aria-label="Search IOC value" maxlength="200">
   <select name="type" aria-label="IOC type"><option value="">All types</option>{% for t in types %}<option value="{{ t }}" {{ 'selected' if f.type == t }}>{{ t }}</option>{% endfor %}</select>

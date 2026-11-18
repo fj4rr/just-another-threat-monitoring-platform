@@ -49,9 +49,13 @@ Every provider with a key is asked about every indicator type it supports, one a
 - **Gaps** are enforced per provider across all threads (the calling thread waits). They keep JATMP inside the
   free tiers' per-minute limits; with VirusTotal configured, one run of 10 indicators therefore takes at least
   2½ minutes.
-- **Budgets** are counted per provider and UTC day in the settings table. When a budget is used up, that
+- **Budgets** are counted per provider and calendar day of the server (UTC in the Docker image) in the settings table. When a budget is used up, that
   provider's lookups fail with "daily budget exhausted" and the others keep working; the failed indicator is
-  retried 6 hours later. One notification per day says when the VirusTotal budget is used up.
+  retried 6 hours later. One notification per provider and day says when its budget is used up (every
+  provider with a budget, including the context providers).
+- **Quota panel.** Settings → Enrichment shows, for every configured provider with a budget, the lookups used
+  today against the limit; analysts and admins see the same figures at the top of the IOC page.
+- The gaps are kept in memory: right after a restart the first call to a provider does not wait.
 - A **provider error** (quota, timeout, HTTP error) never stops the batch; it is logged and the next provider is
   asked.
 

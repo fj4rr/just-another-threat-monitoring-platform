@@ -47,13 +47,13 @@ One collected article, post, pulse, scan or analysis. Unique on `(source_id, ext
 | `tags` | Provider tags plus tags proposed by the AI summary (those are also listed in `raw["llm_tags"]`). |
 | `raw` | Small provider metadata (`tlp`, `sector`, `industries`, `listed_by`, `llm_tags`…). |
 | `published_at`, `collected_at` | Publication time from the provider (never in the future) and storage time. Statistics use `published_at`; the API's `since` uses `collected_at`. |
-| `severity`, `severity_detail` | 0–100 and the reasons as `[{"label", "points"}]`; AI reasons carry `"origin": "llm"`. |
+| `severity`, `severity_detail` | 0–100 and the reasons as `[{"label", "points"}]`; AI reasons carry `"origin": "llm"` and, from 0.11, `"target"` (the severity the model proposed, applied again by a re-score). |
 | `tlp` | The item's own TLP (OTX, MISP); `""` = inherit from the source. |
 | `origin` | `live` or `backfill` (historical items do not count as trending). |
 | `slimmed_at` | Set when the retention tier trimmed the text. |
 | `lang`, `src_country` | Detected language (`en`, `id`, `""`) and the outlet's country. |
 | `fraud_score`, `fraud_detail`, `fraud_loss_idr`, `fraud_victims` | Scam analysis. **`fraud_score > 0` is the definition of a scam report** everywhere (pages, statistics, API). |
-| `fingerprint`, `dup_of` | Cross-source dedup for articles. `dup_of` points at the original item (always an original, never another copy); trend scores, scam spread velocity and the AI digest count `coalesce(dup_of, id)`, the dashboard item counts do not (see [Counting rules](how-it-works/trends.md#counting-rules)). |
+| `fingerprint`, `dup_of` | Cross-source dedup for articles. `dup_of` points at the original item (always an original, never another copy); trend scores, scam spread velocity and the AI digest count `coalesce(dup_of, id)`, the dashboard item counts do not (see [Counting rules](how-it-works/trends.md#counting-rules)). The feed hides copies unless *Show copies* is ticked. |
 | `llm_summary`, `llm_at` | AI summary in Markdown. |
 
 `Item.source` is loaded with a join; `Item.entity_links` is loaded lazily, so list pages use

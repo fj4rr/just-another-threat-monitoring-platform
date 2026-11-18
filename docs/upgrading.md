@@ -4,6 +4,27 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.11.0
+
+Quick wins from a product review. New dependency `tzdata` (time zones on slim images and Windows): run
+`pip install -r requirements.txt -c requirements.lock`, or rebuild the Docker image. No schema changes.
+
+- **Daily schedule.** The executive summary (06:00) and housekeeping (03:30) still run in UTC until you set a
+  time zone and times under Settings → General (or `JATMP_TIMEZONE`). A team in Jakarta usually wants
+  `Asia/Jakarta` and 07:00; see [Configuration](configuration.md#daily-schedule).
+- **The feed hides syndicated copies** by default and says how many it left out; *Show copies* lists them again.
+  Bookmarked feed links show fewer rows than before for stories carried by several outlets.
+- **Re-scoring keeps points.** *Re-score all items* and `manage.py reextract` now keep the enrichment bonus and
+  the last AI assessment. Items re-scored by an older version lost their AI points; *Analyse with AI* again on
+  the ones that matter. After an older `reextract`, one *Re-score all items* restores the enrichment bonus (the
+  verdicts are stored on the indicators).
+- **ThreatFox** items are keyed by the day ThreatFox first saw the IOCs and take in IOCs reported later that day.
+  Items stored before the upgrade are not changed.
+- **New sources ask for a TLP.** Existing sources without a TLP keep counting as CLEAR (shared); Settings →
+  Sharing says how many there are.
+- **Quota warnings** now come for every provider with a daily budget (GreyNoise, AbuseIPDB, context providers),
+  not only VirusTotal: expect a notification on days a small budget such as GreyNoise's 40 runs out.
+
 ## Upgrading to 0.10.1
 
 Fixes from a security, data-processing and efficiency audit. Install the new dependency (`cryptography`) with

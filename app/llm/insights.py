@@ -14,6 +14,7 @@ from ..models import Enrichment, Entity, EntityLink, Insight, Item, ItemEntity, 
 from ..processing import trends
 from ..processing.extractor import Extracted
 from ..processing.pipeline import link_entities
+from ..processing.severity import LLM_SEVERITY_MAX
 from . import client
 
 SYSTEM = (
@@ -79,7 +80,6 @@ Keep it under 350 words."""
 # above, severity 100, family ShopeeStealer"). Model output may add to what the rules found, never dominate it
 # (audit 2026-11 S-6): a bounded severity bump that is listed as an AI reason, known names, and new names only
 # when another source already reported them.
-LLM_SEVERITY_MAX = 20
 _TAG_OK = re.compile(r"[^\w .#+&/-]")
 
 
@@ -125,11 +125,16 @@ def apply_llm_extraction(db: Session, item: Item, data: dict) -> None:
     sev = data.get("severity")
     if isinstance(sev, int) and not isinstance(sev, bool):
         target = max(0, min(100, sev))
-        bump = min(LLM_SEVERITY_MAX, target - (item.severity or 0))
+        # a re-analysis replaces the previous assessment: take its points off first, or they would add up
+        prev = sum(int(d.get("points") or 0) for d in (item.severity_detail or []) if d.get("origin") == "llm")
+        base = max(0, (item.severity or 0) - prev)
+        bump = min(LLM_SEVERITY_MAX, target - base)
         detail = [d for d in (item.severity_detail or []) if d.get("origin") != "llm"]
+        item.severity = base
         if bump > 0:
-            item.severity = min(100, (item.severity or 0) + bump)
-            detail.append({"label": "AI assessment (capped)", "points": bump, "origin": "llm"})
+            item.severity = min(100, base + bump)
+            # the proposed severity is kept so a re-score applies the same assessment again (severity.carry_over)
+            detail.append({"label": "AI assessment (capped)", "points": bump, "origin": "llm", "target": target})
         item.severity_detail = detail
     tags = [t for t in (_TAG_OK.sub("", str(t)).strip()[:40] for t in (data.get("tags") or [])[:10]) if t]
     if tags:

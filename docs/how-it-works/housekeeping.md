@@ -8,7 +8,8 @@ does. Code: `app/jobs.py`.
 
 ## Nightly housekeeping
 
-`run_housekeeping` runs every day at **03:30 UTC**. In order:
+`run_housekeeping` runs every day at **03:30** in the time zone of the schedule (`housekeeping_time` and
+`schedule_timezone` under Settings → General; default 03:30 UTC). In order:
 
 | # | Step | Default | Setting |
 |---|---|---|---|
@@ -86,8 +87,8 @@ changes counts that analysts may rely on, so it only happens on request:
 
 | Tool | Does | Notes |
 |---|---|---|
-| *Re-score all items* (Settings), `manage.py rescore` | Recomputes severity from the stored text and the linked entities | Keeps the *indicator confirmed* bonus; drops AI points. No network |
-| `manage.py reextract` | Deletes the `regex`, `kb` and `heuristic` links and extracts again; re-scores severity; re-runs the scam and sector analysis; recounts mentions; removes families and actors left without mentions or links | Keeps `feed` and `llm` links. Drops the enrichment bonus and AI points from severity |
+| *Re-score all items* (Settings), `manage.py rescore` | Recomputes severity from the stored text and the linked entities | Keeps the *indicator confirmed* bonus and the last AI assessment. No network |
+| `manage.py reextract` | Deletes the `regex`, `kb` and `heuristic` links and extracts again; re-scores severity; re-runs the scam and sector analysis; recounts mentions; removes families and actors left without mentions or links | Keeps `feed` and `llm` links, the enrichment bonus and the last AI assessment |
 
 See [Severity scoring](scoring.md#recomputing-scores).
 
@@ -108,7 +109,7 @@ What a restart loses, because it lives in memory:
 | State | Effect of a restart |
 |---|---|
 | Live progress of running jobs | The runs are marked *aborted*; start them again if needed |
-| AI auto-summary queue | Items waiting for a summary are not summarised automatically |
+| AI auto-summary queue | Rebuilt at start-up from the live items of the last 24 hours that qualify (severity 40 or more, no summary, not a copy) |
 | Trend cache (45 s), settings cache (5 s) | Rebuilt on the next request |
 | Per-provider gaps between calls, API-key rate windows, per-user action limits | Start fresh |
 

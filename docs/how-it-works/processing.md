@@ -83,7 +83,9 @@ Then JATMP looks for an article from **another source** with the same fingerprin
 before or after. If there is one, the new item becomes a copy: `dup_of` points at the **original** (the earliest,
 and never at another copy). Items in the same batch are checked against each other as well.
 
-Copies are stored and listed like any other item (the interface does not mark them). Trend scores, the scam
+Copies are stored like any other item. The feed hides them unless *Show copies* is ticked (the page says how
+many it left out), a *copy* badge marks them where they are listed, and the item page and preview say
+"Copy of *original*" on a copy and "Also carried by *N* other outlets" on the original. Trend scores, the scam
 *spreading* check and the AI executive summary count `coalesce(dup_of, id)`, so the story counts once there; item
 counts on the dashboard tiles and charts include copies (see
 [Counting rules](trends.md#counting-rules)). Posts, pulses and scans are not fingerprinted.

@@ -43,7 +43,7 @@ part is applied with these checks:
 |---|---|---|
 | Malware family (up to 10) | The name **appears literally in the item's text** and is at most 60 characters, **and** either it is a known family (mapped to its canonical name), or it passes the extractor's plausibility rules (not a generic word, tool, platform, country or everyday word) **and** the item comes from an intel source or another source already mentions that name | Link with origin `llm` |
 | Threat actor (up to 10) | Appears literally in the text, and is a known actor, or is plausible **and** already mentioned by another source | Link with origin `llm` |
-| Severity | The model's number is higher than the item's score | Raised by the difference, **at most +20**, never lowered; an earlier AI reason is replaced |
+| Severity | The model's number is higher than the item's score | Raised by the difference, **at most +20**, never lowered; an earlier AI assessment is taken off first and replaced. The model's number is stored with the reason, so a re-score applies the same assessment again |
 | Tags (up to 10) | After removing unusual characters, at most 40 characters each | Added to the item's tags; the new ones are also listed in `raw.llm_tags` |
 
 A new family name from a single news article is therefore ignored until a second source reports it, and a name
@@ -61,6 +61,9 @@ When *auto-summarize new high-severity items* is on (off by default) and a model
    have a summary and syndicated copies.
 4. At the **first failure** (the model is down, slow or out of quota) the job stops, so it does not try the whole
    queue against a broken model. The next collection run starts it again.
+5. The queue is kept in memory. At start-up it is **rebuilt** from the items that would still be in it: live
+   items collected in the last **24 hours** with severity 40 or more, no summary and not a copy, most severe first
+   (at most 200).
 
 Summaries never run inside a collection run: a slow model (the client waits up to 300 seconds per answer) would
 otherwise hold a collector thread for a long time. The queue lives in memory and is lost on restart.
@@ -81,7 +84,10 @@ rising, with what confidence). The brief is stored on the entity and shown until
 
 ## Executive summary
 
-`run_digest` runs daily at **06:00 UTC** when the daily summary is on, and on the *AI summary* button.
+`run_digest` runs daily at **06:00** in the time zone of the schedule (`digest_time` and `schedule_timezone`
+under Settings → General; default 06:00 UTC, which is 13:00 WIB, so a team in Jakarta sets `Asia/Jakarta` and
+for example 07:00) when the daily summary is on, and on the *AI summary* button. The next run is shown on the
+General tab.
 
 **Input** (all computed by the normal statistics, not by the model):
 

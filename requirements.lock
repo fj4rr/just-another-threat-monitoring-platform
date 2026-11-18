@@ -125,8 +125,10 @@ typing-inspection==0.4.5
     # via
     #   fastapi
     #   pydantic
-tzdata==2026.6 ; sys_platform == 'win32'
-    # via tzlocal
+tzdata==2026.6
+    # via
+    #   -r requirements.txt
+    #   tzlocal
 tzlocal==5.4.5
     # via apscheduler
 uvicorn==0.54.0

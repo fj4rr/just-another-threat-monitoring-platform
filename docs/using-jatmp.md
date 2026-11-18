@@ -54,6 +54,11 @@ verdicts, provider results, related items); ↑ / ↓ (or j / k) move to the pre
 *Full page* opens the detail page in a new tab and the URL (`?preview=item:12`) can be shared. Ctrl / Cmd /
 middle-click still open the page itself.
 
+**Copies.** When several outlets carry the same article, the first one is the original and the others are
+*copies*. The Feed lists each story once and says how many copies it left out; tick *Show copies* to list them
+too (marked with a *copy* badge). An item page and its preview say "Copy of …" on a copy and "Also carried by
+*N* other outlets" on the original. Trend scores, scam spread and the executive summary count the story once.
+
 ## Job status and notifications
 
 Under *Collect now* and *Enrich now* the dashboard shows when each job last

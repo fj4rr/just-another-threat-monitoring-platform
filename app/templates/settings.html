@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import quota_panel %}
 {% block title %}Settings{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Settings</h1><p class="muted">Sources, API keys, enrichment and LLM. Values set through environment variables are locked here.</p></div></div>
@@ -23,7 +24,11 @@
       <div class="field"><label for="add-country" title="The outlet's country, for the source-country view and the National (ID) filter">Country (ISO-2, optional)</label><input id="add-country" type="text" name="country" maxlength="2" placeholder="ID" autocomplete="off"></div>
       <div class="field"><label for="add-lang">Language</label><select id="add-lang" name="language"><option value="">detect</option><option value="en">English</option><option value="id">Bahasa Indonesia</option></select></div>
       <div class="field"><label for="add-topic" title="Scam & fraud sources show in the fraud section, and a single scam word is enough to file an entry as a scam report">Topic</label><select id="add-topic" name="topic"><option value="">general</option><option value="fraud">scam & fraud</option></select></div>
+      <div class="field"><label for="add-tlp" title="Items without their own TLP get this one. Items without any TLP count as CLEAR.">TLP</label>
+        <select id="add-tlp" name="tlp" required><option value="" disabled selected>Choose…</option>
+          {% for t, l in [('CLEAR','CLEAR – public'),('GREEN','GREEN – community'),('AMBER','AMBER – limited'),('RED','RED – named recipients')] %}<option value="{{ t }}">{{ l }}</option>{% endfor %}</select></div>
     </div>
+    <p class="muted small" id="add-tlp-note" data-max-tlp="{{ max_tlp }}" style="margin:2px 0 12px">The REST API, IOC feeds, webhooks and MISP share items up to <b>TLP:{{ max_tlp }}</b> (Settings → Sharing). <span data-tlp-verdict></span></p>
     {% for k, v in kinds.items() %}
     <div class="kind-fields" data-kind="{{ k }}">
       {% for name, label, ph in v.fields %}<div class="field"><label for="add-{{ k }}-{{ name }}">{{ label }}</label><input id="add-{{ k }}-{{ name }}" type="text" name="cfg_{{ name }}" placeholder="{{ ph }}" disabled></div>{% endfor %}
@@ -44,6 +49,16 @@
     document.getElementById("cat").value = kinds[sel.value].category;
   };
   sel.addEventListener("change", sync); sync();
+  // say what the chosen TLP means for sharing (PM review 2026-11, item 19: "no TLP = CLEAR = shared")
+  const tlpSel = document.getElementById("add-tlp"), tlpNote = document.getElementById("add-tlp-note");
+  const levels = ["CLEAR", "GREEN", "AMBER", "RED"];
+  const tlpSync = () => {
+    const out = tlpNote.querySelector("[data-tlp-verdict]"), v = tlpSel.value;
+    if (!v) { out.textContent = "Choose a TLP: a source without one counts as CLEAR and is shared."; return; }
+    out.textContent = levels.indexOf(v) <= levels.indexOf(tlpNote.dataset.maxTlp)
+      ? "Items of this source will be shared." : "Items of this source stay inside JATMP.";
+  };
+  tlpSel.addEventListener("change", tlpSync); tlpSync();
 </script>
 <div class="card table-wrap" style="margin-bottom:16px">
   <div class="card-head"><h2>Sources ({{ sources|length }})</h2>
@@ -85,7 +100,7 @@
               <div class="field"><label for="int-{{ s.id }}">Interval (min)</label><input id="int-{{ s.id }}" type="number" min="5" max="10080" name="interval_minutes" value="{{ s.interval_minutes }}"></div>
               <div class="field"><label for="cat-{{ s.id }}">Category</label><select id="cat-{{ s.id }}" name="category">{% for c in ['news','social','intel'] %}<option {{ 'selected' if s.category == c }}>{{ c }}</option>{% endfor %}</select></div>
               <div class="field"><label for="tlp-{{ s.id }}" title="Items without their own TLP get this one. The API, exports, webhooks and MISP only share up to the maximum set under Settings → Sharing.">TLP</label>
-                <select id="tlp-{{ s.id }}" name="tlp"><option value="" {{ 'selected' if not s.tlp }}>default (CLEAR)</option>{% for t in ['CLEAR','GREEN','AMBER','RED'] %}<option {{ 'selected' if s.tlp == t }}>{{ t }}</option>{% endfor %}</select></div>
+                <select id="tlp-{{ s.id }}" name="tlp"><option value="" {{ 'selected' if not s.tlp }}>none (counts as CLEAR: shared up to TLP:{{ max_tlp }})</option>{% for t in ['CLEAR','GREEN','AMBER','RED'] %}<option {{ 'selected' if s.tlp == t }}>{{ t }}</option>{% endfor %}</select></div>
               <div class="field"><label for="redis-{{ s.id }}" title="Turn off for providers whose terms forbid passing their data on.">Share outside JATMP</label>
                 <select id="redis-{{ s.id }}" name="redistribute">
                   <option value="" {{ 'selected' if s.redistribute is none }}>default ({{ 'no' if s.kind in ('anyrun','ransomwarelive') else 'yes' }})</option>
@@ -336,7 +351,19 @@ document.addEventListener("DOMContentLoaded", () => {
     <div class="row">{% for name, ok in context_providers %}<button type="button" class="btn sm" data-post="/api/intel/test/{{ name }}" data-busy="Testing…" {{ 'disabled title="No key configured"' if not ok }}>{{ name }}</button>{% endfor %}</div>
     <p class="muted small" style="margin:6px 0 0">Save keys first. Tests use account / status endpoints where the provider has one, so they don't spend lookup quota.</p></div>
   <div class="alert small" style="margin-top:16px">Keys are used both by collectors (OTX pulses, urlscan searches, ANY.RUN queries, ThreatFox) and by the cross-source enrichment that checks IOCs found in news and social posts. Keys are stored in the local database; prefer environment variables on shared hosts.</div>
+  {% elif tab == 'general' %}
+  <div class="alert small" style="margin-top:16px">Next AI executive summary:
+    <b>{{ next_runs.digest.strftime('%Y-%m-%d %H:%M %Z') if next_runs and next_runs.digest else 'not scheduled' }}</b>
+    · next housekeeping: <b>{{ next_runs.housekeeping.strftime('%Y-%m-%d %H:%M %Z') if next_runs and next_runs.housekeeping else 'not scheduled' }}</b>.
+    The summary covers the 24 hours before it runs. Times on the pages stay in UTC.</div>
+  {% elif tab == 'enrichment' %}
+  <div style="margin-top:18px"><h3>Quota used today</h3>
+    {% if quota %}{{ quota_panel(quota) }}
+    <p class="muted small" style="margin:10px 0 0">Lookups counted against each daily budget above (context providers share the context budget, counted per provider). When a budget is used up, a notification is raised once that day and the provider is skipped until midnight (server time); the other providers keep working.</p>
+    {% else %}<p class="muted small">No provider with a daily budget is configured. Keys are entered under <a href="?tab=intel">Threat-intel APIs</a>.</p>{% endif %}</div>
   {% elif tab == 'sharing' %}
+  {% set no_tlp = sources|rejectattr('tlp')|list %}
+  {% if no_tlp %}<div class="alert small" style="margin-top:16px">{{ no_tlp|length }} source(s) have no TLP, so their items count as <b>TLP:CLEAR</b> and are shared (unless the item carries its own TLP or the source is marked “not shared”). That is right for public news feeds; set a TLP in a source's Edit dialog under <a href="?tab=sources">Sources</a> for anything that is not public.</div>{% endif %}
   <div class="alert small" style="margin-top:16px">These rules apply to everything that leaves JATMP: the <a href="/api/v1/docs">REST API</a>, IOC export feeds, webhooks and MISP pushes. Per-source TLP and “share outside JATMP” are set in each source's Edit dialog; ANY.RUN sources are not shared by default. API keys are managed under <a href="/profile#api-keys">Profile → API keys</a>.</div>
   <div class="alert small" style="margin-top:10px">Outbound requests (feeds, intel providers, the AI, MISP, GeoIP) only reach public addresses, on every redirect hop. List the private hosts JATMP may contact above, for example an internal MISP or a self-hosted RSS-Bridge. A local AI server is added automatically when you save the AI tab in local mode.</div>
   {% elif tab == 'misp' %}

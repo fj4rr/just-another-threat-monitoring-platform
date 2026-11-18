@@ -19,7 +19,8 @@ router = APIRouter(prefix="/settings")
 def settings_ctx(db: Session, user: User, tab: str, msg: str = "") -> dict:
     sources = db.execute(select(Source).order_by(Source.category, Source.kind, Source.name)).scalars().all()
     kinds = {k: {"label": c.label, "category": c.category, "fields": c.fields} for k, c in REGISTRY.items()}
-    ctx = {"user": user, "tab": tab, "msg": msg, "sources": sources, "kinds": kinds, "settings": settings.all_for_ui()}
+    ctx = {"user": user, "tab": tab, "msg": msg, "sources": sources, "kinds": kinds, "settings": settings.all_for_ui(),
+           "max_tlp": norm_tlp(settings.get("api_max_tlp")) or "GREEN"}
     if tab == "intel":
         from ..intel import NotConfigured
         from ..intel.context import CONTEXT_CLASSES
@@ -35,6 +36,12 @@ def settings_ctx(db: Session, user: User, tab: str, msg: str = "") -> dict:
 
         ctx["providers"] = [(c.name, ok(c)) for c in PROVIDER_CLASSES]
         ctx["context_providers"] = [(c.name, ok(c)) for c in (*CONTEXT_CLASSES, RansomwareLive, HudsonRock)]
+    if tab == "general":
+        ctx["next_runs"] = jobs.next_daily_runs()
+    if tab == "enrichment":
+        from ..intel import quota
+
+        ctx["quota"] = quota.status()
     if tab == "webhooks":
         from .webhooks_routes import webhooks_ctx
 
@@ -98,6 +105,8 @@ async def save_values(request: Request, user: User = Depends(require("admin")), 
             changed.append("outbound_private_hosts")
     audit(db, user, "settings_changed", ", ".join(changed), request)
     db.commit()
+    if {"schedule_timezone", "digest_time", "housekeeping_time"} & set(changed) and jobs.scheduler.running:
+        jobs.schedule_daily_jobs()
     if "enrichment_interval" in changed and jobs.scheduler.running:
         jobs.scheduler.reschedule_job("enrichment", trigger="interval",
                                       minutes=max(2, int(settings.get("enrichment_interval") or 10)))
@@ -171,6 +180,7 @@ async def add_source(request: Request, user: User = Depends(require("admin")), d
         interval_minutes=_interval(form.get("interval_minutes"), 30), enabled=True,
     )
     _geo_fields(src, form)
+    src.tlp = norm_tlp(form.get("tlp"))  # asked for in the form: "no TLP" counts as CLEAR and is shared
     db.add(src)
     audit(db, user, "source_added", f"{src.kind}:{src.name}", request)
     db.commit()

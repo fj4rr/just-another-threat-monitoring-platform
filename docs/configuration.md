@@ -42,6 +42,16 @@ Runtime and deployment variables:
 | `JATMP_FORWARDED_ALLOW_IPS` | `127.0.0.1` | Proxies allowed to set `X-Forwarded-*` (client IP in the audit log) |
 | `JATMP_PUBLIC_URL` | empty | Public base URL used for links in API output, webhooks and MISP events |
 | `JATMP_PRIVATE_HOSTS` | empty | Private hosts JATMP may contact, comma-separated host names or IP ranges (`ollama, misp.internal, 10.20.0.0/16`). Feeds, providers, the AI and MISP only reach public addresses otherwise; see [Security](security.md) |
+| `JATMP_TIMEZONE` | `UTC` | Time zone of the daily schedule (IANA name such as `Asia/Jakarta`); the same as *Time zone of the daily schedule* under Settings → General |
+
+## Daily schedule
+
+Two jobs run once a day: the AI executive summary (`digest_time`, default 06:00) and housekeeping
+(`housekeeping_time`, default 03:30). Both times are read in the time zone set under Settings → General
+(`schedule_timezone`, default UTC, or `JATMP_TIMEZONE`). For a team in Indonesia, set `Asia/Jakarta` (WIB),
+`Asia/Makassar` (WITA) or `Asia/Jayapura` (WIT) and, for example, 07:00 for the summary. An unknown zone name or
+an invalid time is rejected and the previous value is kept; the General tab shows the next run of both jobs. The
+times shown on the pages stay in UTC.
 
 ## Extending the knowledge base
 

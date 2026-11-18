@@ -109,6 +109,9 @@ How the suite works:
 - **Files per release.** New behaviour goes into the file of the release that introduces it
   (`test_v0101.py`…); core behaviour lives in `test_app.py`, `test_extractor.py`, `test_scoring_and_reports.py`
   and `test_security_units.py`.
+- **Numbers in the docs.** `tests/test_docs_numbers.py` reads the weights, thresholds, windows and defaults that
+  the *How it works* pages quote and compares them with the constants in the code. A change on one side only
+  fails the build; fix the page or the code, and add a check when a page quotes a new number that matters.
 - **What to test.** For a detection rule: the case that motivated it, the false positive it must not produce,
   and an existing true positive that must still match. For a security fix: the attack. For a regular expression
   that is not trivial: a timing test with hostile input.
@@ -188,10 +191,12 @@ Which page to update:
    [Background jobs](architecture.md#background-jobs)).
 3. Add a section to `CHANGELOG.md` (what changed, from the user's point of view) and to `docs/upgrading.md` (what
    an admin has to do or should expect: new columns, one-off jobs, new dependencies, changed defaults).
-4. Run `ruff check .`, `pytest`, `pip-audit -r requirements.lock` and `mkdocs build --strict`.
-5. Try the upgrade path: copy a `data/` folder from the previous version, start the new version on the copy
+4. Update **How it works** (`docs/how-it-works/`) for every changed rule, weight, threshold, interval or job, and
+   the checks in `tests/test_docs_numbers.py` when a quoted number moved or a new one was added.
+5. Run `ruff check .`, `pytest`, `pip-audit -r requirements.lock` and `mkdocs build --strict`.
+6. Try the upgrade path: copy a `data/` folder from the previous version, start the new version on the copy
    (`JATMP_DATA_DIR`), and check the start-up log and the one-off jobs.
-6. Commit, push, and check that CI is green.
+7. Commit, push, and check that CI is green.
 
 ## Troubleshooting
 

@@ -17,7 +17,7 @@ from ..sharing import norm_tlp
 from . import fraud, sectors
 from .extractor import Extracted, extract_all
 from .geo import tag_item
-from .severity import reasons_to_json, score_item
+from .severity import IOC_TYPES, carry_over, reasons_to_json, score_item
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +35,10 @@ class RawItem:
     raw: dict = field(default_factory=dict)
     # Indicators delivered structurally by the feed (OTX pulse indicators, urlscan page...)
     indicators: list[Extracted] = field(default_factory=list)
+    # Set for entries that grow after they were first stored (ThreatFox: one item per family and day): when the id
+    # is already stored, new indicators are added to that item instead of being dropped, and its title becomes this
+    # text with {n} replaced by the item's indicator count
+    merge_title: str = ""
 
 
 _TAG_RE = re.compile(r"(?s)<[^>]+>")
@@ -309,6 +313,30 @@ def ingest_committed(db: Session, source: Source, raws: list[RawItem], progress=
     return []
 
 
+def merge_indicators(db: Session, source: Source, ext: str, r: RawItem) -> int:
+    """Add the indicators of ``r`` that its stored item does not have yet (PM review 2026-11, item 7: ThreatFox kept
+    one item per family and day and dropped every IOC reported after the first run of the day). The item is scored
+    again with the new indicator count, keeping its enrichment bonus and AI assessment. Returns how many were added."""
+    db.flush()  # the session does not autoflush: links added earlier in this batch must be visible to link_entities
+    item = db.execute(select(Item).where(Item.source_id == source.id, Item.external_id == ext)).scalar_one_or_none()
+    if item is None:
+        return 0
+    added = link_entities(db, item, [Extracted(i.type, i.value, i.display, i.category, "feed") for i in r.indicators])
+    if not added:
+        return 0
+    db.flush()
+    rows = db.execute(select(Entity.type, Entity.verdict, ItemEntity.origin).join(
+        ItemEntity, ItemEntity.entity_id == Entity.id).where(ItemEntity.item_id == item.id)).all()
+    n_ioc = sum(1 for t, _, origin in rows if origin == "feed" and t in IOC_TYPES)
+    item.title = r.merge_title.replace("{n}", str(n_ioc))[:1000]
+    item.tags = sorted(set(item.tags or []) | {str(t)[:80] for t in r.tags[:50]})[:50]
+    scored = [Extracted(t, "", "", "", origin or "") for t, _, origin in rows]
+    score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags)}", scored, item.kind)
+    item.severity, item.severity_detail = carry_over(score, reasons_to_json(reasons), item.severity_detail,
+                                                     [(t, v) for t, v, _ in rows])
+    return added
+
+
 def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, origin: str = "live") -> list[int]:
     """Store new items. Returns IDs of newly created items.
     ``progress(done, total)`` is called as entries are processed (in-memory job progress, no DB writes)."""
@@ -333,6 +361,9 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, orig
         if progress and (n % 5 == 0 or n == len(raws)):
             progress(n, len(raws))
         ext = _external_id(r)
+        if ext and ext in known and r.merge_title and r.indicators:
+            merge_indicators(db, source, ext, r)
+            continue
         if not ext or ext in known:
             continue
         known.add(ext)  # a feed may repeat an entry inside the same batch

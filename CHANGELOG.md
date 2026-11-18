@@ -2,9 +2,46 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
-## Unreleased
+## 0.11.0
+
+Quick wins from a product review of the platform (trust in the numbers, operations). Upgrade notes:
+[docs/upgrading.md](docs/upgrading.md).
+
+**Trust in the numbers**
+
+- **Copies are visible.** The feed lists each story once and says how many syndicated copies it hid; *Show copies*
+  lists them with a *copy* badge. Item pages and previews say "Copy of *original*" on a copy and "Also carried by
+  *N* other outlets" on the original.
+- **Re-scoring no longer loses points.** *Re-score all items*, `manage.py rescore` and `manage.py reextract` keep
+  the *indicator confirmed* bonus and the last AI assessment (the AI reason now stores the severity the model
+  proposed, so it is applied again with the same +20 cap). Before, maintenance could drop a confirmed-malicious
+  item below the webhook threshold.
+- Running the AI analysis again on an item no longer adds its points a second time to the score, and a lower new
+  assessment takes them away again; a *suspicious* indicator that turns *malicious* shows +12 in the breakdown
+  (it showed +7 while the score rose by 12).
+
+**Collection and enrichment**
+
+- **ThreatFox** keeps the IOCs reported later in the day: items are keyed by the day ThreatFox first saw the IOCs
+  (as in the backfill), and a later run adds new IOCs to that day's item, updates its count and scores it again.
+- **Quota panel**: Settings → Enrichment and the IOC page show the lookups used today against each provider's daily
+  budget. The "budget used up" notification now comes for every provider with a budget, not only VirusTotal.
+- The auto-summary queue is rebuilt at start-up (live items of the last 24 hours with severity 40 or more and no
+  summary), so a restart no longer drops the items waiting for an AI summary.
+
+**Operations**
+
+- **Time zone and times of the daily jobs**: Settings → General (or `JATMP_TIMEZONE`) sets the zone, the time of
+  the AI executive summary and the time of housekeeping, and shows their next run. Defaults stay 06:00 and 03:30
+  UTC.
+- **TLP on new sources**: the *Add source* form asks for a TLP and says whether the source's items will be shared;
+  Settings → Sharing counts the sources without one ("no TLP" counts as CLEAR and is shared).
+- `tzdata` is now a dependency on every platform.
 
 **Documentation**
+
+- `tests/test_docs_numbers.py` checks the weights, thresholds, windows and defaults quoted in *How it works*
+  against the code, and the release checklist has an "update How it works" step.
 
 - New section **How it works** ([docs/how-it-works/](docs/how-it-works/index.md)) that explains every process
   behind the platform with the rules and numbers it uses: an overview that follows one article from the feed to

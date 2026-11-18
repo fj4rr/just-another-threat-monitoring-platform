@@ -22,17 +22,18 @@ from ..knowledge import AMBIGUOUS, canonical_malware
 from ..models import Enrichment, Entity, EntityLink, Item, ItemEntity, utcnow
 from .extractor import Extracted
 from .pipeline import get_or_create_entity
+from .severity import VERDICT_BONUS  # how much a confirmed indicator adds to an item's severity
 
 log = logging.getLogger(__name__)
 
 IOC_TYPES = ("md5", "sha1", "sha256", "ip", "domain", "url")
 VERDICT_RANK = {"malicious": 3, "suspicious": 2, "clean": 1, "unknown": 0, "": 0}
-# How much an item's severity rises when one of its indicators is confirmed by enrichment.
-VERDICT_BONUS = {"malicious": 12, "suspicious": 5}
 # Re-check cadence: providers learn about an indicator days after it is first posted.
 RECHECK_UNKNOWN_AFTER = timedelta(days=3)
 RECHECK_ERROR_AFTER = timedelta(hours=6)
 RECHECK_MAX_AGE = timedelta(days=21)
+# Tier 1 of a batch: indicators never looked up that an item of the last 14 days mentions
+FRESH_WINDOW = timedelta(days=14)
 
 
 PROVIDER_CLASSES = (VirusTotal, OTX, URLScan, AnyRun, MalwareBazaar, URLhaus, GreyNoise, AbuseIPDB)
@@ -122,18 +123,25 @@ def _consensus(entity: Entity, results: list[LookupResult]) -> str:
 
 def _bump_items(db: Session, entity: Entity, old: str, new: str) -> int:
     """Feed a confirmed verdict back into the severity of the items that mention the IOC."""
-    gain = VERDICT_BONUS.get(new, 0) - VERDICT_BONUS.get(old, 0)
-    if gain <= 0:
+    full = VERDICT_BONUS.get(new, 0)
+    if full <= VERDICT_BONUS.get(old, 0):
         return 0
     items = db.execute(select(Item).join(ItemEntity, ItemEntity.item_id == Item.id)
                        .where(ItemEntity.entity_id == entity.id)).unique().scalars().all()
     label = f"indicator confirmed {new} ({entity.type})"
+    n = 0
     for item in items:
-        detail = [d for d in (item.severity_detail or []) if not str(d.get("label", "")).startswith("indicator confirmed")]
-        detail.append({"label": label, "points": gain})
-        item.severity_detail = detail
-        item.severity = min(100, (item.severity or 0) + gain)
-    return len(items)
+        # one entry per item, for its strongest confirmed indicator: it replaces a weaker one (suspicious ->
+        # malicious) and the score rises by the difference, so the breakdown keeps adding up to the score
+        mine = [d for d in (item.severity_detail or []) if str(d.get("label", "")).startswith("indicator confirmed")]
+        had = max((int(d.get("points") or 0) for d in mine), default=0)
+        if had >= full:
+            continue
+        item.severity_detail = [d for d in (item.severity_detail or []) if d not in mine] + [
+            {"label": label, "points": full}]
+        item.severity = min(100, (item.severity or 0) + full - had)
+        n += 1
+    return n
 
 
 def enrich_entity(db: Session, entity: Entity, providers: list | None = None, auto_context: bool = True) -> list[str]:
@@ -288,7 +296,7 @@ def run_batch(db: Session, progress=None) -> str:
     if not providers:
         return "no intel providers configured"
     batch = int(settings.get("enrichment_batch") or 8)
-    since = utcnow() - timedelta(days=14)
+    since = utcnow() - FRESH_WINDOW
     # 1) IOCs mentioned in collected items that were never enriched; prefer IOCs from
     #    news/social (they gain the most from cross-source context) and most-mentioned.
     q = (

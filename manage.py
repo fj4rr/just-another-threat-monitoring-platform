@@ -70,7 +70,7 @@ def main(argv: list[str]) -> int:
         from app.processing import fraud, sectors
         from app.processing.extractor import extract_all
         from app.processing.pipeline import link_entities, tag_families
-        from app.processing.severity import reasons_to_json, score_item
+        from app.processing.severity import carry_over, reasons_to_json, score_item
 
         db = SessionLocal()
         # drop links the extractor produced (keep feed-supplied and LLM-found ones), then rebuild
@@ -87,12 +87,18 @@ def main(argv: list[str]) -> int:
                 uniq = {(e.type, e.value): e for e in ex}
                 score, reasons = score_item(item.title, f"{item.content}\n{' '.join(item.tags or [])}",
                                             list(uniq.values()), item.kind)
-                item.severity, item.severity_detail = score, reasons_to_json(reasons)
+                old_detail = item.severity_detail
                 for fx in fraud.apply(db, item, item.source.topic or ""):
                     uniq.setdefault((fx.type, fx.value), fx)
                 for sx in sectors.apply(item):
                     uniq.setdefault((sx.type, sx.value), sx)
                 link_entities(db, item, list(uniq.values()))
+                db.flush()
+                # keep the enrichment bonus and the last AI assessment (they do not come from the text)
+                verdicts = db.execute(select(Entity.type, Entity.verdict).join(
+                    ItemEntity, ItemEntity.entity_id == Entity.id).where(ItemEntity.item_id == item.id)).all()
+                item.severity, item.severity_detail = carry_over(score, reasons_to_json(reasons), old_detail,
+                                                                 [tuple(v) for v in verdicts])
                 n += 1
             db.commit()
             db.expunge_all()

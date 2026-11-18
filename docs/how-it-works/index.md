@@ -33,7 +33,7 @@ replace them (see [AI processing](ai.md)).
 | **2. Ingest and analyse** | New entries are de-duplicated, cleaned, scanned for entities, scored for severity and fraud, tagged with sectors and geography, and stored | Immediately, inside the collection run | [Ingest and analysis](processing.md), [Severity scoring](scoring.md), [Scams and fraud](../fraud.md) |
 | **3. Enrich** | Indicators are looked up on the configured intel providers; the answers become one verdict | Every 10 minutes, 8 indicators per run (defaults) | [Enrichment and verdicts](enrichment.md) |
 | **4. Aggregate** | Trend scores, CVE risk, correlation, statistics and the AI summaries are computed from the stored items | When a page is opened (trends cached 45 s); CVE intel every 6 h; AI digest daily | [Trends and correlation](trends.md), [AI processing](ai.md) |
-| **5. Share and maintain** | Webhooks, MISP pushes and the APIs deliver what may leave; housekeeping slims and deletes old data; re-analysis jobs apply new rules to stored items | Webhooks every 30 s; housekeeping 03:30 UTC; re-analysis after upgrades | [Sharing and delivery](sharing.md), [Housekeeping and re-analysis](housekeeping.md) |
+| **5. Share and maintain** | Webhooks, MISP pushes and the APIs deliver what may leave; housekeeping slims and deletes old data; re-analysis jobs apply new rules to stored items | Webhooks every 30 s; housekeeping daily (03:30 UTC by default); re-analysis after upgrades | [Sharing and delivery](sharing.md), [Housekeeping and re-analysis](housekeeping.md) |
 
 All five stages run in **one process** (the web application and its scheduler, see
 [Architecture](../architecture.md#the-big-picture)). There is no queue between them: an item is fully analysed
@@ -107,7 +107,7 @@ snippet stay; the full text goes. → [Housekeeping and re-analysis](housekeepin
 
 ## A day on the scheduler
 
-All times are UTC. Intervals are the defaults; most can be changed under Settings.
+All times are UTC; the two daily jobs follow the schedule time zone when one is set (Settings → General). Intervals are the defaults; most can be changed under Settings.
 
 | When | Job | What it does |
 |---|---|---|
@@ -121,8 +121,8 @@ All times are UTC. Intervals are the defaults; most can be changed under Setting
 | Start + 3 min, then every 6 h | `run_cve_intel` | KEV, EPSS and CVSS for up to 60 recently mentioned CVEs |
 | Every 30 s | `run_webhooks` | Delivers up to 50 due webhook events |
 | Every 30–180 min per source | `run_source` | Collects and ingests one source |
-| 03:30 daily | `run_housekeeping` | Old runs, notifications and deliveries; slimming; deletion (if enabled); identifier pruning |
-| 06:00 daily | `run_digest` | AI executive summary (when an LLM is configured and the digest is on) |
+| 03:30 daily (`housekeeping_time`) | `run_housekeeping` | Old runs, notifications and deliveries; slimming; deletion (if enabled); identifier pruning |
+| 06:00 daily (`digest_time`) | `run_digest` | AI executive summary (when an LLM is configured and the digest is on) |
 | 04:00 on the 5th of each month | `run_geoip_update` | Refreshes the offline GeoIP database (when auto-update is on) |
 | 2 s after new items | `run_auto_summaries` | AI summaries of new items with severity ≥ 40 (when enabled), 10 per run |
 

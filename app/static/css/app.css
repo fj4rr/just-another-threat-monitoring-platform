@@ -137,6 +137,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge.good { color: var(--text-primary); border-color: var(--good); }
 .badge.good::before { content: "✓"; color: var(--good); }
 .badge.new { border-color: var(--accent); color: var(--text-primary); }
+.dup-note { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; overflow-wrap: anywhere; }
 .badge.cat-news::before, .badge.cat-social::before, .badge.cat-intel::before { content: ""; width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 .badge.cat-news::before { background: var(--series-1); }
 .badge.cat-social::before { background: var(--series-2); }
@@ -288,6 +289,11 @@ a.icon:hover { background: var(--accent); color: var(--accent-ink); transform: s
 .meter > span { display: block; height: 100%; border-radius: 3px; background: var(--series-1); transform-origin: left; animation: grow-x .9s cubic-bezier(.2,.7,.2,1) both;
   animation-delay: calc(.3s + var(--i, 0) * 60ms); }
 .meter > span.new { background: var(--series-2); }
+.meter > span.hot { background: var(--warning); }
+.quota-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 16px; }
+.quota-head { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.quota-row.is-out .quota-head .num { color: var(--critical); }
+.quota-strip { margin: 0 0 14px; }
 .feed-item { transition: background .2s; border-radius: 8px; }
 .feed-item:hover { background: var(--surface-2); }
 .count-up { font-variant-numeric: tabular-nums; }

@@ -108,6 +108,13 @@ SCHEMA: dict[str, tuple[Any, str, str, str, str]] = {
     "misp_sharing_group_id": (0, "", "Sharing group id (distribution 4 only)", "int", "misp"),
     "misp_autopush_min_severity": (0, "", "Push new items to MISP automatically at or above this severity (0 = off)",
                                    "int", "misp"),
+    # Daily schedule (PM review 2026-11, item 16): the executive summary and housekeeping used to run at fixed UTC
+    # times (06:00 UTC = 13:00 WIB, after lunch for a team in Jakarta)
+    "schedule_timezone": ("UTC", "JATMP_TIMEZONE", "Time zone of the daily schedule below (IANA name, e.g. "
+                          "Asia/Jakarta, Asia/Makassar, Asia/Jayapura, UTC)", "timezone", "general"),
+    "digest_time": ("06:00", "", "AI executive summary every day at (HH:MM in that time zone)", "time", "general"),
+    "housekeeping_time": ("03:30", "", "Housekeeping (retention, slimming, clean-up) every day at (HH:MM)", "time",
+                          "general"),
     # Housekeeping
     "retention_full_days": (180, "", "Keep the full text for N days; older items keep title, link, entities, "
                             "severity and a snippet (0 = keep everything)", "int", "general"),
@@ -259,9 +266,34 @@ def _coerce(raw: Any, kind: str) -> Any:
     return raw.strip() if isinstance(raw, str) else raw
 
 
+def valid_timezone(name: str) -> bool:
+    from zoneinfo import ZoneInfo
+
+    try:
+        ZoneInfo(str(name or ""))
+        return True
+    except (ValueError, KeyError, OSError):  # ZoneInfoNotFoundError is a KeyError; "../x" is a ValueError
+        return False
+
+
+def parse_hhmm(value: Any) -> tuple[int, int] | None:
+    """'7:05', '07:05' -> (7, 5); anything else -> None."""
+    h, sep, m = str(value or "").strip().partition(":")
+    if not sep or not h.isdigit() or not m.isdigit() or len(m) != 2:
+        return None
+    if 0 <= int(h) <= 23 and 0 <= int(m) <= 59:
+        return int(h), int(m)
+    return None
+
+
 def coerce_form_value(key: str, raw: Any) -> Any:
     kind = SCHEMA[key][3]
     val = _coerce(raw, kind)
+    if kind == "timezone":  # an unknown name keeps the current value rather than silently becoming UTC
+        return val if valid_timezone(val) else get(key)
+    if kind == "time":
+        hm = parse_hhmm(val)
+        return f"{hm[0]:02d}:{hm[1]:02d}" if hm else get(key)
     if key in INT_BOUNDS:
         lo, hi = INT_BOUNDS[key]
         val = min(max(int(val), lo), hi)
