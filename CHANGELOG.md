@@ -4,6 +4,11 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 ## Unreleased
 
+**Fixes**
+
+- Enrichment no longer ends every run with "Enrichment failed: object of type 'datetime.datetime' has no len()".
+  The family step reused the name of the stale-verdict list for a cutoff time, so the final summary broke.
+
 **Documentation**
 
 - The pages that 0.13.0 and 0.13.1 left out now describe them too. *How it works*: the overview's numbers table and

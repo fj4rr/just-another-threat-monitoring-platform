@@ -463,10 +463,10 @@ def run_batch(db: Session, progress=None) -> str:
         progress(done, total, "families")
         from .trends import trending
 
-        stale = utcnow() - timedelta(hours=24)
+        fam_cutoff = utcnow() - timedelta(hours=24)
         for row in trending(db, "malware", limit=5):
             ent = db.get(Entity, row["id"])
-            if ent and (ent.enriched_at is None or ent.enriched_at < stale):
+            if ent and (ent.enriched_at is None or ent.enriched_at < fam_cutoff):
                 enrich_family(db, ent)
                 db.commit()
                 fam_done += 1
