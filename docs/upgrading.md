@@ -83,7 +83,7 @@ Quick wins from a product review. New dependency `tzdata` (time zones on slim im
 - **ThreatFox** items are keyed by the day ThreatFox first saw the IOCs and take in IOCs reported later that day.
   Items stored before the upgrade are not changed.
 - **New sources ask for a TLP.** Existing sources without a TLP keep counting as CLEAR (shared); Settings →
-  Sharing says how many there are.
+  Sharing & API says how many there are.
 - **Quota warnings** now come for every provider with a daily budget (GreyNoise, AbuseIPDB, context providers),
   not only VirusTotal: expect a notification on days a small budget such as GreyNoise's 40 runs out.
 
@@ -96,7 +96,7 @@ Fixes from a security, data-processing and efficiency audit. Install the new dep
   backups from now on: without it the stored keys cannot be read and must be entered again.
 - **Outbound guard.** Feeds, providers, the AI and MISP may only reach public addresses. Private hosts you already
   configured (a local Ollama, an internal MISP, an RSS-Bridge on the LAN, a feed on a `.local` name) are added to
-  Settings → Sharing → *Private hosts JATMP may contact* on the first start. Anything private you add later goes
+  Settings → Sharing & API → *Private hosts JATMP may contact* on the first start. Anything private you add later goes
   there by hand (a local AI server is added for you when you save the AI tab in local mode); a blocked request
   says so in the source's error.
 - **First-run setup** from another machine (or through Docker's port mapping) asks for a setup token. It is in the

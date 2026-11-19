@@ -10,7 +10,8 @@ the CVE intel refresh, which does the same job for vulnerabilities. The code is 
 ## The enrichment run
 
 `jobs.run_enrichment` runs every **`enrichment_interval`** minutes (default 10, minimum 2; the first run is 2
-minutes after start-up) and whenever someone clicks *Enrich now*. It does nothing if automatic enrichment is
+minutes after start-up) and whenever someone clicks *Enrich now* on the dashboard or *Run enrichment batch* on
+the IOC page. It does nothing if automatic enrichment is
 switched off (Settings → Enrichment) or if no provider has an API key.
 
 Each run only looks up a small, prioritised batch, because the free tiers of most providers allow just a few

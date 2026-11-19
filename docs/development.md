@@ -207,7 +207,7 @@ Which page to update:
 | Symptom | Likely cause |
 |---|---|
 | Every page redirects to `/setup` | `JATMP_DATA_DIR` points at a folder without an installed `config.json` |
-| A source fails with `blocked: … resolves to a private or local address` | The outbound guard; add the host under Settings → Sharing → *Private hosts JATMP may contact* |
+| A source fails with `blocked: … resolves to a private or local address` | The outbound guard; add the host under Settings → Sharing & API → *Private hosts JATMP may contact* |
 | Stored API keys read as empty | The database was moved without its `data/config.json` (the key that decrypts them) |
 | `database is locked` on SQLite | A long write transaction; commit in chunks, or use PostgreSQL for heavy backfills |
 | Collectors run twice | More than one worker or process is serving the app |

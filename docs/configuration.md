@@ -65,7 +65,7 @@ value. The General tab shows when both jobs will next run. Times shown elsewhere
 
 When you add a source, the form asks for its TLP and tells you whether its items will be shared outside JATMP. A
 source without a TLP counts as CLEAR, so its items are shared (up to the maximum TLP set under Settings →
-Sharing, GREEN by default). Settings → Sharing also shows how many sources have no TLP. See
+Sharing & API, GREEN by default). Settings → Sharing & API also shows how many sources have no TLP. See
 [Sharing and delivery](how-it-works/sharing.md#1-tlp).
 
 ## Extending the knowledge base

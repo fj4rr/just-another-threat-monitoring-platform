@@ -13,7 +13,7 @@
 - **Outbound requests.** Feeds, intel providers, the AI, MISP and the GeoIP download only reach public addresses.
   The check runs on every redirect hop, and the connection goes to the address that was checked, so a DNS
   rebinding name cannot swap in `127.0.0.1` afterwards. Private hosts that JATMP should reach (an internal MISP, a
-  self-hosted RSS-Bridge) are listed under Settings → Sharing → *Private hosts JATMP may contact*; a local AI
+  self-hosted RSS-Bridge) are listed under Settings → Sharing & API → *Private hosts JATMP may contact*; a local AI
   server is added there when you save the AI tab in local mode. Response bodies are capped after decompression
   (20 MB by default), so a huge feed or a gzip bomb is refused instead of filling the memory.
 - **AI output is advisory.** Article text is attacker-controlled, and so is whatever a model reads out of it. The

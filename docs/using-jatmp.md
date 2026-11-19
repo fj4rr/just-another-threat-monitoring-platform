@@ -115,7 +115,9 @@ export feeds until a provider confirms it again (see
   [Source health](how-it-works/collection.md#source-health).
 - **Enrichment queue and quotas.** The IOC page (for analysts and admins) and Settings → Enrichment show how many
   indicators are waiting to be looked up, whether the job is keeping up, and how much of each provider's daily
-  budget has been used. See [The queue](how-it-works/enrichment.md#the-queue).
+  budget has been used. On the IOC page this is the *Enrichment* panel above the filters; click it to open the
+  details. *Run enrichment batch* starts a run straight away, and *Copy visible* copies the indicators shown in the
+  table, one per line. See [The queue](how-it-works/enrichment.md#the-queue).
 
 ## Correcting JATMP
 

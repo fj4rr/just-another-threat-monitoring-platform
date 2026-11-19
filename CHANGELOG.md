@@ -2,6 +2,14 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## Unreleased
+
+**Documentation**
+
+- Reviewed against 0.14.0 and its new screenshots: the settings tab is called *Sharing & API* everywhere the docs
+  send you to it (they said *Sharing*), and *Using JATMP* and *Enrichment and verdicts* describe the IOC page's
+  *Enrichment* panel, *Run enrichment batch* and *Copy visible* buttons.
+
 ## 0.14.0
 
 Easier navigation: filters that stay, a grouped and collapsible menu, a *New threats* button, and screenshots retaken

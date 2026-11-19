@@ -26,7 +26,7 @@ may be shared when its effective TLP is **at or below** the `api_max_tlp` settin
 the default, AMBER and RED items never leave JATMP.
 
 Because a source without a TLP counts as CLEAR, its items are shared. To make that a deliberate choice, the
-*Add source* form asks for a TLP and tells you whether the source's items will be shared, and Settings → Sharing
+*Add source* form asks for a TLP and tells you whether the source's items will be shared, and Settings → Sharing & API
 shows how many sources have no TLP set.
 
 ### 2. Redistribution
