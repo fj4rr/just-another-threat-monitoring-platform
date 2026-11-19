@@ -24,13 +24,25 @@
   {{ period_select(f) }}
   <select name="lang" aria-label="Language"><option value="">All languages</option>
     {% for v, l in [('en','English'),('id','Bahasa Indonesia')] %}<option value="{{ v }}" {{ 'selected' if f.lang == v }}>{{ l }}</option>{% endfor %}</select>
+  <input type="hidden" name="copies" value="0">
   <label class="check small" title="Also list articles that another outlet published first (syndicated copies). Off: each story once."><input type="checkbox" name="copies" value="1" {{ 'checked' if f.copies }}> Show copies</label>
   {% if f.entity %}<input type="hidden" name="entity" value="{{ f.entity }}">{% endif %}
   {% for k in ('country', 'province', 'src_country') if f[k] %}<input type="hidden" name="{{ k }}" value="{{ f[k] }}">{% endfor %}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
-  <button class="btn">Filter</button>
-  {% if f.q or f.cat or f.kind or f.source or f.min_sev or f.days != 30 or f.entity or f.country or f.province or f.lang or f.src_country or f.copies %}<a class="btn" href="/feed">Reset</a>{% endif %}
+  <div class="filter-actions">
+    <button class="btn primary">Filter</button>
+    {% if f.q or f.cat or f.kind or f.source or f.min_sev or f.days != 30 or f.entity or f.country or f.province or f.lang or f.src_country or f.copies %}<a class="btn" href="/feed?reset=1" title="Drop every filter and start over">Clear filters</a>{% endif %}
+  </div>
 </form>
+{% if f.entity or f.country or f.province or f.src_country %}
+<div class="active-filters small" aria-label="Filters set by a link">
+  <span class="muted">Also filtered by:</span>
+  {% if f.entity %}<a class="chip" href="/feed?entity=0" title="Remove this filter">entity: {{ entity.display if entity else f.entity }} ✕</a>{% endif %}
+  {% if f.country %}<a class="chip" href="/feed?country=" title="Remove this filter">target: {{ country_name(f.country) }} ✕</a>{% endif %}
+  {% if f.province %}<a class="chip" href="/feed?province=" title="Remove this filter">province: {{ province_name(f.province) }} ✕</a>{% endif %}
+  {% if f.src_country %}<a class="chip" href="/feed?src_country=" title="Remove this filter">reported from: {{ country_name(f.src_country) }} ✕</a>{% endif %}
+</div>
+{% endif %}
 <div class="card table-wrap data-table">
   <table>
     <thead><tr>

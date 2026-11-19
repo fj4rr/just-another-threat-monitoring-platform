@@ -153,3 +153,9 @@
   </div>
 </div>
 {%- endmacro %}
+
+{# "New threats" toggle of the intelligence lists: a submit button inside the filter form, so it keeps every other filter #}
+{% macro new_toggle(f, days_note='30 days') -%}
+<button class="btn new-toggle {{ 'on' if f.new }}" name="new" value="{{ 0 if f.new else 1 }}" aria-pressed="{{ 'true' if f.new else 'false' }}"
+  title="Only what was first seen in the selected period ({{ days_note }} when the period is “All time”)">✦ New threats{% if f.new %} ✕{% endif %}</button>
+{%- endmacro %}

@@ -4,6 +4,17 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 ## Unreleased
 
+**Changes**
+
+- Feed filters now stay when you pick another one. They are kept for your session, so choosing a language after a
+  severity keeps the severity, and the topbar search or a chip only changes the filter it names. **Clear filters**
+  is the only thing that drops them; a chip under the filter bar removes a single entity, country or province.
+- The left menu is tidier: Cyber threats, Scams & fraud and Feed stay on top, and Intelligence, Analysis and Manage
+  are dropdowns (open when the current page is inside them, and they remember their state). The whole menu collapses
+  to an icon rail with the arrow next to the logo.
+- New **New threats** button on the Intelligence lists (Malware, Threat actors, CVEs, IOCs, Scam types and Impersonated
+  brands): it keeps only what was first seen inside the chosen period and leaves your other filters alone.
+
 **Fixes**
 
 - The default urlscan.io source searched `verdicts.malicious:true`, a field free accounts may not search, so it
@@ -16,6 +27,10 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 **Documentation**
 
+- *Using JATMP* describes the grouped, collapsible menu, the *New threats* button and how Feed filters stay until
+  cleared (only the Feed keeps them; the other lists still have *Reset*). *Trends and correlation* explains what
+  *New threats* filters. *Collection* and *Configuration* give the new urlscan.io default query and why the old
+  one failed on free accounts. *Scams and fraud* points at the new menu.
 - The pages that 0.13.0 and 0.13.1 left out now describe them too. *How it works*: the overview's numbers table and
   key terms (corrections, error rate, precision and recall), enrichment (an analyst's verdict wins and keeps its
   date fresh), ingest (corrections respected at every step, distinctive spellings such as "RedLine" and "Cl0p",

@@ -76,7 +76,7 @@ look them up by hand; JATMP does not query them (cekrekening.id sits behind a CA
 
 ## Pages
 
-The detail pages are in the sidebar under *Intelligence → Scams & fraud*:
+The detail pages are in the menu's *Intelligence* dropdown, in its scams part:
 
 - **Scam reports**: every scam report, filterable by scam type, brand, sector, minimum fraud score, period and
   text (and by target country or province when opened from the globe), sortable by fraud score, loss, victims and

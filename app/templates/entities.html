@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import th, pager, period_select, dchip, cve_badges %}
+{% from "_macros.html" import th, pager, period_select, dchip, cve_badges, new_toggle %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 {% set period = (f.days ~ 'd') if f.days else 'all time' %}
@@ -15,8 +15,11 @@
     {% for c in categories %}<option value="{{ c }}" {{ 'selected' if f.category == c }}>{{ c }}</option>{% endfor %}</select>{% endif %}
   {{ period_select(f) }}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
-  <button class="btn">Filter</button>
-  {% if f.q or f.category or f.days != 30 %}<a class="btn" href="{{ path }}">Reset</a>{% endif %}
+  <div class="filter-actions">
+    <button class="btn">Filter</button>
+    {{ new_toggle(f) }}
+    {% if f.q or f.category or f.days != 30 or f.new %}<a class="btn" href="{{ path }}">Reset</a>{% endif %}
+  </div>
 </form>
 {% if cat_breakdown %}
 <div class="card" style="margin-bottom:16px">

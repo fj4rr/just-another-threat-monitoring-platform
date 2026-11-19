@@ -150,10 +150,14 @@ def test_feed_region_switch_and_filters(client, geo_items):
     assert "Zzgeo Jepang" in page and "Zzgeo Ransomware hits hospitals" in page
     page = client.get("/feed?country=DE&q=Zzgeo&days=0").text
     assert "hospitals in Germany" in page and "Zzgeo Data warga" not in page
+    client.get("/feed?reset=1")  # filters stick in the session since 0.14; "Clear filters" drops them
     page = client.get("/feed?province=ID-JB&days=0").text
     assert "Zzgeo Data warga" in page and "Zzgeo Jepang" not in page
+    client.get("/feed?reset=1")
     assert "Zzgeo Jepang" in client.get("/feed?lang=id&q=Zzgeo&days=0").text
+    client.get("/feed?reset=1")
     assert "Zzgeo Ransomware hits" not in client.get("/feed?src_country=ID&q=Zzgeo&days=0").text
+    client.get("/feed?reset=1")
     # bad filter values are ignored, not errors
     assert client.get("/feed?country=XX&province=nope&lang=fr").status_code == 200
 

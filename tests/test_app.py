@@ -128,3 +128,28 @@ def test_multi_user_login_flow(client, multi_user_mode):
     assert client.post("/api/sources/run_all", headers={"X-CSRF-Token": tok}).status_code == 403
     assert client.get("/settings").status_code == 403
     client.post("/logout", data={"csrf_token": tok})
+
+
+def test_feed_filters_stick_until_cleared(client):
+    """0.14: a filter stays when another one is picked; only "Clear filters" drops them."""
+    r = client.get("/feed?min_sev=50&kind=post&copies=0")
+    assert r.status_code == 200
+    r = client.get("/feed?lang=en")  # names only one filter: the others stay
+    assert 'name="min_sev"' in r.text
+    assert '<option value="50" selected>' in r.text and '<option value="post" selected>' in r.text
+    assert '<option value="en" selected>' in r.text
+    # the form submits every field, so unticking / resetting a field really changes it
+    r = client.get("/feed?min_sev=0&kind=&lang=en")
+    assert '<option value="50" selected>' not in r.text and '<option value="post" selected>' not in r.text
+    r = client.get("/feed?reset=1", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/feed"
+    r = client.get("/feed")
+    assert '<option value="en" selected>' not in r.text and "Clear filters" not in r.text
+
+
+def test_intelligence_lists_new_threats_filter(client):
+    for path in ("/malware", "/actors", "/cves", "/iocs", "/fraud/scams", "/fraud/brands"):
+        plain, new = client.get(path), client.get(path + "?new=1")
+        assert plain.status_code == 200 and new.status_code == 200, path
+        assert "New threats" in plain.text and 'aria-pressed="true"' in new.text, path
+        assert 'aria-pressed="true"' not in plain.text, path

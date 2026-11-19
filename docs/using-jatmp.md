@@ -18,9 +18,19 @@ for search, and a layout that works on a phone. The Docker image comes with a he
 
 ## Dashboards
 
-The sidebar starts with two dashboards: **Cyber threats** (`/`) and **Scams & fraud** (`/fraud`, see
-[Scams and fraud](fraud.md#dashboard)). The detail pages are under *Intelligence*: Malware, Threat actors, CVEs
-and IOCs for cyber threats; and Scam reports, Scam types, Impersonated brands and Scammer identifiers for scams.
+The menu on the left starts with the two dashboards, **Cyber threats** (`/`) and **Scams & fraud** (`/fraud`, see
+[Scams and fraud](fraud.md#dashboard)), followed by the **Feed**. Everything else is grouped in three dropdowns:
+
+| Group | Pages |
+|---|---|
+| **Intelligence** | Malware, Threat actors, CVEs and IOCs for cyber threats; Scam reports, Scam types, Impersonated brands and Scammer identifiers for scams |
+| **Analysis** | Geography, Watchlist, Reports, Corrections, AI insights |
+| **Manage** | Settings, Backfill, and Admin in multi-user mode |
+
+A group opens by itself when the page you are on belongs to it, and otherwise remembers whether you left it open
+or closed. On a wider screen, the arrow next to the logo collapses the whole menu to a narrow rail of icons: hover
+over an icon to see its name, or click a group's icon to expand the menu with that group open. Both choices are
+remembered in your browser.
 
 ### Period
 
@@ -37,6 +47,10 @@ far back it can go ([History and storage](history-and-storage.md#backfill)).
 
 From top to bottom:
 
+- **New threats.** The *✦ New threats* button next to the period switch narrows the radar and the three trending
+  lists to malware families, CVEs and threat actors **first seen** within the chosen period, so you can see what
+  has just appeared rather than what is always in the news. Click it again (*showing only new ✕*) to see
+  everything. The tiles and charts don't change.
 - **Threat radar and globe.** The radar shows trending malware families (bug icon), CVEs (broken shield) and
   threat actors (hooded figure). The closer an entry is to the centre, the higher its trend score; the larger
   it is, the more it was mentioned. A dashed ring marks entries first seen in the period, and the buttons in the
@@ -66,7 +80,14 @@ describes what each outlet published. The details are in
 
 The Feed, IOC, Malware, Threat actor and CVE lists all share one table design: sortable headers that stay visible
 while you scroll, a bold main column with a second line and a row of related entities, the same period filter
-(24 hours to 1 year, or all time), a Reset button, and pagination.
+(24 hours to 1 year, or all time), a button to clear the filters, and pagination.
+
+**Feed filters stay until you clear them.** On the Feed, the filters you pick are kept for your session. Choosing
+a language after a minimum severity keeps the severity, and coming back to the Feed later shows the same view.
+The search box in the top bar and the entity chips only change the filter they name. Filters that a link set (an
+entity, a target country or province, a reporting country) appear as chips under the filter bar; click the ✕ on
+one to drop just that filter. **Clear filters** drops them all and starts over. The other lists keep their
+filters in the URL and have a *Reset* button.
 
 Clicking a title opens a **side preview** with the essentials: the severity breakdown, the AI summary, indicators
 and their verdicts (with the date of each verdict), provider results and related items. Use ↑ / ↓ (or j / k) to

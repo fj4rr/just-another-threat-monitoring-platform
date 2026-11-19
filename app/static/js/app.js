@@ -42,6 +42,36 @@
     if (e.target.closest(".side .nav a")) setNav(false);
   });
 
+  // ---------- desktop sidebar: collapse to an icon rail, dropdown groups remember their state
+  const root = document.documentElement;
+  const store = {
+    get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  };
+  const setSide = (collapsed) => {
+    root.classList.toggle("side-collapsed", collapsed);
+    store.set("jatmp-side", collapsed ? "1" : "0");
+    document.querySelectorAll("[data-side-toggle]").forEach((b) => {
+      b.setAttribute("aria-expanded", String(!collapsed));
+      b.setAttribute("aria-label", collapsed ? "Expand the menu" : "Collapse the menu");
+    });
+  };
+  setSide(root.classList.contains("side-collapsed"));
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-side-toggle]")) return setSide(!root.classList.contains("side-collapsed"));
+    // a group header in the collapsed rail expands the menu and opens that group
+    const sum = e.target.closest(".nav-group > summary");
+    if (sum && root.classList.contains("side-collapsed") && matchMedia("(min-width: 761px)").matches) {
+      sum.parentElement.open = false; // the click toggles it next, so it ends up open
+      setSide(false);
+    }
+  });
+  document.querySelectorAll("details.nav-group").forEach((d) => {
+    const key = "jatmp-nav-" + d.dataset.navGroup;
+    if (!d.hasAttribute("data-has-active")) d.open = store.get(key) === "1";
+    d.addEventListener("toggle", () => store.set(key, d.open ? "1" : "0"));
+  });
+
   // ---------- sticky table headers sit right under the (sticky) topbar, whatever its height
   const topbar = document.querySelector(".topbar");
   if (topbar && "ResizeObserver" in window) {

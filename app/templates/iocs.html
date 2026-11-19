@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import verdict, th, pager, period_select, quota_panel, queue_line, enrichment_panel %}
+{% from "_macros.html" import verdict, th, pager, period_select, quota_panel, queue_line, enrichment_panel, new_toggle %}
 {% block title %}IOCs{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Indicators of compromise</h1>
@@ -23,9 +23,12 @@
   <input type="text" name="country" value="{{ f.country }}" placeholder="Hosting country (ISO-2)" aria-label="Hosting country (ISO-2 code)" maxlength="2" style="max-width:190px">
   {% if f.entity %}<input type="hidden" name="entity" value="{{ f.entity }}">{% endif %}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
-  <button class="btn">Filter</button>
-  {% if f.q or f.type or f.verdict or f.entity or f.days or f.country %}<a class="btn" href="/iocs">Reset</a>{% endif %}
-  <button type="button" class="btn" data-copy-selector="td .ioc-val" data-copy-label="IOC" title="Copy the indicators on this page, one per line">Copy visible</button>
+  <div class="filter-actions">
+    <button class="btn">Filter</button>
+    {{ new_toggle(f, '7 days') }}
+    {% if f.q or f.type or f.verdict or f.entity or f.days or f.country or f.new %}<a class="btn" href="/iocs">Reset</a>{% endif %}
+    <button type="button" class="btn" data-copy-selector="td .ioc-val" data-copy-label="IOC" title="Copy the indicators on this page, one per line">Copy visible</button>
+  </div>
 </form>
 <div class="card table-wrap data-table">
   <table>

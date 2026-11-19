@@ -4,6 +4,7 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
@@ -116,16 +117,48 @@ def _province(value: str) -> str:
     return v if v in gazetteer.PROVINCES else ""
 
 
+FEED_FILTERS = ("cat", "kind", "q", "source", "entity", "min_sev", "days", "country", "province", "lang",
+                "src_country", "copies")
+FEED_DEFAULTS = {"cat": "", "kind": "", "q": "", "source": 0, "entity": 0, "min_sev": 0, "days": 30, "country": "",
+                 "province": "", "lang": "", "src_country": "", "copies": 0}
+
+
+def _sticky_filters(request: Request, given: dict) -> dict:
+    """Feed filters of this request: what the URL names wins, everything it leaves out comes from the session."""
+    saved = request.session.get("feed_filters") if "session" in request.scope else None
+    saved = saved if isinstance(saved, dict) else {}
+    return {k: given[k] if k in request.query_params else saved.get(k, FEED_DEFAULTS[k]) for k in FEED_FILTERS}
+
+
 @router.get("/feed")
 def feed(request: Request, cat: str = "", kind: str = "", q: str = "", source: int = 0, entity: int = 0,
          min_sev: int = 0, days: int = 30, page: int = 1, sort: str = "time", dir: str = "", country: str = "",
          province: str = "", lang: str = "", src_country: str = "", copies: int = 0,
          user: User = Depends(current_user), db: Session = Depends(get_db),
          region: str = Depends(current_region)):
+    # "Clear filters" is the only thing that drops a filter the analyst picked (0.14): the others stay in the
+    # session, and a request that names a filter (the form, a chip, the topbar search) only changes that one
+    if request.query_params.get("reset"):
+        if "session" in request.scope:
+            request.session.pop("feed_filters", None)
+        return RedirectResponse("/feed", status_code=303)
+    given = dict(cat=cat, kind=kind, q=q, source=source, entity=entity, min_sev=min_sev, days=days,
+                 country=country, province=province, lang=lang, src_country=src_country, copies=copies)
+    kept = _sticky_filters(request, given)
+    cat, kind, q, source, entity, min_sev, days, country, province, lang, src_country, copies = (
+        kept[k] for k in FEED_FILTERS)
     days, min_sev, page = _clamp(days, 0, 3650), _clamp(min_sev, 0, 100), _clamp(page, 1, 100_000)
     q = q.strip()[:200]
     country, province, src_country = _cc(country), _province(province), _cc(src_country)
     lang = lang if lang in ("en", "id") else ""
+    cat = cat if cat in ("news", "social", "intel") else ""
+    kind = kind if kind in ("article", "post", "pulse", "scan", "analysis") else ""
+    source, entity = max(int(source), 0), max(int(entity), 0)
+    if "session" in request.scope:
+        request.session["feed_filters"] = {
+            "cat": cat, "kind": kind, "q": q, "source": source, "entity": entity, "min_sev": min_sev,
+            "days": days, "country": country, "province": province, "lang": lang, "src_country": src_country,
+            "copies": 1 if copies else 0}
     sort = sort if sort in FEED_SORTS else "time"
     direction = _dir(dir, FEED_SORTS[sort][1])
     stmt = geo.scoped(select(Item).join(Source, Source.id == Item.source_id), region)
@@ -259,6 +292,11 @@ def related_chips(db: Session, ids: list[int], types: tuple[str, ...] = RELATED_
     return out
 
 
+def _only_new(request: Request) -> bool:
+    """The "New threats" toggle of the intelligence lists (``?new=1``)."""
+    return request.query_params.get("new", "") in ("1", "true", "on")
+
+
 def _entity_list(request, user, db, etype: str, title: str, category: str = "", q: str = "", days: int = 30,
                  sort: str = "mentions", direction: str = "", page: int = 1, region: str = "",
                  related_types: tuple[str, ...] | None = None, categories: list[str] | None = None,
@@ -284,6 +322,9 @@ def _entity_list(request, user, db, etype: str, title: str, category: str = "", 
         stmt = stmt.where(Entity.category == category)
     if q:
         stmt = stmt.where(Entity.display.ilike(f"%{q}%"))
+    new = _only_new(request)
+    if new:  # "New threats": first seen inside the period (30 days when the period is "All time")
+        stmt = stmt.where(Entity.first_seen >= utcnow() - timedelta(days=days or 30))
     rows = list(db.execute(stmt.order_by(recent.desc(), Entity.mention_count.desc()).limit(5000)).all())
     trend = {t["id"]: t for t in trends.trending(db, etype, limit=500, region=region)}
     keyfn = ENTITY_SORTS[sort][0]
@@ -293,8 +334,8 @@ def _entity_list(request, user, db, etype: str, title: str, category: str = "", 
     rows = rows[(page - 1) * ENTITY_PAGE: page * ENTITY_PAGE]
     others = related_types or (tuple(t for t in RELATED_TYPES if t != etype) if etype != "malware" else RELATED_TYPES)
     related = related_chips(db, [r[0].id for r in rows], others)
-    f = {"category": category, "q": q, "days": days, "sort": sort, "dir": direction,
-         "qs": _qs(category=category, q=q, days=_keep(days))}
+    f = {"category": category, "q": q, "days": days, "sort": sort, "dir": direction, "new": new,
+         "qs": _qs(category=category, q=q, days=_keep(days), new=int(new))}
     return render(request, "entities.html", {
         "user": user, "rows": rows, "etype": etype, "title": title, "trend": trend, "total": total,
         "page": page, "pages": max(1, -(-total // ENTITY_PAGE)), "maxn": maxn, "related": related,
@@ -361,6 +402,9 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
         stmt = stmt.where(Entity.value.ilike(f"%{q.lower()}%"))
     if days:
         stmt = stmt.where(Entity.last_seen >= utcnow() - timedelta(days=days))
+    new = _only_new(request)
+    if new:  # "New threats": indicators first seen inside the period (7 days when the period is "All time")
+        stmt = stmt.where(Entity.first_seen >= utcnow() - timedelta(days=days or 7))
     country = _cc(country)
     if country:  # hosting country (GeoIP / providers)
         stmt = stmt.where(Entity.country == country)
@@ -412,7 +456,8 @@ def iocs(request: Request, type: str = "", verdict: str = "", q: str = "", page:
                     if (provider, "intel") not in srcs[eid]:
                         srcs[eid].append((provider, "intel"))
     f = {"type": type, "verdict": verdict, "q": q, "entity": entity, "days": days, "sort": sort, "dir": direction,
-         "country": country, "qs": _qs(type=type, verdict=verdict, q=q, entity=entity, days=days, country=country)}
+         "country": country, "new": new,
+         "qs": _qs(type=type, verdict=verdict, q=q, entity=entity, days=days, country=country, new=int(new))}
     return render(request, "iocs.html", {
         "user": user, "rows": rows, "fam": fam, "srcs": srcs, "total": total, "page": page,
         "pages": max(1, -(-total // IOC_PAGE)), "f": f, "types": trends.IOC_TYPES, "entity": ent,

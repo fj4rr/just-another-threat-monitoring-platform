@@ -14,7 +14,7 @@ Every provider is optional. JATMP uses whichever ones you configure and skips th
 |---|---|---|
 | VirusTotal | `VT_API_KEY` | The free tier allows 4 requests a minute and 500 a day. JATMP keeps to both (`vt_min_interval`, `vt_daily_budget`) |
 | AlienVault OTX | `OTX_API_KEY` | Free. Subscribe to pulses or users on OTX, so that the "subscribed" feed has content |
-| urlscan.io | `URLSCAN_API_KEY` | The Search API needs a key |
+| urlscan.io | `URLSCAN_API_KEY` | The Search API needs a key. On a free account, search `task.tags:malicious` (the default) rather than `verdicts.malicious:true`, which needs a paid plan |
 | ANY.RUN | `ANYRUN_API_KEY` | Needs a plan that includes TI Lookup; the base URL can be changed in Settings. The TI Lookup endpoint (`/v1/intelligence/api/search`) hasn't been tested against a real key yet, so the parser is written defensively |
 | abuse.ch ThreatFox | `ABUSECH_AUTH_KEY` | Free (an Auth-Key from auth.abuse.ch) |
 | abuse.ch MalwareBazaar, URLhaus | `ABUSECH_AUTH_KEY` | The same free Auth-Key as ThreatFox |
