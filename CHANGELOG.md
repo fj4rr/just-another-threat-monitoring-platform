@@ -2,6 +2,21 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## Unreleased
+
+**Documentation**
+
+- *How it works* and the user guide pages (getting started, configuration, using JATMP, analysis, geography,
+  integrations, reporting and AI, history and storage, maintenance, the docs index) are rewritten in plainer,
+  more natural language, with the behaviour of 0.11 and 0.12 throughout: copies shown once, one counting rule,
+  the severity rules version, verdicts that age, source health, the enrichment queue and quota panel, each
+  provider at its own pace, redaction of personal data in cloud prompts, the daily schedule's time zone, and TLP
+  on new sources. The overview's walkthrough now follows the article to its first verdict re-check.
+- Fixes: *History and storage* said PostgreSQL search scans the text (it has its own full-text index since
+  0.10.1); *Using JATMP* said only VirusTotal warns about its quota; the overview said severity is never
+  re-analysed automatically; *Architecture* lacked the source-health and severity re-scoring jobs and the new
+  `quota`, `redact` and `sourcehealth` modules.
+
 ## 0.12.0
 
 Trust and coverage items from the product review of 2026-11. Upgrade notes: [docs/upgrading.md](docs/upgrading.md).

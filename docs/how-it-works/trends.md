@@ -2,124 +2,138 @@
 
 [← How JATMP works](index.md)
 
-How the dashboards turn stored items into trend scores, CVE priorities, breakdowns and related items. None of this
-is stored: it is computed from the items when a page is opened (trend lists are cached for 45 seconds). Code:
-`app/processing/trends.py`, `app/processing/graph.py`, `app/intel/cve.py`.
+This page explains how the dashboards turn stored items into trend scores, CVE priorities, breakdowns and lists of
+related items. None of these figures are stored: they are calculated from the items whenever a page is opened
+(trend lists are cached for 45 seconds). The code is in `app/processing/trends.py`, `app/processing/graph.py` and
+`app/intel/cve.py`.
 
 ## Counting rules
 
-Three rules decide what a number on the dashboards counts:
+Three rules decide what a number on the dashboards actually counts.
 
-- **Publication date.** Periods are measured on `published_at`, so backfilled history lands in the period it was
-  published in, not the day it was collected.
-- **Region.** In the *National (ID)* view every count is limited to items that target Indonesia or come from an
-  Indonesian outlet without another target (see [The National view](processing.md#the-national-indonesia-view)).
-- **Stories, not copies.** Since 0.12 one rule applies everywhere: a syndicated article and its copies count
-  **once** (`trends.n_stories()`, which is `count(distinct coalesce(dup_of, id))`; see
-  [Cross-source duplicates](processing.md#3-cross-source-duplicates)). That covers the KPI tiles and their
-  sparklines, the timelines, the breakdown charts (malware and actor types, sectors, scam types, brands), the
-  target countries and provinces, the mentions in the entity lists, trend scores, the scam *spreading* check, the
-  AI executive summary and the PDF / Word reports. The *Stories collected* tile also shows the number of items
-  including copies when it differs.
-- **Per-outlet figures count items.** *Items per source*, the source countries, the languages and the sources on
-  an entity page describe what each outlet published, so a copy counts for the outlet that carried it.
+**Stories, not copies.** When several outlets publish the same article, the original and its copies count as one
+story (see [Cross-source duplicates](processing.md#3-cross-source-duplicates)). This rule applies everywhere JATMP
+counts how much was reported:
+
+- the KPI tiles and their sparklines, and the timelines;
+- the breakdown charts (malware and actor types, sectors, scam types, brands);
+- target countries and provinces;
+- mention counts in the entity lists;
+- trend scores and the scam *spreading* check;
+- the AI executive summary and the PDF / Word reports.
+
+The *Stories collected* tile also shows the number of items, copies included, when the two differ.
+
+**Per-outlet figures count items.** *Items per source*, source countries and languages describe what each outlet
+published, so there a copy counts for the outlet that carried it.
+
+**Dates and regions.** Periods are measured by publication date, so backfilled history lands in the period it was
+published in, not the day it was collected. In the *National (ID)* view, every figure only includes items that
+target Indonesia, or that come from an Indonesian outlet without naming another target (see
+[The National view](processing.md#the-national-indonesia-view)).
 
 ## Periods and baselines
 
-| Period | Chart buckets | Trend baseline |
+| Period | Chart bars | Trend baseline |
 |---|---|---|
 | 7, 15 or 30 days | One per day | The 30 days before the period |
 | 3 months (90 days) | One per day | The 90 days before the period |
-| 6 months, 1 year | One per week (first day of each 7-day block) | As long as the period |
+| 6 months, 1 year | One per week (the first day of each 7-day block) | As long as the period itself |
 
-The baseline is `max(30, period)` days immediately before the period. Live collectors only cover the recent past,
-so the long periods (and their baselines) are only meaningful after a [backfill](collection.md#backfill); the
-dashboards say so when sources have gaps.
+In other words, the baseline is always the `max(30, period)` days immediately before the period. The live
+collectors only cover the recent past, so the longer periods (and their baselines) only become meaningful after
+a [backfill](collection.md#backfill). The dashboards tell you when some sources have gaps.
 
 ## Trend score
 
-Families, actors and CVEs on the threat radar, in the *Trending* tables and in the AI digest are ranked by a
-**trend score**. For one entity, with a period of `W` days and a baseline of `B` days:
+Malware families, threat actors and CVEs on the threat radar, in the *Trending* tables and in the AI summary are
+ranked by a **trend score**. For one entity, with a period of `W` days and a baseline of `B` days, JATMP uses:
 
 | Input | Meaning |
 |---|---|
-| `r` | Stories mentioning it in the period |
-| `b` | Stories mentioning it in the baseline |
-| `s` | Distinct sources of those stories in the period (originals only; at least 1) |
-| `c` | Distinct source **types** (news, social, intel) in the period (at least 1) |
+| `r` | Stories that mention it in the period |
+| `b` | Stories that mention it in the baseline |
+| `s` | How many different sources reported it in the period (originals only; at least 1) |
+| `c` | How many different source **types** (news, social, intel) reported it in the period (at least 1) |
 
 ```
 growth = (r / W + 0.1) / (b / B + 0.1)
 score  = r × √min(growth, 10) × (1 + 0.25 × (s − 1)) × (1 + 0.2 × (c − 1))
 ```
 
-- **Volume** (`r`) is the base: something mentioned once does not trend, however new.
-- **Growth** compares daily rates. The `+ 0.1` keeps a first mention from producing an infinite growth; the
-  square root and the cap at 10 keep a sudden spike from drowning steady, widely covered threats.
-- **Spread** rewards independent confirmation: each extra source adds 25%, each extra source type 20%.
+Each part has a job:
+
+- **Volume** (`r`) is the starting point. Something mentioned only once doesn't trend, however new it is.
+- **Growth** compares the daily rate now with the daily rate before. The `+ 0.1` stops a first mention from
+  producing infinite growth, and the square root and the cap at 10 stop a sudden spike from drowning out threats
+  that are steady but widely covered.
+- **Spread** rewards independent confirmation: each extra source adds 25%, and each extra source type adds 20%.
+  Syndicated copies don't count as extra sources.
 
 | Example (7-day period, 30-day baseline) | r | b | s | c | growth | score |
 |---|---|---|---|---|---|---|
-| A family that suddenly appears in news and on Bluesky | 6 | 3 | 4 | 2 | 4.79 | **27.56** |
+| A family that suddenly shows up in the news and on Bluesky | 6 | 3 | 4 | 2 | 4.79 | **27.56** |
 | A family that is always in the news at this rate | 6 | 26 | 4 | 2 | 0.99 | **12.54** |
-| A single blog post twice about a new name | 2 | 0 | 1 | 1 | 3.86 | **3.93** |
-| An outbreak covered everywhere | 20 | 0 | 8 | 3 | 29.57 (capped at 10) | **243.5** |
+| A single blog that mentions a new name twice | 2 | 0 | 1 | 1 | 3.86 | **3.93** |
+| An outbreak that everyone covers | 20 | 0 | 8 | 3 | 29.57 (capped at 10) | **243.5** |
 
-Further rules:
+A few more rules:
 
-- An entity with no story in the period is not listed.
-- A malware name that was **only ever found by the "*Name* ransomware" pattern** (origin `heuristic`) is only
-  listed once **two sources** name it in the period, so a single misread headline cannot trend.
-- An entity whose `first_seen` falls inside the period gets the **new** badge.
-- Actors are grouped by kind (nation-state, ransomware, extortion, cybercrime, unclassified) from the knowledge
-  base, or from a `category` in `data/knowledge_extra.json`.
+- An entity with no story in the period isn't listed at all.
+- A malware name that was **only ever found by the "*Name* ransomware" pattern** only appears once **two
+  sources** name it in the period, so a single misread headline can't make something trend.
+- An entity first seen during the period gets the **new** badge.
+- Actors are grouped by type (nation-state, ransomware, extortion, cybercrime or unclassified), using the
+  knowledge base or a `category` you set in `data/knowledge_extra.json`.
 
-Trend lists are cached in memory for **45 seconds** per combination of type, period, region and length, and the
-cache is cleared whenever a collection run stores new items.
+Trend lists are cached in memory for **45 seconds** for each combination of type, period, region and list
+length. The cache is cleared whenever a collection run stores new items.
 
 ## CVE priority
 
-Chatter alone is a poor guide to which vulnerability to patch first, so trending CVEs are re-ranked by
-exploitation risk:
+Lots of chatter about a vulnerability doesn't necessarily mean it should be patched first. So trending CVEs are
+re-ranked by how likely they are to be exploited:
 
 ```
 priority = trend score × (2 if in CISA KEV) × (1 + EPSS) × (0.5 + CVSS / 10)
 ```
 
 A CVE without a CVSS score is multiplied by 1 for that part. The dashboard takes the 60 CVEs with the highest
-trend score, sorts them by priority, shows the top 8 and lists the families and actors mentioned alongside each.
+trend scores, sorts them by priority, shows the top 8, and lists the families and actors mentioned alongside
+each one.
 
-Example: two CVEs with the same trend score of 10. One is in KEV with EPSS 0.6 and CVSS 9.8 → 10 × 2 × 1.6 × 1.48
-= **47.4**. The other is not in KEV, has EPSS 0.01 and CVSS 5.3 → 10 × 1 × 1.01 × 1.03 = **10.4**.
+For example, take two CVEs that both have a trend score of 10. The first is in KEV, with an EPSS of 0.6 and a
+CVSS of 9.8: 10 × 2 × 1.6 × 1.48 = **47.4**. The second isn't in KEV, with an EPSS of 0.01 and a CVSS of 5.3:
+10 × 1 × 1.01 × 1.03 = **10.4**.
 
 ### CVEs by exploitation risk
 
-The chart puts each CVE mentioned in the period in the **first** bucket it qualifies for:
+This chart puts each CVE mentioned in the period into the **first** bucket it qualifies for:
 
 | Bucket | Condition |
 |---|---|
-| In CISA KEV | Listed in the catalogue |
-| EPSS 10%+ | EPSS score ≥ 0.10 |
-| CVSS critical | CVSS ≥ 9 |
-| CVSS high | CVSS 7 – 8.9 |
+| In CISA KEV | It is in the catalogue |
+| EPSS 10%+ | Its EPSS score is 0.10 or more |
+| CVSS critical | CVSS 9 or more |
+| CVSS high | CVSS 7 to 8.9 |
 | CVSS medium / low | Any other CVSS score |
-| Low EPSS, no CVSS | Looked up, but neither of the above (counted under the chart) |
-| Not looked up yet | No CVE intel yet (counted under the chart) |
+| Low EPSS, no CVSS | Looked up, but none of the above (counted below the chart) |
+| Not looked up yet | No CVE intel yet (counted below the chart) |
 
 The data comes from the [CVE intel refresh](enrichment.md#cve-intel).
 
 ## Correlation
 
-The *Related items* list on an item page ranks other items by the **strength of the evidence they share**, not by
-how many entities they share.
+The *Related items* list on an item's page ranks other items by **how strong the evidence they share is**, not
+just by how many entities they have in common.
 
-Each shared entity contributes
+Each shared entity contributes:
 
 ```
 weight(type) / log2(2 + mention_count)
 ```
 
-so a rare entity counts more than one that is mentioned everywhere:
+so a rare entity counts for more than one that is mentioned everywhere.
 
 | Type | Weight | | Type | Weight |
 |---|---|---|---|---|
@@ -131,37 +145,37 @@ so a rare entity counts more than one that is mentioned everywhere:
 | cve | 1.5 | | sector | 0.2 |
 | technique | 0.5 | | | |
 
-The item's score is the sum over its shared entities, then multiplied by **1.3** if it comes from another source
-**type** (a news article and a Bluesky post), or **1.15** if from another source of the same type. Matches through
-an indicator are flagged as *strong*. The top 15 are shown.
+An item's score is the sum over all the entities it shares. It is then multiplied by **1.3** if the item comes
+from a different source **type** (a news article and a Bluesky post, say), or by **1.15** if it comes from a
+different source of the same type. Matches through an indicator are flagged as *strong*. The top 15 are shown.
 
-To stay fast, entities mentioned in more than 400 items do not *find* candidates (they still add weight to
-candidates found through rarer entities), and at most the 4,000 most recent links are read.
+To keep this fast, entities mentioned in more than 400 items aren't used to *find* candidates (although they
+still add weight to candidates found through rarer entities), and at most the 4,000 most recent links are read.
 
 ## Relationship graph
 
-The graph on an item page is assembled from:
+The graph on an item's page is built from:
 
-1. the item, in the centre;
-2. its entities (indicators with a bad verdict first), at most 45% of the nodes;
-3. what enrichment linked them to (a hash's family, a domain's IPs, a family's OTX indicators), at most 25% of
-   the nodes;
-4. the top related items from the correlation above, with edges to the entities they share.
+1. the item itself, in the centre;
+2. its entities (indicators with a bad verdict first), taking up at most 45% of the nodes;
+3. whatever enrichment linked them to (a hash's family, a domain's IPs, a family's OTX indicators), at most 25%
+   of the nodes;
+4. the top related items from the correlation above, with lines to the entities they share.
 
-On an entity page: the entity, its enrichment links, the families, actors and CVEs most often mentioned with it,
-and the 10 highest-severity items that mention it. The graph starts at **60 nodes**; *Show more* raises the limit
-to 150. When something was left out the graph says so.
+On an entity's page, the graph shows the entity, its enrichment links, the families, actors and CVEs most often
+mentioned with it, and the 10 highest-severity items that mention it. The graph starts with up to **60 nodes**;
+*Show more* raises the limit to 150. When something had to be left out, the graph says so.
 
-## Other breakdowns
+## Other figures
 
-| Widget | Computed as |
+| Widget | What it shows |
 |---|---|
-| KPI tiles | Items in the period against the period before; families and actors first seen in the period; indicators seen in the period and how many are malicious |
-| Sparklines | Items, and distinct families, indicators, CVEs and actors mentioned, per day (per week above 90 days) |
-| Timeline | Items per day (or week) and source type |
-| Threat actors by type | Items mentioning an actor, per actor kind |
-| Critical infrastructure sectors | Items per sector, all eight sectors listed |
-| Sources | Items per source |
-| Indicators by type / verdict | Indicators last seen in the period, split into malicious, suspicious and other |
-| Geography and the globe | `item_geo` targets of the items in the period (top 10 on the globe) |
-| Scam & fraud dashboard | The same rules over items with `fraud_score > 0`; *spreading* means at least 5 reports this week and twice as many as the week before |
+| KPI tiles | Stories in the period compared with the period before; families and actors first seen in the period; indicators seen in the period, and how many of them are malicious |
+| Sparklines | Stories, plus the number of different families, indicators, CVEs and actors mentioned, per day (per week for periods over 90 days) |
+| Timeline | Stories per day (or week), split by source type |
+| Threat actors by type | Stories that mention an actor, per type of actor |
+| Critical infrastructure sectors | Stories per sector, with all eight sectors listed |
+| Items per source | Items per source, copies included |
+| Indicators by type and verdict | Indicators last seen in the period, split into malicious, suspicious and the rest |
+| Geography and the globe | Target countries of the stories in the period (top 10 on the globe); source countries and languages count items |
+| Scam & fraud dashboard | The same rules, applied to scam reports (items with a fraud score above 0). *Spreading* means at least 5 reports this week and twice as many as the week before |

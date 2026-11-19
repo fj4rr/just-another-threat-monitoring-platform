@@ -2,41 +2,43 @@
 
 [← How JATMP works](index.md)
 
-Every item gets a **severity from 0 to 100** when it is stored, together with the list of reasons that produced
-it (click the score on the item page). This page lists every rule. The code is `app/processing/severity.py`.
+Every item gets a **severity from 0 to 100** when it is stored, together with the list of reasons behind it. You
+can see the breakdown by clicking the score on the item page. This page lists every rule; the code is in
+`app/processing/severity.py`.
 
-Severity is a **triage heuristic**: "how urgently should an analyst read this?" It is not a CVSS score and not a
-probability. Scam reports have a separate [fraud score](../fraud.md#fraud-score); the two never add up.
+Severity is a **triage aid**. It answers the question "how urgently should an analyst read this?" It is not a
+CVSS score and not a probability. Scam reports have their own [fraud score](../fraud.md#fraud-score), and the two
+are never added together.
 
 ## How the score is built
 
 ```
-severity = text signals            (4 groups, strongest term + half the runner-up per group)
+severity = text signals            (4 groups: the strongest term, plus half the runner-up, in each group)
          + entity signals          (family, actor, CVEs, indicators, techniques)
          + structured-intel base   (pulses, analyses, scans)
          × dampeners               (patch note ×0.7, round-up / non-incident ×0.5)
          → cap for routine leak-site posts (35)
-         → rounded, clamped to 0–100
+         → rounded, kept between 0 and 100
 ```
 
-Later, two things can raise a stored score: an indicator confirmed malicious by enrichment, and the AI assessment.
-See [After ingest](#after-ingest).
+After that, two things can still raise a stored score: an indicator that enrichment confirms as malicious, and
+the AI assessment. See [After ingest](#after-ingest).
 
 ## Text signals
 
-The title and the first 20,000 characters of the text (plus the tags) are matched against four **signal groups**.
-Inside a group, terms are synonyms of a kind of evidence, so they must not add up:
+The title, the first 20,000 characters of the text, and the tags are matched against four **signal groups**.
+The terms within one group are different ways of saying the same kind of thing, so they must not all add up:
 
-- **Only the strongest term of a group counts in full; the runner-up counts at half weight;** the rest are
-  ignored.
-- A term that matches **in the title counts 1.5 times** (headlines name the subject; bodies mention everything
-  in passing).
+- **Only the strongest term in a group counts in full. The runner-up counts at half weight,** and anything
+  after that is ignored.
+- A term that appears **in the title counts 1.5 times**, because headlines name the real subject while the body
+  mentions everything in passing.
 - An English term and its Indonesian equivalent share a label and count once.
-- Between groups, contributions add up.
+- The contributions of the different groups are added together.
 
 ### Exploitation
 
-| Signal | Points | Matches, for example |
+| Signal | Points | Examples of what matches |
 |---|---|---|
 | zero-day | 30 | zero-day, 0-day |
 | exploited in the wild | 30 | actively exploited, in the wild, under active attack, mass exploitation, *sedang / aktif dieksploitasi* |
@@ -44,17 +46,17 @@ Inside a group, terms are synonyms of a kind of evidence, so they must not add u
 | public exploit code | 18 | PoC released, exploit code published |
 | exploitation mentioned | 10 | exploit, exploited, exploiting, *eksploitasi* |
 
-If the strongest exploitation term is worth **18 or more** (after the title bonus), the item counts as
-*actively exploited*: the patch-note damper below is then not applied, because an exploited bug being patched is
-still urgent.
+When the strongest exploitation term is worth **18 points or more** (including the title bonus), the item counts
+as *actively exploited*. The patch-note dampener below then no longer applies, because a bug that is being
+exploited is still urgent even when a patch is available.
 
 ### Impact
 
-| Signal | Points | Matches, for example |
+| Signal | Points | Examples of what matches |
 |---|---|---|
 | remote code execution | 14 | RCE, unauthenticated attacker, pre-auth, *eksekusi kode jarak jauh* |
 | destructive / wiper | 14 | wiper, destructive malware, data-destroying |
-| critical / CVSS ≥ 9 | 12 | CVSS 9.8, "critical flaw", "rated critical", *celah kritis* — not "critical infrastructure" |
+| critical / CVSS ≥ 9 | 12 | CVSS 9.8, "critical flaw", "rated critical", *celah kritis* (but not "critical infrastructure") |
 | authentication bypass | 12 | auth bypass, bypasses authentication |
 | service disruption | 10 | *layanan lumpuh*, *sistem lumpuh*, *data terenkripsi* |
 | privilege escalation | 6 | privilege escalation, LPE, EoP |
@@ -62,7 +64,7 @@ still urgent.
 
 ### Threat class
 
-| Signal | Points | Matches, for example |
+| Signal | Points | Examples of what matches |
 |---|---|---|
 | supply-chain | 16 | supply chain, trojanised installer, malicious npm / PyPI package or browser extension, *rantai pasok* |
 | ransomware | 12 | ransomware, double extortion, *uang tebusan* |
@@ -76,7 +78,7 @@ still urgent.
 
 ### Activity
 
-| Signal | Points | Matches, for example |
+| Signal | Points | Examples of what matches |
 |---|---|---|
 | active campaign | 10 | campaign, "deployed ransomware", *kampanye, serangan siber, diserang* |
 | new malware / variant | 8 | new … variant / stealer / family, previously undocumented, novel, *malware baru* |
@@ -87,107 +89,111 @@ still urgent.
 
 ## Entity signals
 
-What the extractor found adds evidence of its own, once per kind:
+The entities the extractor found are evidence in their own right. Each kind counts once:
 
 | Signal | Points |
 |---|---|
-| A **known** malware family (knowledge base, feed, provider) | 10 |
-| Only an **unknown** family named by the "*Name* ransomware" pattern | 6 |
+| A **known** malware family (from the knowledge base, a feed or a provider) | 10 |
+| Only an **unknown** family, found by the "*Name* ransomware" pattern | 6 |
 | A known threat actor | 8 |
-| CVEs | 5 for one, +2 for each further CVE, at most 11 |
+| CVEs | 5 for the first, +2 for each additional CVE, up to 11 |
 | Indicators (IPs, domains, URLs, hashes) | 8, or 12 with five or more |
 | ATT&CK technique ids | 3 |
-| Item kind `pulse` or `analysis` / `scan` (structured intel) | 6 / 4 |
+| The item is a `pulse` or `analysis` / a `scan` (structured intel) | 6 / 4 |
 
 Scam types, brands, scammer identifiers and sectors add **no** severity points (see
 [the order of the ingest steps](processing.md#the-ten-steps)).
 
 ## Dampeners and caps
 
-Applied after everything above has been added, in this order. They look at the **title** only (except the
-leak-site cap):
+These are applied after everything above has been added up, in this order. Apart from the leak-site cap, they
+only look at the **title**:
 
 | Rule | Effect | Triggered by |
 |---|---|---|
-| Patch / advisory | × 0.7 | "fixes", "patches", "Patch Tuesday", "security update", "addresses", "hotfix", *tambal, pembaruan keamanan*… — unless the item is actively exploited (see above) |
+| Patch or advisory | × 0.7 | "fixes", "patches", "Patch Tuesday", "security update", "addresses", "hotfix", *tambal, pembaruan keamanan*… — unless the item is actively exploited (see above) |
 | Round-up, guide or non-incident | × 0.5 | "week in review", "roundup", "top 10", "how to", "what is", webinar, podcast, survey, "announces", funding, acquisition, training, tips; outages, pricing, lawsuits, GDPR; *cara mengatasi, begini cara, kenali, apa itu, seminar, peluncuran, promo, diskon* |
-| Routine leak-site posting | capped at **35** | A `post` whose text says a group "added / claims / listed … victims / leak site"; ransomware trackers post hundreds of these a day |
+| Routine leak-site posting | capped at **35** | A post saying a group "added / claims / listed … victims / leak site". Ransomware trackers publish hundreds of these every day |
 
-Both multipliers can apply to the same item (× 0.35). The result is rounded and kept between 0 and 100. The cut is
-listed among the reasons with negative points, so the breakdown always adds up to the score (up to rounding).
+Both multipliers can apply to the same item (× 0.35 in total). The result is rounded and kept between 0 and 100.
+Each reduction appears in the breakdown as a reason with negative points, so the reasons always add up to the
+score (allowing for rounding).
 
 ## Worked examples
 
-These were produced by running the text through `score_item`.
+All three were calculated by running the text through `score_item`.
 
-**1. An exploited zero-day.** *"LockBit ransomware exploits Citrix zero-day to hit Indonesian hospitals"*, body
-about an actively exploited RCE, one CVE, one technique and three defanged indicators:
+**1. An exploited zero-day.** *"LockBit ransomware exploits Citrix zero-day to hit Indonesian hospitals"*, with a
+body describing an actively exploited RCE, one CVE, one technique and three defanged indicators:
 
 | Reason | Points | How |
 |---|---|---|
-| zero-day | 45 | 30, in the title × 1.5; strongest of *exploitation* |
-| exploited in the wild | 15 | 30 × 0.5 as runner-up of *exploitation* |
-| remote code execution | 14 | strongest of *impact* |
-| ransomware | 18 | 12, in the title × 1.5; strongest of *threat class* |
-| active campaign | 10 | strongest of *activity* |
-| sensitive sector | 4 | 5 × 1.5 (hospitals, in the title) × 0.5 as runner-up |
+| zero-day | 45 | 30, in the title × 1.5; the strongest *exploitation* term |
+| exploited in the wild | 15 | 30 × 0.5 as the runner-up in *exploitation* |
+| remote code execution | 14 | The strongest *impact* term |
+| ransomware | 18 | 12, in the title × 1.5; the strongest *threat class* term |
+| active campaign | 10 | The strongest *activity* term |
+| sensitive sector | 4 | 5 × 1.5 (hospitals, in the title) × 0.5 as the runner-up |
 | known malware family | 10 | LockBit |
 | 1 CVE(s) | 5 | |
 | 3 indicator(s) | 8 | |
 | ATT&CK techniques | 3 | |
-| **Total** | **132 → 100** | clamped |
+| **Total** | **132 → 100** | Capped |
 
-**2. A patch note.** *"Microsoft fixes critical Exchange flaw in Patch Tuesday update"*, body mentions one CVE
-and remote code execution:
+**2. A patch note.** *"Microsoft fixes critical Exchange flaw in Patch Tuesday update"*, with a body mentioning
+one CVE and remote code execution:
 
 | Reason | Points | How |
 |---|---|---|
-| critical / CVSS ≥ 9 | 18 | 12, in the title × 1.5; strongest of *impact* |
-| remote code execution | 7 | 14 × 0.5 as runner-up of *impact* |
+| critical / CVSS ≥ 9 | 18 | 12, in the title × 1.5; the strongest *impact* term |
+| remote code execution | 7 | 14 × 0.5 as the runner-up in *impact* |
 | 1 CVE(s) | 5 | |
-| patch / advisory only | −9 | (18 + 7 + 5) × 0.7 = 21; no exploitation signal, so the damper applies |
+| patch / advisory only | −9 | (18 + 7 + 5) × 0.7 = 21. There is no exploitation signal, so the dampener applies |
 | **Total** | **21** | |
 
-Had the body added "exploited in the wild", the item would have scored **65** with no damper: exploited in the
-wild 30, exploitation mentioned 5 (10 × 0.5 as runner-up, from the word "exploited"), then 18 + 7 + 5 as before.
+If the body had also said "exploited in the wild", the item would have scored **65** with no dampener:
+exploited in the wild 30, exploitation mentioned 5 (10 × 0.5 as the runner-up, from the word "exploited"), and
+then 18 + 7 + 5 as before.
 
 **3. A scam warning.** *"Waspada penipuan APK undangan pernikahan mengatasnamakan BRI, korban rugi Rp 1,2
-miliar"*: severity **9** (*penipuan* in the title, phishing / social engineering 6 × 1.5). The same item has a
-**fraud score of 83** (malicious APK lure 28, also impersonation 4, impersonates BRI 10, losses Rp 1.2 billion
-15, 120 victims 10, scammer identifiers 8, police warning 8). This is intended: as a cyber threat it is minor; as
-a scam report it is serious, and it ranks high on the scam & fraud dashboard.
+miliar"* scores a severity of only **9** (*penipuan* in the title: phishing / social engineering, 6 × 1.5). The
+same item has a **fraud score of 83**: malicious APK lure 28, also impersonation 4, impersonates BRI 10, losses of
+Rp 1.2 billion 15, 120 victims 10, scammer identifiers 8, and a police warning 8. That is intended. As a cyber
+threat it is minor, but as a scam report it is serious, and it ranks high on the scam & fraud dashboard.
 
 ## After ingest
 
 | Event | Effect on the stored score | Reason shown |
 |---|---|---|
-| An indicator of the item turns **malicious** in enrichment | +12 | *indicator confirmed malicious (ip)* |
-| An indicator turns **suspicious** | +5 (and +7 more if it later turns malicious; the reason then shows +12) | *indicator confirmed suspicious (…)* |
-| The AI summary rates the item higher than its score | Raised toward the model's number, **at most +20**; never lowered | *AI assessment (capped)*, with an *AI* badge |
+| One of the item's indicators turns **malicious** in enrichment | +12 | *indicator confirmed malicious (ip)* |
+| One of the item's indicators turns **suspicious** | +5. If it later turns malicious, the score rises by another 7 and the reason shows +12 | *indicator confirmed suspicious (…)* |
+| A malicious or suspicious indicator is re-checked and its verdict goes down | The item keeps the bonus of its strongest remaining indicator, or loses it | Updated, or removed |
+| The AI rates the item higher than the rule-based score | The score is raised towards the AI's number, by **at most +20**. It never goes below the rule-based score | *AI assessment (capped)*, with an *AI* badge |
 
-Only one *indicator confirmed* reason is kept per item, for the strongest verdict; several malicious indicators
-do not add +12 each. The AI reason is likewise replaced, not added, when an item is summarised again (its old
-points are taken off first). Both adjustments are capped at 100.
+Each item keeps only one *indicator confirmed* reason, for its strongest verdict, so several malicious indicators
+don't add +12 each. The AI assessment is replaced rather than added to when an item is analysed again: its old
+points are taken off first, so a lower new assessment can remove them. Both adjustments are capped at 100.
 
 ### Recomputing scores
 
-When the terms, weights or dampeners change, `severity.RULES_VERSION` goes up and every stored item is
-re-scored once, about 90 seconds after the first start of the new version (`jobs.run_rescore_if_outdated`), so old
-and new items are scored by the same rules before trends compare them. Two tools do the same by hand:
+When the terms, weights or dampeners change in a new version, the rules version (`severity.RULES_VERSION`) goes
+up, and every stored item is re-scored once, about 90 seconds after the new version first starts
+(`jobs.run_rescore_if_outdated`). That way old and new items are scored by the same rules before the trends
+compare them. You can also re-score by hand:
 
-| Tool | Recomputes from | Keeps the enrichment bonus | Keeps the AI points |
+| Tool | What it starts from | Keeps the enrichment bonus | Keeps the AI assessment |
 |---|---|---|---|
-| *Re-score all items* (Settings), `manage.py rescore` | The stored text and the entities already linked (with their origins); no re-extraction, no network | Yes | Yes |
-| `manage.py reextract` | A fresh extraction of the stored text; rebuilds the `regex`, `kb` and `heuristic` links and the scam and sector analysis | Yes | Yes |
+| *Re-score all items* (Settings), `manage.py rescore` | The stored text and the entities already linked (with how they were found). Nothing is re-extracted and no network calls are made | Yes | Yes |
+| `manage.py reextract` | A fresh extraction of the stored text, which rebuilds the `regex`, `kb` and `heuristic` links and the scam and sector analysis | Yes | Yes |
 
-Both tools add the points that do not come from the text again (`severity.carry_over`): the *indicator confirmed*
-bonus of the strongest verdict among the item's indicators now, and the last *AI assessment*. The AI reason
-stores the severity the model proposed, so it is applied against the new score with the same cap (+20 at most,
-nothing when the new score already reaches it). AI reasons stored before 0.11 have no proposed severity and keep
-their points.
+In every case, the points that don't come from the text are added back afterwards (`severity.carry_over`): the
+*indicator confirmed* bonus for the strongest verdict among the item's indicators today, and the last *AI
+assessment*. The AI assessment remembers the severity the model proposed, so it is applied again to the new
+score with the same cap. If the new score already reaches the model's number, it adds nothing. AI assessments
+stored before version 0.11 don't have a proposed severity, so they keep their original points.
 
-Slimmed items (past the full-text retention) are re-scored on their snippet, so their score may drop. See
-[Housekeeping and re-analysis](housekeeping.md).
+Slimmed items (past the full-text retention period) are re-scored from their snippet, so their score may drop.
+See [Housekeeping and re-analysis](housekeeping.md).
 
 ## Reading a score
 
@@ -196,6 +202,7 @@ Slimmed items (past the full-text retention) are re-scored on their snippet, so 
 | 80–100 | Exploited zero-days, supply-chain compromises, ransomware campaigns with indicators |
 | 50–79 | Active campaigns, new malware with indicators, critical vulnerabilities, significant breaches |
 | 20–49 | Breach and malware news without technical detail, structured intel without strong text signals, patched critical bugs |
-| 0–19 | Round-ups, guides, product news, scam warnings (see their fraud score), routine leak-site postings |
+| 0–19 | Round-ups, guides, product news, scam warnings (check their fraud score), routine leak-site postings |
 
-Webhooks use **70** as the default threshold for "high severity", and AI auto-summaries only run from **40**.
+Webhooks use **70** as the default threshold for a "high severity" item, and AI auto-summaries only run from **40**
+upwards.

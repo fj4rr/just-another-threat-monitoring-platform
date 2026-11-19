@@ -2,109 +2,143 @@
 
 [← Documentation index](README.md)
 
-How JATMP turns collected items into entities, scores, verdicts, correlations and trends. This page is the
-overview; the exact rules, weights and formulas are in [How it works](how-it-works/index.md), in particular
+This page gives an overview of how JATMP turns collected items into entities, scores, verdicts, correlations and
+trends. The exact rules, weights and formulas are in [How it works](how-it-works/index.md), especially
 [Severity scoring](how-it-works/scoring.md), [Enrichment and verdicts](how-it-works/enrichment.md) and
 [Trends and correlation](how-it-works/trends.md).
 
 ## Entity extraction
 
-Each item is scanned for malware families (about 150 families plus aliases), threat actors
-(about 45), CVEs, ATT&CK techniques and indicators (IPs, domains, URLs, MD5/SHA1/SHA256). Defanged indicators
-are understood in their common forms (`hxxp`, `[.]`, `[:]`, `[://]`, `\.`, `(dot)`). Families that are not in
-the knowledge base yet are picked up from phrases such as "PipeMagic backdoor", while legitimate tools that
-attackers abuse (ConnectWise, AnyDesk, PsExec and others) are never promoted to families. Hashes that are part
-of a URL, version numbers that look like IP addresses and roughly 200 vendor, media and platform domains are
-ignored.
+Every item is searched for malware families (about 150, plus their aliases), threat actors (about 45), CVEs,
+ATT&CK techniques and indicators (IPs, domains, URLs, and MD5, SHA-1 and SHA-256 hashes).
+
+Defanged indicators are understood in all their usual forms (`hxxp`, `[.]`, `[:]`, `[://]`, `\.`, `(dot)`).
+Families that aren't in the knowledge base yet are picked up from phrases such as "PipeMagic backdoor", but
+legitimate tools that attackers misuse (ConnectWise, AnyDesk, PsExec and others) are never mistaken for
+families. JATMP also ignores hashes that are part of a URL, version numbers that look like IP addresses, and
+about 200 vendor, media and platform domains.
 
 ## Severity
 
-Every item receives an explainable score from 0 to 100. Signals are grouped (exploitation,
-impact, threat class, activity) so that synonyms are not counted twice; the strongest term in a group counts in
-full and the runner-up at half weight. Matches in the title weigh 1.5 times more than matches in the body.
-Patch notes, roundups and guides, and routine leak-site victim postings are damped, and an indicator that is
-later confirmed malicious raises the score of the items that mention it. The item page shows the full
-breakdown.
+Every item gets a score from 0 to 100 that explains itself: the item page shows the full breakdown.
+
+The signals are grouped (exploitation, impact, threat class, activity) so that synonyms aren't counted twice.
+Within a group, the strongest term counts in full and the runner-up at half weight, and terms in the title count
+1.5 times as much as terms in the body. Patch notes, round-ups, guides and routine leak-site victim postings are
+scored down. When an indicator is later confirmed malicious, the items that mention it are scored up.
+
+When a new version changes the scoring rules, every stored item is re-scored once after the upgrade, so old and
+new items are always judged the same way. Re-scoring keeps the points that enrichment and the AI added.
 
 ## Cross-source enrichment
 
-Indicators found in news and social posts are looked up on VirusTotal, OTX,
-urlscan, ANY.RUN, MalwareBazaar (hashes), URLhaus (URLs, hosts, payloads), GreyNoise and AbuseIPDB (IPs),
-whichever have keys. The verdicts are combined into a consensus: any provider reporting *malicious* wins,
-infrastructure that OTX whitelists is marked clean, and a lone OTX pulse mention is treated as suspicious rather
-than malicious. GreyNoise works as a false-positive filter: an IP it knows as a benign business service or
-benign scanner is marked clean unless a strong provider (VirusTotal, abuse.ch, ANY.RUN) says otherwise, and
-mass scanners get a "mass scanner" badge (opportunistic, not targeted). Lookups that failed are retried after six hours, *unknown* results are re-checked after three
-days, and families attributed by a provider (a hash on Bluesky identified as Lumma Stealer, for example) are
-linked back so the indicator connects to the articles about that family. Indicators for trending families are
-pulled from OTX and ANY.RUN, accepting only pulses that actually name the family.
+Indicators found in news and social posts are looked up on whichever of these providers you have keys for:
+VirusTotal, OTX, urlscan, ANY.RUN, MalwareBazaar (hashes), URLhaus (URLs, hosts, payloads), GreyNoise and
+AbuseIPDB (IPs). Each provider works at its own pace, so a slow one doesn't hold up the others.
+
+The answers are combined into a single verdict:
+
+- Any provider reporting *malicious* wins.
+- Infrastructure that OTX whitelists is marked clean.
+- A lone mention in an OTX pulse is treated as suspicious rather than malicious.
+- GreyNoise acts as a false-positive filter. An IP it knows as a benign business service or benign scanner is
+  marked clean, unless a strong provider (VirusTotal, abuse.ch, ANY.RUN) says otherwise. Mass scanners get a
+  "mass scanner" badge, because their activity is opportunistic rather than targeted.
+
+Failed lookups are retried after six hours, and *unknown* results are checked again after three days. When a
+provider identifies a family (for example, a hash on Bluesky identified as Lumma Stealer), the indicator is
+linked to that family, so it connects to every article about it. For trending families, JATMP also pulls fresh
+indicators from OTX and ANY.RUN, using only pulses that actually name the family.
+
+**Verdicts age.** IPs, domains and URLs change owners, so every verdict carries the date it was last confirmed.
+A malicious or suspicious one that is still being mentioned is checked again after 30 days, and the new answer
+can lower it. If it isn't confirmed within 60 days, the indicator drops out of the IOC export feeds. File hashes
+never age.
+
+The IOC page and Settings → Enrichment show how many indicators are waiting to be looked up and how much of each
+provider's daily budget is left.
 
 ## Relationship graph
 
-Item and entity pages draw an interactive graph: the item, its entities, what
-enrichment linked them to (a hash to its family, an indicator pulled from OTX) and other items that share them.
-Nodes are coloured by type and by verdict; click one to preview it, double-click to open it, drag, zoom, and use
-the keyboard (Tab, Enter, O). It is drawn by a small built-in SVG renderer, not a third-party library, and capped
-at 60 nodes with a "Show more" step up to 150.
+Item and entity pages show an interactive graph: the item, its entities, whatever enrichment linked them to (a
+hash to its family, an indicator pulled from OTX), and other items that share them. Nodes are coloured by type
+and verdict. Click a node to preview it, double-click to open it, drag and zoom to explore, or use the keyboard
+(Tab, Enter, O). The graph is drawn by a small built-in SVG renderer rather than a third-party library. It starts
+with up to 60 nodes, and *Show more* raises that to 150.
 
 ## Infrastructure context, on demand
 
-"Context lookup" on an IP, domain or hash asks Shodan (open ports,
-hostnames, known CVEs), Censys (services, ASN), CrowdSec CTI (reputation, behaviours), Pulsedive (risk, threats),
-Hybrid Analysis (sandbox verdict and family) and IPinfo (ASN and country, kept for the geography features), as
-far as keys are configured. Free tiers are small, so these never run in the background batch unless "run context
-lookups when an indicator turns malicious" is switched on; Shodan InternetDB and IPinfo can be used without a key
-once keyless lookups are allowed.
+*Context lookup* on an IP, domain or hash asks Shodan (open ports, host names, known CVEs), Censys (services,
+network owner), CrowdSec CTI (reputation, behaviour), Pulsedive (risk, threats), Hybrid Analysis (sandbox verdict
+and family) and IPinfo (network owner and country, used for the geography features), as far as you have keys for
+them.
+
+Their free tiers are small, so these lookups never run in the background unless you switch on *run context
+lookups when an indicator turns malicious*. Shodan InternetDB and IPinfo can be used without a key once keyless
+lookups are allowed.
 
 ## Correlation
 
-The item page ranks related items by the strength of the evidence they share: a common hash,
-URL or domain weighs far more than a common CVE, rare entities more than frequently mentioned ones, and items
-from another source or source type receive a bonus. Entity pages show coverage per source, co-occurring
-entities, related indicators and enrichment results.
+The item page ranks related items by how strong the evidence they share is. A shared hash, URL or domain counts
+for far more than a shared CVE, rare entities count for more than frequently mentioned ones, and items from
+another source or source type get a bonus. Entity pages show coverage per source, the entities mentioned
+alongside it, related indicators, and enrichment results.
 
 ## Trends
 
-The dashboard scores each family, CVE and threat actor by its mention rate in the chosen period against a
-baseline before it (30 days, or as long as the period when that is longer), weighted by how many sources and source types cover it, and shows the result on the threat radar (one
-icon per type), in a chart over time and in the *Trending malware*, *Trending CVEs* and *Trending threat
-actors* tables, which also list the families, actors and CVEs mentioned alongside each entry.
+The dashboard scores each family, CVE and threat actor by how often it was mentioned in the chosen period
+compared with a baseline before it (30 days, or as long as the period when that is longer), weighted by how many
+sources and source types cover it. A story that several outlets carry counts once.
 
-Two breakdowns put the period in context. *CVEs by exploitation risk* places each CVE in the first bucket it
-qualifies for: in CISA KEV, EPSS of 10% or more, CVSS critical (9+), high (7 to 8.9) or lower; CVEs without a
-CVSS score and with a low EPSS, or not looked up yet, are counted under the chart. *Threat actors by type* counts
-items per kind of actor: nation-state, ransomware, extortion (data theft and extortion crews such as
-ShinyHunters or Scattered Spider) and cybercrime. Actors from the built-in knowledge base are classified;
-others are *unclassified* unless `data/knowledge_extra.json` gives them a `category`.
+The results appear on the threat radar (one icon per type), in a chart over time, and in the *Trending malware*,
+*Trending CVEs* and *Trending threat actors* tables, which also list the families, actors and CVEs mentioned
+alongside each entry.
+
+Two breakdowns put the period in context:
+
+- **CVEs by exploitation risk** places each CVE in the first bucket it qualifies for: in CISA KEV, EPSS of 10% or
+  more, CVSS critical (9+), high (7 to 8.9), or lower. CVEs with no CVSS score and a low EPSS, or not looked up
+  yet, are counted below the chart.
+- **Threat actors by type** counts stories per kind of actor: nation-state, ransomware, extortion (data theft and
+  extortion crews such as ShinyHunters or Scattered Spider) and cybercrime. Actors from the built-in knowledge
+  base are already classified; others are *unclassified* unless `data/knowledge_extra.json` gives them a
+  `category`.
 
 ## Critical infrastructure sectors
 
-Each item is tagged with the critical information infrastructure sectors it is about, as Indonesia's Perpres
-82/2022 defines them (*Infrastruktur Informasi Vital*): government administration, energy & mineral resources, transportation,
-finance, health, ICT, food and defence. The rules (`app/processing/sectors.py`, English and Bahasa Indonesia) look
-for the organisations and services of each sector as targets or affected parties: *rumah sakit* and *hospital*,
-banks and e-wallets, airlines and *bandara*, telecom operators and data centres, ministries, *pemda* and `.go.id`
-sites, refineries and PLN, the military and TNI. A sector counts when the title names it or the body names it at
-least twice; newsletters and round-ups only count their title, and look-alikes are excluded (MITRE *defense
-evasion*, the hacktivist *IT Army*). A sector the feed states (the ransomware.live victim sector, OTX industries)
-counts on its own. An item gets at most three sectors.
+Each item is tagged with the critical information infrastructure sectors it concerns, as defined by Indonesia's
+Perpres 82/2022 (*Infrastruktur Informasi Vital*): government administration, energy & mineral resources,
+transportation, finance, health, ICT, food, and defence.
 
-Sectors are entities like the others (type `sector`), so they appear as chips, filter the feed (click a bar in a
-*Critical infrastructure sectors* chart) and the scam reports list, and are exported as `sectors` in the REST API. They carry almost
-no weight in correlation. Rules changes re-tag stored items once; `python manage.py sectortag` does it by hand.
+The rules (`app/processing/sectors.py`, in English and Bahasa Indonesia) look for the organisations and services
+of each sector as targets or affected parties: *rumah sakit* and hospitals, banks and e-wallets, airlines and
+*bandara*, telecom operators and data centres, ministries, *pemda* and `.go.id` sites, refineries and PLN, the
+military and TNI.
+
+A sector counts when the title names it or the body names it at least twice. Newsletters and round-ups only count
+their title, and look-alikes are excluded (MITRE's *defense evasion*, the hacktivist *IT Army*). A sector stated by
+the feed (the ransomware.live victim sector, OTX industries) counts on its own. An item gets at most three
+sectors.
+
+Sectors are entities like any other (of type `sector`). They appear as chips, filter the feed (click a bar in a
+*Critical infrastructure sectors* chart) and the scam report list, and are exported as `sectors` in the REST API.
+They carry almost no weight in correlation. When the rules change, stored items are re-tagged once;
+`python manage.py sectortag` does it by hand.
 
 ## Vulnerability context
 
-Every six hours, CVEs mentioned in the last 30 days are looked up in the CISA Known
-Exploited Vulnerabilities catalog, FIRST EPSS and the NVD (CVSS score, vector and description). None of these
-needs a key; an optional NVD key only makes the CVSS lookups faster. Trending CVEs are ranked by exploitation
-risk as well as chatter (trend score × 2 when in KEV × (1 + EPSS) × (0.5 + CVSS/10)), and the CVE list can be
-sorted by CVSS or EPSS. CVSS rates how much damage a flaw allows if it is exploited (0 to 10); EPSS is the
-probability that it is exploited in the wild within 30 days. Hovering either column header shows the same
-explanation.
+Every six hours, the CVEs mentioned in the last 30 days are looked up in the CISA Known Exploited Vulnerabilities
+catalogue, FIRST EPSS and the NVD (CVSS score, vector and description). None of these needs a key; an optional
+NVD key just makes the CVSS lookups faster.
+
+Trending CVEs are ranked by exploitation risk as well as by how much they are discussed:
+trend score × 2 if in KEV × (1 + EPSS) × (0.5 + CVSS/10). The CVE list can be sorted by CVSS or EPSS.
+
+CVSS rates how much damage a flaw allows if it is exploited (0 to 10). EPSS is the probability that it will be
+exploited in the wild within the next 30 days. Hovering over either column header shows the same explanation.
 
 ## A note on severity
 
-The severity score is a triage heuristic, not a vulnerability rating. The item page shows how a score was
-built, enrichment raises it when an indicator is confirmed malicious, and the LLM can raise it during
-analysis.
+The severity score is a triage aid, not a vulnerability rating. The item page shows how each score was built.
+Enrichment raises it when an indicator is confirmed malicious (and lowers it again if that verdict is later
+withdrawn), and the AI can raise it by a limited amount during analysis.

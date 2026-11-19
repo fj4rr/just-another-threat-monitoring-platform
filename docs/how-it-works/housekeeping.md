@@ -2,118 +2,127 @@
 
 [← How JATMP works](index.md)
 
-The processes that keep the database small and consistent over time: the nightly clean-up, the retention tiers,
-the removal of personal data, the one-off jobs that apply new detection rules to stored items, and what a restart
-does. Code: `app/jobs.py`.
+This page covers the processes that keep the database small and consistent over time: the nightly clean-up, the
+retention tiers, the removal of personal data, the one-off jobs that apply new rules to stored items, and what
+happens when JATMP restarts. The code is in `app/jobs.py`.
 
 ## Nightly housekeeping
 
-`run_housekeeping` runs every day at **03:30** in the time zone of the schedule (`housekeeping_time` and
-`schedule_timezone` under Settings → General; default 03:30 UTC). In order:
+`run_housekeeping` runs every day at **03:30** by default. You can change the time and the time zone under
+Settings → General (`housekeeping_time` and `schedule_timezone`); the default time zone is UTC. It works through
+these steps in order:
 
 | # | Step | Default | Setting |
 |---|---|---|---|
-| 1 | Delete job runs (`collector_runs`) started more than **30 days** ago | always | — |
-| 2 | Delete notifications older than **30 days** | always | — |
-| 3 | **Slim** items published more than **180 days** ago (see below), up to 20,000 per night | on | `retention_full_days` (0 = never) |
-| 4 | Delete webhook deliveries older than **30 days** | always | — |
-| 5 | **Delete** items published more than *N* days ago, then recount mentions and remove orphaned indicators | **off** | `retention_days` (0 = keep forever) |
-| 6 | Delete AI answers (Q&A) older than **90 days** | always | — |
-| 7 | **Prune scammer identifiers** not mentioned for **365 days** | on | `fraud_identifier_days` (0 = keep) |
+| 1 | Delete job run records started more than **30 days** ago | Always | — |
+| 2 | Delete notifications older than **30 days** | Always | — |
+| 3 | **Slim** items published more than **180 days** ago (see below), up to 20,000 a night | On | `retention_full_days` (0 = never) |
+| 4 | Delete webhook deliveries older than **30 days** | Always | — |
+| 5 | **Delete** items published more than *N* days ago, then recount mentions and remove indicators nothing refers to any more | **Off** | `retention_days` (0 = keep forever) |
+| 6 | Delete AI answers (questions and answers) older than **90 days** | Always | — |
+| 7 | **Prune scammer identifiers** that haven't been mentioned for **365 days** | On | `fraud_identifier_days` (0 = keep) |
 
-### Slimming (retention tier)
+### Slimming
 
-An item past `retention_full_days` keeps everything that analysis and statistics need and loses the bulk:
+Once an item is older than `retention_full_days`, it keeps everything that analysis and statistics need and loses
+the bulk:
 
 | Kept | Changed |
 |---|---|
-| Title, link, source, dates, kind, tags | `content` cut to its first 400 characters (at a word boundary, with " …") |
-| All entity links, severity and its reasons, fraud score and its reasons | `raw` keeps only simple values of at most 200 characters (TLP, sector, country…); lists and long texts go |
-| Geography (`item_geo`), sectors, AI summary | `slimmed_at` is set; the item page says the text was trimmed and links to the original |
+| Title, link, source, dates, kind, tags | The text is cut to its first 400 characters (at a word boundary, ending with " …") |
+| All entity links, the severity and its reasons, the fraud score and its reasons | The provider data keeps only short simple values (TLP, sector, country…); lists and long texts are removed |
+| Geography, sectors, the AI summary | The item is marked as slimmed. Its page says the text was trimmed and links to the original |
 
-The full-text search index follows automatically (database triggers). Slimming is committed every 1,000 items, so
-a large first run (after enabling the setting on an old install) is spread over several nights; `python manage.py
-slim` does all of it at once.
+The search index updates itself automatically. Slimming is saved every 1,000 items, so on an old installation
+where you have just switched it on, the first run is spread over several nights. `python manage.py slim` does it
+all at once.
 
-Because the text is gone, a later re-analysis of a slimmed item (re-scoring, a rules change) works on the snippet
-and may find less. Geography keeps the countries the feed supplied at collection time, which are not in the
-snippet.
+Since the full text is gone, any later re-analysis of a slimmed item (a re-score, or a rules change) works on
+the snippet and may find less. Geography keeps the countries the feed provided when the item was collected,
+because those aren't in the snippet.
 
 ### Deleting old items
 
-Off by default. When `retention_days` is set, items **published** before the cut-off are deleted together with
-their entity links and geography (cascade). Then:
+This is off by default. When you set `retention_days`, items **published** before the cut-off are deleted,
+together with their entity links and geography. After that:
 
-- every entity's `mention_count` is recomputed from the remaining links;
+- every entity's mention count is recalculated from the links that remain;
 - **indicators** (hashes, IPs, domains, URLs) with no mentions and no enrichment links are deleted;
-- **families, actors, CVEs, scam types, brands and sectors are kept** as history, even with no mentions left.
+- **families, actors, CVEs, scam types, brands and sectors are kept** as history, even when nothing mentions them
+  any more.
 
-The database file does not shrink by itself after a large deletion; run `python manage.py vacuum`.
+The database file doesn't shrink by itself after a large deletion. Run `python manage.py vacuum` to give the
+space back.
 
 ### Scammer identifiers (UU PDP)
 
-Phone numbers, bank accounts and e-wallets whose `last_seen` is older than `fraud_identifier_days` (default 365)
-are deleted, with their links. `last_seen` is the publication date of the latest item that mentions the
-identifier, so an identifier that keeps being reported stays. Crypto wallets are not personal data and are kept.
-See [Scams and fraud](../fraud.md#scammer-identifiers-and-personal-data-uu-pdp).
+Phone numbers, bank accounts and e-wallets whose last mention is older than `fraud_identifier_days` (365 by
+default) are deleted, together with their links. The last mention is the publication date of the latest item
+that names the identifier, so an identifier that keeps being reported is kept. Crypto wallets are not personal
+data and are always kept. See [Scams and fraud](../fraud.md#scammer-identifiers-and-personal-data-uu-pdp).
 
 ## Re-analysis of stored items
 
-Detection rules improve between versions. Items stored by an older version would otherwise keep the old results,
-so several analyses carry a **rules version**:
+Detection and scoring rules improve from one version to the next. Without re-analysis, items stored by an older
+version would keep their old results, and the dashboards would compare items judged by different rules. So each
+analysis has a **rules version**:
 
-1. The code holds a version constant (for example `fraud.RULES_VERSION = 5`).
-2. The database holds the version the stored items were analysed with (setting `fraud_version`).
-3. A few seconds after every start-up, a one-off job compares the two. Equal → it does nothing. Different → it
-   re-analyses every stored item and then stores the new version.
+1. The code holds a version number for the rules (for example `fraud.RULES_VERSION = 5`).
+2. The database remembers which version the stored items were analysed with (here, the setting
+   `fraud_version`).
+3. A few seconds after every start-up, a one-off job compares the two. If they match, it does nothing. If they
+   don't, it re-analyses every stored item and then records the new version.
 
-| Job | Starts after | Version | Re-does |
+| Job | Starts after | Rules version | What it redoes |
 |---|---|---|---|
-| `run_content_cleanup` | 15 s | `jobs.CONTENT_VERSION` → `content_version` | Removes text that newer cleaning rules strip (stylesheet rules in posts), then re-runs the scam and sector analysis of the items that changed |
-| `run_geotag` | 20 s | `geo.GEO_VERSION` → `geo_version` | Language, source country, target countries and provinces of every item; hosting country of every IP from the GeoIP database |
-| `run_dedup` | 30 s | `jobs.DEDUP_VERSION` → `dedup_version` | Fingerprints of every article, oldest first, so the first outlet to publish a story stays the original |
-| `run_fraudtag` | 40 s | `fraud.RULES_VERSION` → `fraud_version` | Scam types, brands, identifiers, losses, victims and fraud score of every item, oldest first (so the *spreading* check sees earlier reports) |
-| `run_sectortag` | 60 s | `sectors.RULES_VERSION` → `sector_version` | Critical infrastructure sectors of every item |
-| `run_rescore_if_outdated` | 90 s | `severity.RULES_VERSION` → `severity_version` | Severity of every item from its text and linked entities, keeping the enrichment bonus and the last AI assessment (as *Re-score all items*); last, so it sees the entities the jobs above settled |
+| `run_content_cleanup` | 15 s | `content_version` | Removes text that newer cleaning rules strip out (stylesheet rules inside posts), then re-runs the scam and sector analysis for the items that changed |
+| `run_geotag` | 20 s | `geo_version` | Language, source country, target countries and provinces for every item, and the hosting country of every IP from the GeoIP database |
+| `run_dedup` | 30 s | `dedup_version` | The fingerprints of every article, oldest first, so the first outlet to publish a story stays the original |
+| `run_fraudtag` | 40 s | `fraud_version` | Scam types, brands, identifiers, losses, victims and the fraud score of every item, oldest first (so the *spreading* check sees the earlier reports) |
+| `run_sectortag` | 60 s | `sector_version` | The critical infrastructure sectors of every item |
+| `run_rescore_if_outdated` | 90 s | `severity_version` | The severity of every item, from its text and linked entities, keeping the enrichment bonus and the last AI assessment (the same as *Re-score all items*). It runs last, so it sees the entities the jobs above have settled |
 
-They work through the items in chunks of 500 (200 for the content clean-up), commit per chunk and show progress
-in the job status. The staggered start keeps them from competing with each other and with the first collection
-runs for the database. Geography, fraud and sectors can also be re-run by hand: `manage.py geotag`, `fraudtag`
-and `sectortag`, and the geography and scam re-analysis also from the UI (Settings, and *Re-analyse items* on the
-scam & fraud dashboard), which ends with a notification. The content clean-up and dedup jobs only run after an
-upgrade.
+These jobs work through the items in chunks of 500 (200 for the content clean-up), save after each chunk, and
+show their progress in the job status. Their staggered start times keep them from competing with each other, or
+with the first collection runs, for the database.
 
-**Not versioned: entity extraction.** Re-extracting would rebuild every link, which is expensive and changes
-counts that analysts may rely on, so it only happens on request. Severity is versioned since 0.12 (above) and can
-also be recomputed by hand:
+You can also run some of them by hand. Geography, fraud and sectors have `manage.py geotag`, `fraudtag` and
+`sectortag`; geography and the scam analysis can also be started from the interface (Settings, and *Re-analyse
+items* on the scam & fraud dashboard), and finish with a notification. Severity has *Re-score all items* and
+`manage.py rescore`. The content clean-up and dedup jobs only run after an upgrade.
 
-| Tool | Does | Notes |
+**Entity extraction has no rules version.** Re-extracting rebuilds every link, which is expensive and changes
+mention counts that analysts may rely on, so it only happens when you ask for it:
+
+| Tool | What it does | Notes |
 |---|---|---|
-| *Re-score all items* (Settings), `manage.py rescore` | Recomputes severity from the stored text and the linked entities | Keeps the *indicator confirmed* bonus and the last AI assessment. No network |
-| `manage.py reextract` | Deletes the `regex`, `kb` and `heuristic` links and extracts again; re-scores severity; re-runs the scam and sector analysis; recounts mentions; removes families and actors left without mentions or links | Keeps `feed` and `llm` links, the enrichment bonus and the last AI assessment |
+| *Re-score all items* (Settings), `manage.py rescore` | Recalculates severity from the stored text and the linked entities | Keeps the *indicator confirmed* bonus and the last AI assessment. No network calls |
+| `manage.py reextract` | Deletes the `regex`, `kb` and `heuristic` links and extracts everything again; re-scores severity; re-runs the scam and sector analysis; recounts mentions; removes families and actors left with no mentions or links | Keeps `feed` and `llm` links, the enrichment bonus and the last AI assessment |
 
 See [Severity scoring](scoring.md#recomputing-scores).
 
 ## Monthly GeoIP update
 
 When *update the GeoIP database automatically* is on, `run_geoip_update` downloads a fresh offline database
-(DB-IP Lite, or MaxMind GeoLite2 with a license key) at 04:00 UTC on the 5th of every month, then forces a
-geo-tagging run so IP hosting countries reflect the new data.
+(DB-IP Lite, or MaxMind GeoLite2 if you have a license key) at 04:00 UTC on the 5th of every month. It then
+re-runs geo-tagging, so the hosting countries of IPs reflect the new data.
 
 ## Start-up and restarts
 
-On start-up (see [Architecture](../architecture.md#start-up-sequence)) JATMP creates missing tables and columns,
-adds built-in sources that a newer version introduced, encrypts secrets that an older version stored in plain
-text, marks every run that was `queued` or `running` as **aborted**, schedules the jobs and starts the scheduler.
+At start-up (see [Architecture](../architecture.md#start-up-sequence)), JATMP creates any missing tables and
+columns, adds built-in sources that a newer version introduced, encrypts secrets that an older version stored in
+plain text, marks every run that was still `queued` or `running` as **aborted**, schedules the jobs, starts the
+scheduler, and rebuilds the AI auto-summary queue.
 
-What a restart loses, because it lives in memory:
+Some state lives only in memory, so a restart resets it:
 
-| State | Effect of a restart |
+| State | What a restart does |
 |---|---|
-| Live progress of running jobs | The runs are marked *aborted*; start them again if needed |
-| AI auto-summary queue | Rebuilt at start-up from the live items of the last 24 hours that qualify (severity 40 or more, no summary, not a copy) |
-| Trend cache (45 s), settings cache (5 s) | Rebuilt on the next request |
-| Per-provider gaps between calls, API-key rate windows, per-user action limits | Start fresh |
+| Progress of running jobs | The runs are marked *aborted*. Start them again if you need to |
+| AI auto-summary queue | Rebuilt from the live items of the last 24 hours that qualify (severity 40 or more, no summary, not a copy) |
+| Trend cache (45 s) and settings cache (5 s) | Rebuilt on the next request |
+| Gaps between provider calls, API-key rate windows, per-user action limits | Start afresh |
 
-What survives, because it is in the database: every item, entity and verdict, provider daily budgets, queued
-webhook deliveries (sent on the next 30-second tick), rules versions, notifications and the run history.
+Everything else is in the database and survives a restart: every item, entity and verdict (with its date), the
+providers' daily budgets, queued webhook deliveries (sent on the next 30-second tick), the rules versions,
+notifications and the run history.

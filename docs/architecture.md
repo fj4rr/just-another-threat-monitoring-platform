@@ -129,7 +129,9 @@ error and does not notify.
 collector and a backfill may store the same entry at the same moment). For every new `RawItem`, `ingest()`:
 
 1. **Skips duplicates** of the same source: one query for the whole batch on `(source_id, external_id)`.
-   External ids longer than 500 characters are shortened with a SHA-256 so they stay unique.
+   External ids longer than 500 characters are shortened with a SHA-256 so they stay unique. An entry that is
+   already stored but carries a `merge_title` (ThreatFox's one item per family and day) has its new indicators
+   added to the stored item instead (`merge_indicators`), which is then re-scored.
 2. **Sanitises**: `strip_html` (scripts, tags, entities, stray stylesheet rules) for articles, `safe_url` (only
    `http(s)` links), length limits, future dates clamped to now.
 3. **Fingerprints articles** (`fingerprint()`: normalised title without the outlet suffix, plus the start of the
@@ -154,14 +156,18 @@ auto-push; `_maybe_auto_summarize` queues AI summaries for the separate summary 
 
 ### 3. Enrichment
 
-`jobs.run_enrichment` (every `enrichment_interval` minutes) picks indicators that were never checked, or are due
-for a re-check, and calls `enrichment.enrich_entity`: every configured provider in `PROVIDER_CLASSES` that
-supports the indicator type answers with a `LookupResult`; results are stored per provider in `enrichments`,
-family labels are mapped to known families (`resolve_family`) and linked (`entity_links`), and the provider
-verdicts are combined into the entity's verdict (`_consensus`: malicious wins, a lone OTX mention is only
-suspicious, GreyNoise "benign" overrides noisy providers). A verdict that turns malicious raises the severity of
-the items that mention the indicator (`VERDICT_BONUS`) and fires the `ioc.malicious` webhook. Trending families
-also get fresh IOCs from OTX / ANY.RUN (`enrich_family`).
+`jobs.run_enrichment` (every `enrichment_interval` minutes) picks indicators that were never checked, are due for
+a re-check, or have an aged malicious / suspicious verdict (`verdict_recheck_days`). `enrichment.prefetch` then
+looks the whole batch up with one thread per provider, so each provider works at its own pace, and
+`enrichment.enrich_entity` applies the answers one indicator at a time: every configured provider in
+`PROVIDER_CLASSES` that supports the indicator type answers with a `LookupResult`; results are stored per provider
+in `enrichments`, family labels are mapped to known families (`resolve_family`) and linked (`entity_links`), and
+the provider verdicts are combined into the entity's verdict (`_consensus`: malicious wins, a lone OTX mention is
+only suspicious, GreyNoise "benign" overrides noisy providers) with its date in `verdict_at`. A verdict that rises
+adds `severity.VERDICT_BONUS` to the items that mention the indicator and, when it turns malicious, fires the
+`ioc.malicious` webhook; a re-checked verdict that falls takes the bonus back (`_sync_bonus`). Trending families
+also get fresh IOCs from OTX / ANY.RUN (`enrich_family`). `enrichment.queue_status` and `intel/quota.py` feed the
+queue and quota panels. Details: [Enrichment and verdicts](how-it-works/enrichment.md).
 
 ## Background jobs
 
@@ -177,8 +183,13 @@ All jobs are functions in `app/jobs.py`.
 | `run_housekeeping` | daily, `housekeeping_time` (default 03:30 UTC) | Retention (slimming, deletion), identifier pruning, old runs and notifications |
 | `run_auto_summaries` | after ingest, when enabled | AI summaries of new high-severity items, one job at a time |
 | `run_backfill` | manual | Historical backfill, one source after another |
+| `run_source_health` | hourly (first 15 min after start) | Notify about quiet and long-failing sources (`app/sourcehealth.py`) |
 | `run_geoip_update` | monthly, when enabled | Refresh the offline GeoIP database |
-| One-off re-analysis | 15–60 s after start | See below |
+| One-off re-analysis | 15–90 s after start | See below |
+
+The daily jobs run in the schedule's time zone (`schedule_timezone`, `jobs.schedule_daily_jobs`); they are
+rescheduled when the General settings change. At start-up, `requeue_auto_summaries` rebuilds the in-memory
+auto-summary queue from the live items of the last 24 hours that still qualify.
 
 **Runs and progress.** Every run is a `CollectorRun` row. Manual runs are created as `queued` rows under a
 `batch_id` first, so the UI shows them at once and a second click finds them (`job_running`, `active_batch`).
@@ -197,9 +208,10 @@ date; it runs a few seconds after start and can be forced from the UI or `manage
 | `run_dedup` | `jobs.DEDUP_VERSION` | `dedup_version` | Cross-source fingerprints |
 | `run_fraudtag` | `fraud.RULES_VERSION` | `fraud_version` | Scam types, brands, identifiers, fraud score |
 | `run_sectortag` | `sectors.RULES_VERSION` | `sector_version` | Critical infrastructure sectors |
+| `run_rescore_if_outdated` | `severity.RULES_VERSION` | `severity_version` | Severity from text and linked entities, keeping the enrichment bonus and AI assessment (`severity.carry_over`); runs last, at 90 s |
 
-Entity extraction and severity have no automatic job: changing them only affects new items until an admin runs
-*Re-score all items* or `python manage.py reextract` (which rebuilds the extracted links and severities).
+Entity extraction has no automatic job: changing it only affects new items until an admin runs
+`python manage.py reextract` (which rebuilds the extracted links and re-scores, also through `carry_over`).
 
 ## Outbound HTTP
 
@@ -224,7 +236,9 @@ Never call `httpx.get()` or create an `httpx.Client` directly in application cod
 | Trending lists | `trends._trend_cache` | 45 s | New items (`ingest_committed`) |
 | API-key rate windows | `apikeys._windows` | 1 min windows | Time |
 | Manual-action throttles | `throttle` | per call window | Time; `throttle.reset()` in tests |
-| Provider throttles and daily budgets | `intel.clients._Throttle`, `_budget_ok` | per provider | Time / day |
+| Provider gaps between calls | `intel.clients._Throttle` (reserves a slot under the lock, sleeps outside it) | per provider | Time; restart |
+| Provider daily budgets | `intel.clients._budget_ok`, settings `_budget_<provider>` | per provider and day | Day (survive restarts) |
+| AI auto-summary queue | `jobs._summary_queue` (at most 200 ids) | until worked off | Rebuilt at start-up (`requeue_auto_summaries`) |
 | Knowledge base patterns | `knowledge.compiled_patterns` (`lru_cache`) | process | Restart |
 
 ## Database and migrations
@@ -290,6 +304,7 @@ Charts use the vendored Chart.js; the radar and sparklines are in `motion.js`, t
 | `geoip.py` | Offline GeoIP database (download, lookup) for the hosting country of IPs |
 | `knowledge.py` | Malware families and actors with aliases, everyday-word rules, `knowledge_extra.json` |
 | `notify.py` | Notification center (de-duplicated by key, per-user read watermark) |
+| `sourcehealth.py` | Source health: last new item, this week against usual, usual gap, failing since, summary-only feeds; quiet / failing notifications |
 | `jobs.py` | Scheduler, every job, runs, batches, progress, `status()` |
 | `dbcopy.py` | `copy-db` between database engines |
 
@@ -299,8 +314,8 @@ Charts use the vendored Chart.js; the radar and sparklines are in `motion.js`, t
 |---|---|
 | `collectors/` | `base.Collector` and one module per source kind; `REGISTRY` and `DEFAULT_SOURCES` in `__init__.py` |
 | `processing/` | `pipeline` (ingest), `extractor`, `severity`, `fraud`, `fraudstats`, `sectors`, `geo`, `enrichment`, `trends`, `graph` |
-| `intel/` | Provider clients (`clients.py`), `context` lookups, `darkweb` deep dives, `cve` intel, `misp` push and pull |
-| `llm/` | `client` (Ollama, OpenAI-compatible, Anthropic), `presets` (vendors), `insights` (summaries, briefs, executive summary, Q&A) |
+| `intel/` | Provider clients (`clients.py`), `quota` (daily budgets used and their pace), `context` lookups, `darkweb` deep dives, `cve` intel, `misp` push and pull |
+| `llm/` | `client` (Ollama, OpenAI-compatible, Anthropic), `presets` (vendors), `insights` (summaries, briefs, executive summary, Q&A), `redact` (personal data out of cloud prompts) |
 | `routers/` | `pages`, `fraud_pages`, `api` (JSON for the UI and actions), `api_v1` (REST API), `taxii`, `settings_routes`, `reports_routes`, `backfill_routes`, `admin`, `auth_routes` (setup, login, profile), `apikeys_routes`, `webhooks_routes` |
 | `templates/` | Pages and partials (`_macros.html`, `_preview_*.html`, `_fraud_row.html`…) |
 | `static/` | `css/app.css`, `js/` (`app.js`, `motion.js`, `graph.js`, `geomap.js`, `globe.js`, `vendor/chart.umd.min.js`), `geo/`, `img/` |
