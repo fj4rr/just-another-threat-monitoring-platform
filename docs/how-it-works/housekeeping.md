@@ -67,7 +67,7 @@ Detection and scoring rules improve from one version to the next. Without re-ana
 version would keep their old results, and the dashboards would compare items judged by different rules. So each
 analysis has a **rules version**:
 
-1. The code holds a version number for the rules (for example `fraud.RULES_VERSION = 5`).
+1. The code holds a version number for the rules (for example `fraud.RULES_VERSION = 6`).
 2. The database remembers which version the stored items were analysed with (here, the setting
    `fraud_version`).
 3. A few seconds after every start-up, a one-off job compares the two. If they match, it does nothing. If they
@@ -77,14 +77,20 @@ analysis has a **rules version**:
 |---|---|---|---|
 | `run_content_cleanup` | 15 s | `content_version` | Removes text that newer cleaning rules strip out (stylesheet rules inside posts), then re-runs the scam and sector analysis for the items that changed |
 | `run_geotag` | 20 s | `geo_version` | Language, source country, target countries and provinces for every item, and the hosting country of every IP from the GeoIP database |
-| `run_dedup` | 30 s | `dedup_version` | The fingerprints of every article, oldest first, so the first outlet to publish a story stays the original |
+| `run_dedup` | 30 s | `dedup_version` | The fingerprints of every article, oldest first, so the first outlet to publish a story stays the original. On every start it also repairs any article marked as a copy of itself, so it reappears in the feed as an original |
 | `run_fraudtag` | 40 s | `fraud_version` | Scam types, brands, identifiers, losses, victims and the fraud score of every item, oldest first (so the *spreading* check sees the earlier reports) |
 | `run_sectortag` | 60 s | `sector_version` | The critical infrastructure sectors of every item |
 | `run_rescore_if_outdated` | 90 s | `severity_version` | The severity of every item, from its text and linked entities, keeping the enrichment bonus and the last AI assessment (the same as *Re-score all items*). It runs last, so it sees the entities the jobs above have settled |
 
 These jobs work through the items in chunks of 500 (200 for the content clean-up), save after each chunk, and
 show their progress in the job status. Their staggered start times keep them from competing with each other, or
-with the first collection runs, for the database.
+with the first collection runs, for the database. They also respect analysts' corrections: an item marked *not a
+scam report* keeps a fraud score of 0, and severity is computed only from the links analysts left in place (see
+[Corrections and quality](corrections.md#why-a-correction-sticks)).
+
+Before a rules change ships, `python manage.py quality` measures it against the labelled cases in
+`tests/quality/`, and CI refuses a change that makes any area worse (see
+[Measuring the rules](corrections.md#measuring-the-rules)).
 
 You can also run some of them by hand. Geography, fraud and sectors have `manage.py geotag`, `fraudtag` and
 `sectortag`; geography and the scam analysis can also be started from the interface (Settings, and *Re-analyse
@@ -97,7 +103,7 @@ mention counts that analysts may rely on, so it only happens when you ask for it
 | Tool | What it does | Notes |
 |---|---|---|
 | *Re-score all items* (Settings), `manage.py rescore` | Recalculates severity from the stored text and the linked entities | Keeps the *indicator confirmed* bonus and the last AI assessment. No network calls |
-| `manage.py reextract` | Deletes the `regex`, `kb` and `heuristic` links and extracts everything again; re-scores severity; re-runs the scam and sector analysis; recounts mentions; removes families and actors left with no mentions or links | Keeps `feed` and `llm` links, the enrichment bonus and the last AI assessment |
+| `manage.py reextract` | Deletes the `regex`, `kb` and `heuristic` links and extracts everything again; re-scores severity; re-runs the scam and sector analysis; recounts mentions; removes families and actors left with no mentions or links | Keeps `feed` and `llm` links, the enrichment bonus, the last AI assessment and every analyst correction (removed links stay removed). Run it after an upgrade that changes the extraction rules, as the upgrade notes say |
 
 See [Severity scoring](scoring.md#recomputing-scores).
 
@@ -120,9 +126,9 @@ Some state lives only in memory, so a restart resets it:
 |---|---|
 | Progress of running jobs | The runs are marked *aborted*. Start them again if you need to |
 | AI auto-summary queue | Rebuilt from the live items of the last 24 hours that qualify (severity 40 or more, no summary, not a copy) |
-| Trend cache (45 s) and settings cache (5 s) | Rebuilt on the next request |
+| Trend cache (45 s), settings cache (5 s) and the cache of active corrections (30 s) | Rebuilt on the next request |
 | Gaps between provider calls, API-key rate windows, per-user action limits | Start afresh |
 
 Everything else is in the database and survives a restart: every item, entity and verdict (with its date), the
 providers' daily budgets, queued webhook deliveries (sent on the next 30-second tick), the rules versions,
-notifications and the run history.
+analysts' corrections, notifications and the run history.

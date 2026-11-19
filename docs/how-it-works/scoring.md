@@ -170,6 +170,8 @@ threat it is minor, but as a scam report it is serious, and it ranks high on the
 | One of the item's indicators turns **malicious** in enrichment | +12 | *indicator confirmed malicious (ip)* |
 | One of the item's indicators turns **suspicious** | +5. If it later turns malicious, the score rises by another 7 and the reason shows +12 | *indicator confirmed suspicious (…)* |
 | A malicious or suspicious indicator is re-checked and its verdict goes down | The item keeps the bonus of its strongest remaining indicator, or loses it | Updated, or removed |
+| An analyst sets an indicator's verdict | The bonus follows the analyst's verdict, up or down | Updated, or removed |
+| An analyst removes an entity from the item (*wrong entity here*, *wrong entity everywhere*, *not a threat*) | The item is re-scored from the links that remain, keeping the enrichment bonus and the AI assessment | The entity's reason disappears |
 | The AI rates the item higher than the rule-based score | The score is raised towards the AI's number, by **at most +20**. It never goes below the rule-based score | *AI assessment (capped)*, with an *AI* badge |
 
 Each item keeps only one *indicator confirmed* reason, for its strongest verdict, so several malicious indicators
@@ -186,7 +188,7 @@ compare them. You can also re-score by hand:
 | Tool | What it starts from | Keeps the enrichment bonus | Keeps the AI assessment |
 |---|---|---|---|
 | *Re-score all items* (Settings), `manage.py rescore` | The stored text and the entities already linked (with how they were found). Nothing is re-extracted and no network calls are made | Yes | Yes |
-| `manage.py reextract` | A fresh extraction of the stored text, which rebuilds the `regex`, `kb` and `heuristic` links and the scam and sector analysis | Yes | Yes |
+| `manage.py reextract` | A fresh extraction of the stored text, which rebuilds the `regex`, `kb` and `heuristic` links (except those analysts removed) and the scam and sector analysis | Yes | Yes |
 
 In every case, the points that don't come from the text are added back afterwards (`severity.carry_over`): the
 *indicator confirmed* bonus for the strongest verdict among the item's indicators today, and the last *AI

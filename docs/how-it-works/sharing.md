@@ -58,6 +58,10 @@ whose data may be passed on (OTX, ThreatFox, MalwareBazaar, URLhaus, MISP). For 
 appeared in an ANY.RUN task or an AMBER pulse is not exported, but the same IP mentioned in a public news article
 is.
 
+Analysts' corrections carry through to what is shared. An indicator marked *not a threat* becomes *clean*, so it
+drops out of the feeds (which list *malicious* indicators by default), and an analyst's verdict is the one that
+is exported. A link an analyst removed no longer counts as a mention.
+
 On top of that, the IOC export feeds and TAXII leave out IPs, domains and URLs whose *malicious* or
 *suspicious* verdict is older than `verdict_feed_days` (60 by default) and hasn't been confirmed since. That way a
 blocklist built from JATMP doesn't keep blocking addresses that have changed hands. See
@@ -71,7 +75,7 @@ blocklist built from JATMP doesn't keep blocking addresses that have changed han
 |---|---|---|
 | `item.high_severity` | A collection run stores an item with a severity of **at least `webhook_min_severity`** (default 70) | The item: id, title, URL, severity, source and source type, TLP, publication time, up to 10 families / actors / CVEs, and a link into JATMP when `public_base_url` is set |
 | `entity.watched` | A new item mentions an entity that **any** user is watching (scammer identifiers excepted) | The item, plus the watched entity |
-| `ioc.malicious` | An indicator's verdict turns *malicious* during enrichment | The indicator, with a link to it |
+| `ioc.malicious` | An indicator's verdict turns *malicious*, through enrichment or because an analyst set it | The indicator, with a link to it |
 | `job.failed` | Any **error** notification is created: a source starts failing or has been failing for a day, an enrichment run fails, or the AI summary or a MISP push fails | The notification's title and text |
 
 Item events are only sent for **shareable** items, and only during **live** collection: backfills send none.

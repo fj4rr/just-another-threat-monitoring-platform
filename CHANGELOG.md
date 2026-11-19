@@ -2,6 +2,24 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## Unreleased
+
+**Documentation**
+
+- The pages that 0.13.0 and 0.13.1 left out now describe them too. *How it works*: the overview's numbers table and
+  key terms (corrections, error rate, precision and recall), enrichment (an analyst's verdict wins and keeps its
+  date fresh), ingest (corrections respected at every step, distinctive spellings such as "RedLine" and "Cl0p",
+  never a copy of itself), scoring (corrections re-score the item), sharing (corrected indicators in the feeds,
+  `ioc.malicious` from an analyst verdict) and housekeeping (corrections kept by re-analysis and `reextract`, the
+  self-copy repair, the quality gate before a rules change).
+- User guide: the docs index lists *Corrections and quality*; *Maintenance commands* documents
+  `manage.py quality` and its options; *Analysis* has a section on corrections and rule quality and the new
+  indicator rules (public DNS resolvers, paste and file-sharing services); *Scams and fraud* lists the new scam
+  phrases and how to mark an item *not a scam report*; *Reporting and AI* explains how Q&A picks and cites items.
+- Developer pages: *Extending JATMP* adds the quality cases to the rules recipe, the indicator exclusion lists,
+  topic filters and `severity.RULES_VERSION`; *Security* and *Data model* cover the corrections audit trail and
+  the analyst verdict.
+
 ## 0.13.1
 
 Rule tuning from the first quality report: every fix comes with the case that motivated it and counter-examples

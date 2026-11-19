@@ -68,7 +68,7 @@ Anything tracked across items. Unique on `(type, value)`; `value` is normalised 
 |---|---|
 | `malware`, `actor` | From the knowledge base, a pattern, a feed, a provider or the AI. `category` is the malware category or actor kind. |
 | `cve`, `technique` | CVE ids and MITRE ATT&CK technique ids. CVE intel (KEV, EPSS, CVSS) is in `meta`. |
-| `ip`, `domain`, `url`, `md5`, `sha1`, `sha256` | Indicators (`trends.IOC_TYPES`). `verdict` and `enriched_at` come from enrichment; `verdict_at` (0.12) is when the verdict was last given or confirmed (IPs, domains and URLs age, see [Verdicts that age](how-it-works/enrichment.md#verdicts-that-age)); `country` is the hosting country of an IP, never a target. |
+| `ip`, `domain`, `url`, `md5`, `sha1`, `sha256` | Indicators (`trends.IOC_TYPES`). `verdict` and `enriched_at` come from enrichment; `verdict_at` (0.12) is when the verdict was last given or confirmed (IPs, domains and URLs age, see [Verdicts that age](how-it-works/enrichment.md#verdicts-that-age)); `meta["analyst"]` (0.13) holds an analyst's verdict, which enrichment keeps; `country` is the hosting country of an IP, never a target. |
 | `scam_type`, `brand` | Fraud taxonomy (`fraud.NAMED_TYPES`). |
 | `phone`, `bank_account`, `ewallet`, `crypto_wallet` | Scammer identifiers (`fraud.IDENT_TYPES`): personal data, **never** returned by the API, feeds, STIX / TAXII, webhooks or MISP; phones, accounts and e-wallets are deleted after `fraud_identifier_days` without mentions. |
 | `sector` | Critical infrastructure sector key (`sectors.SECTOR_KEYS`). |

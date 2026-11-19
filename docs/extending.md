@@ -143,20 +143,24 @@ Add one line to `SCHEMA` in `app/settings.py`:
 
 ## Change detection rules
 
-Rules are data in Python modules. After changing them, update the tests that pin their behaviour and decide how
-stored items catch up.
+Rules are data in Python modules. After changing them, update the tests that pin their behaviour, add the case
+that motivated the change (and a counter-example that must not change) to `tests/quality/`, run
+`python manage.py quality`, and decide how stored items catch up. The *Most corrected* list on the Corrections page
+is a good place to find rules worth changing; see [Corrections and quality](how-it-works/corrections.md).
 
 | What | Where | Stored items catch up through |
 |---|---|---|
 | Malware families, actors, aliases | `MALWARE`, `ACTORS` in `app/knowledge.py` (or `data/knowledge_extra.json` without code, see [Configuration](configuration.md#extending-the-knowledge-base)) | `manage.py reextract` |
-| Names that are everyday words | `COMMON_WORDS` / `AMBIGUOUS` in `knowledge.py`: these need a qualifier ("Pegasus spyware", "Bitter APT"), `QUALIFIERS` / `ACTOR_QUALIFIERS` list the qualifiers | `manage.py reextract` |
+| Names that are everyday words | `COMMON_WORDS` / `AMBIGUOUS` in `knowledge.py`: these need a qualifier ("Pegasus spyware", "Bitter APT"), unless written in a distinctive spelling (`knowledge.distinctive`: "RedLine", "Cl0p"); `QUALIFIERS` / `ACTOR_QUALIFIERS` list the qualifiers | `manage.py reextract` |
+| Things that are never indicators | `BENIGN_DOMAINS`, `BENIGN_IPS` (public DNS resolvers) and `ABUSED_HOSTING` (paste and file-sharing services: the domain never, a URL with a path always) in `processing/extractor.py` | `manage.py reextract` |
 | Words that are never a new family | `GENERIC_WORDS`, `LEGIT_TOOLS`, `PLATFORM_WORDS`, `ID_GENERIC_WORDS` in `processing/extractor.py` (country names and demonyms come from the gazetteer) | `manage.py reextract` |
-| Severity terms and weights | `GROUPS` and `ID_TERMS` in `processing/severity.py`, dampeners `PATCH_RE`, `META_RE`, `NOISE_RE` | *Re-score all items* / `manage.py rescore` |
+| Severity terms and weights | `GROUPS` and `ID_TERMS` in `processing/severity.py`, dampeners `PATCH_RE`, `META_RE`, `NOISE_RE` | bump `severity.RULES_VERSION` |
 | Scam types | `SCAM_TYPES` in `processing/fraud.py`: `(key, name, weight, strong pattern, weak pattern)` | bump `fraud.RULES_VERSION` |
 | Brands, identifier cues, losses | `BRANDS`, `SCAMMER_SPECIFIC`, `SCAMMER_CUE`, `INSTITUTION_CUE`, `OFFICIAL_CUE`, `VICTIM_CUE`, `RE_RUPIAH` / `RE_DOLLAR` in `fraud.py` | bump `fraud.RULES_VERSION` |
 | Sectors | `SECTORS`, `FEED_SECTORS`, `ATTACK_CUE` in `processing/sectors.py` | bump `sectors.RULES_VERSION` |
 | Countries, provinces, places | `app/gazetteer.py`, detection in `processing/geo.py` | bump `geo.GEO_VERSION` |
 | Text cleaning | `strip_html` / `strip_css` in `processing/pipeline.py` | bump `jobs.CONTENT_VERSION` |
+| Topic filters (`security`, `cyber`, `fraud`) | `processing/topics.py`, used by every news and social source | Not at all: filters only decide what is stored from now on |
 
 Rules for patterns:
 

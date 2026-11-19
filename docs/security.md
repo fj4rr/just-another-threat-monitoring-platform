@@ -40,6 +40,10 @@
   expire, can be revoked by their owner or an admin, and are rate limited per key. Key creation, revocation and
   feed downloads are written to the audit log. Bearer requests need no CSRF token; every cookie-authenticated
   POST still does.
+- **Corrections.** Only analysts and admins can correct entities, verdicts and scam reports, or undo a
+  correction; viewers can see them. Every correction needs a reason, is stored with its author, and is written to
+  the audit log (`correction_unlink`, `correction_verdict`…, `correction_undone`), so a changed verdict can always
+  be traced to a person.
 - **Webhooks.** Targets must resolve to public addresses (checked when saved and again before each delivery;
   redirects are not followed) unless an admin allows private ones. Signing secrets are derived from the session
   secret and a per-hook salt, so the database holds nothing that could forge a signature.

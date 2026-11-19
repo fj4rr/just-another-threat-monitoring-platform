@@ -7,6 +7,11 @@ that is scored, linked to its entities and tagged with its geography. All of it 
 in one database transaction per batch (`pipeline.ingest_committed`), so you never see an item that is only half
 analysed.
 
+The entries arrive here already filtered: if the source has a topic filter, the entries it dropped never reach the
+pipeline (see [Topic filters](collection.md#topic-filters)). Analysts' corrections are respected throughout, so a
+link an analyst removed or an item marked *not a scam report* stays that way (see
+[Corrections and quality](corrections.md#why-a-correction-sticks)).
+
 ## The ten steps
 
 For every entry in a batch, `pipeline.ingest()` runs these steps in order:
@@ -88,7 +93,8 @@ copy counted separately, everything in that story would look as if it were trend
 
 JATMP then looks for an article from **another source** with the same fingerprint, published within **4 days**
 before or after this one. If it finds one, the new item becomes a **copy** that points to the **original**: the
-earliest item, never another copy. Items in the same batch are compared with each other as well.
+earliest item, never another copy, and never the item itself. Items in the same batch are compared with each other
+as well.
 
 Copies are stored like any other item, and you can see them in the interface:
 
@@ -144,8 +150,11 @@ The knowledge base (`app/knowledge.py`, plus any additions you make in `data/kno
 name and the family's category (ransomware, stealer, loader and so on).
 
 Some names are also everyday words, or are four letters or shorter ("Play", "Fog", "Hook", "Conti"). These only
-count next to a qualifier: "Play ransomware", "the Fog group", "malware called Hook". Ambiguous actor names
-likewise need a word such as *APT*, *group* or *threat actor* within two words of the name ("Bitter APT").
+count next to a qualifier: "Play ransomware", "the Fog group", "malware called Hook". The exception is a name
+written in its own distinctive spelling, with a capital in the middle or a digit inside the word ("RedLine",
+"Cl0p", "SafePay"): that spelling is no everyday word, so it counts on its own, while "redline" or "Safepay
+checkout" still don't. Ambiguous actor names likewise need a word such as *APT*, *group* or *threat actor* within
+two words of the name ("Bitter APT").
 
 ### New family names (origin `heuristic`)
 
@@ -193,7 +202,9 @@ brands, reported losses and victims, and scammer identifiers. Identifiers are on
 about a scam, and only where the sentence makes clear they belong to the scammer. The result is the fraud score.
 **A fraud score above 0 is what makes an item a scam report**, everywhere in JATMP. To keep this fast, the
 "spreading" counts for each scam type are worked out once per scam type and day for the whole batch.
-The rules and points are on [Scams and fraud](../fraud.md).
+If an analyst has marked the item *not a scam report*, the analysis is skipped and the fraud score stays 0, also
+when the scam rules change and stored items are re-analysed. The rules and points are on
+[Scams and fraud](../fraud.md).
 
 ## 7. Critical infrastructure sectors
 
@@ -228,6 +239,9 @@ Everything found in steps 4, 6 and 7 is now linked to the item:
    created together. A blocklist item with 500 domains therefore costs two queries, not 500.
 2. A new IP gets its **hosting country** from the offline GeoIP database straight away, if one is installed.
 3. Each entity gets one link to the item, recording how it was found (`regex`, `kb`, `heuristic`, `feed`).
+   Links that an analyst removed are skipped: the entity on this item for *wrong entity here*, and on every item
+   for *wrong entity everywhere* or *not a threat*. The same check applies when entities are re-extracted, added
+   by the AI or merged into a ThreatFox item.
 4. The entity's mention count goes up by one. Its first-seen and last-seen dates move to the item's
    **publication** date if that is earlier or later (so a backfill can move first-seen back in time). If the
    entity had no category yet, it gets one.

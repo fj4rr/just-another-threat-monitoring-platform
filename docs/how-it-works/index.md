@@ -171,7 +171,7 @@ they are no more than 10 minutes late). All jobs share a pool of 10 threads.
 |---|---|---|
 | **Severity** (0–100) on an item | Rules applied to the title and text, plus the entities found, when the item is stored. It rises by +12 / +5 when an indicator is later confirmed malicious or suspicious, and by up to +20 from the AI | [Severity scoring](scoring.md) |
 | **Fraud score** (0–100) | The scam analysis, when the item is stored. 0 means "not a scam report" | [Scams and fraud](../fraud.md#fraud-score) |
-| **Verdict** on an indicator, and its date | The combined answer of the enrichment providers, with the date it was last given or confirmed | [Enrichment and verdicts](enrichment.md#consensus) |
+| **Verdict** on an indicator, and its date | The combined answer of the enrichment providers, with the date it was last given or confirmed. An analyst's verdict, when one is set, wins over the providers | [Enrichment and verdicts](enrichment.md#consensus) |
 | **Trend score**, *new*, growth | How often something was mentioned in the period compared with the period before, weighted by how many sources and source types reported it | [Trends and correlation](trends.md#trend-score) |
 | **CVE priority**, KEV / EPSS / CVSS | The CVE intel refresh, combined with the trend score | [Trends and correlation](trends.md#cve-priority) |
 | **Related items** and their score | The entities two items share, weighted by type and rarity | [Trends and correlation](trends.md#correlation) |
@@ -181,6 +181,8 @@ they are no more than 10 minutes late). All jobs share a pool of 10 threads.
 | **Source health** (quiet, failing, summary only) | Each source's recent items and run history, checked every hour | [Collection](collection.md#source-health) |
 | **Enrichment queue** and quotas | Indicators waiting for a lookup, and today's use of each provider's daily budget | [Enrichment and verdicts](enrichment.md#the-queue) |
 | **Job progress bars** and notifications | The run records of each job and the progress of whatever is running now | [Collection](collection.md#runs-batches-and-progress) |
+| **Error rate reported by analysts**, most corrected names | The analysts' corrections of the last 30 days, on the Corrections page | [Corrections and quality](corrections.md#the-corrections-page) |
+| **Precision and recall** of the rules | `manage.py quality`, run over the labelled cases in `tests/quality/` | [Corrections and quality](corrections.md#measuring-the-rules) |
 
 ## Key terms
 
@@ -199,6 +201,7 @@ they are no more than 10 minutes late). All jobs share a pool of 10 threads.
 | **Original / copy** | When another outlet publishes the same article within four days, the later one is a *copy* of the first |
 | **Slimmed** | An item older than the full-text retention period. Its text is cut to a snippet; everything else stays |
 | **Rules version** | A number in the code that goes up whenever detection or scoring rules change. When it differs from the version stored in the database, a one-off job re-analyses the stored items |
+| **Correction** | An analyst's fix of a mistake: a wrong entity on one item or everywhere, an analyst verdict, or "not a scam report". It has a reason and an author, stays in force when JATMP re-analyses, and can be undone |
 
 ## What JATMP does not do
 
@@ -212,7 +215,8 @@ Knowing the limits helps you read the results correctly.
 - **It never looks up scammer identifiers anywhere.** Bank accounts and wallets get links so an analyst can check
   them by hand.
 - **It doesn't use machine learning.** Detection is based on rules, vocabularies and a knowledge base. A language
-  model only runs if you configure the optional AI, and what it can change is limited.
+  model only runs if you configure the optional AI, and what it can change is limited. Analysts' corrections fix
+  individual cases and show which rules need tuning, but JATMP doesn't change its rules by itself.
 - **It doesn't re-run entity extraction on its own.** When a new version changes the scoring, fraud, sector,
   geography or cleaning rules, stored items are re-analysed automatically once. Changes to entity extraction only
   reach old items when you run `manage.py reextract` (see

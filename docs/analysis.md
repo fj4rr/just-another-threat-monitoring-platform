@@ -15,8 +15,13 @@ ATT&CK techniques and indicators (IPs, domains, URLs, and MD5, SHA-1 and SHA-256
 Defanged indicators are understood in all their usual forms (`hxxp`, `[.]`, `[:]`, `[://]`, `\.`, `(dot)`).
 Families that aren't in the knowledge base yet are picked up from phrases such as "PipeMagic backdoor", but
 legitimate tools that attackers misuse (ConnectWise, AnyDesk, PsExec and others) are never mistaken for
-families. JATMP also ignores hashes that are part of a URL, version numbers that look like IP addresses, and
-about 200 vendor, media and platform domains.
+families. Family names that are also everyday words ("Play", "Hook") need a qualifier such as "ransomware",
+unless they are written in the family's own spelling ("RedLine", "Cl0p").
+
+JATMP also ignores hashes that are part of a URL, version numbers that look like IP addresses, public DNS
+resolvers such as `8.8.8.8` and `1.1.1.1`, and about 200 vendor, media and platform domains. Paste, file-sharing
+and code-hosting services (Pastebin, GitHub, Google Drive, Dropbox, MEGA and others) are handled carefully: the
+service's own domain is never an indicator, but the URL of a specific paste or file on it is.
 
 ## Severity
 
@@ -57,6 +62,29 @@ never age.
 
 The IOC page and Settings → Enrichment show how many indicators are waiting to be looked up and how much of each
 provider's daily budget is left.
+
+An analyst can also set an indicator's verdict by hand. That verdict wins over the providers until it is undone
+(see below).
+
+## Corrections and rule quality
+
+No set of rules is perfect, so analysts and admins can correct JATMP's mistakes, and the corrections stick:
+
+- **✕ next to an entity** on an item page removes it from that item ("Pegasus" in an article about a musical).
+- **✎ Correct** on an entity page removes a family or actor everywhere, marks an indicator as *not a threat*, or
+  sets an analyst verdict (*malicious*, *suspicious* or *clean*).
+- **Not a scam report**, in the fraud-score popover of an item, takes the item out of the scam section.
+
+Each correction asks for a reason and records who made it. Re-extraction, the AI and rule changes don't bring the
+mistake back, and the affected items are re-scored. The *Corrections* page lists every correction with an undo
+button, the error rate analysts reported per area over the last 30 days, and the names corrected most often,
+which usually point at a rule worth tuning.
+
+The rules themselves are measured too. `python manage.py quality` reports the precision and recall of the
+extractor, the scam rules, sectors, target countries and severity on a set of labelled cases, and CI fails when a
+change makes any area worse. Analysts' corrections can be exported as test cases, so the report also says how many
+of the mistakes analysts found the current rules would still make. Details are in
+[Corrections and quality](how-it-works/corrections.md).
 
 ## Relationship graph
 
@@ -141,4 +169,5 @@ exploited in the wild within the next 30 days. Hovering over either column heade
 
 The severity score is a triage aid, not a vulnerability rating. The item page shows how each score was built.
 Enrichment raises it when an indicator is confirmed malicious (and lowers it again if that verdict is later
-withdrawn), and the AI can raise it by a limited amount during analysis.
+withdrawn), the AI can raise it by a limited amount during analysis, and an analyst's correction re-scores the
+item from the entities that remain.

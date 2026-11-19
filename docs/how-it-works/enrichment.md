@@ -117,6 +117,10 @@ All the answers from one lookup are combined into the indicator's **verdict** (`
 5. If GreyNoise said benign and no strong provider (VirusTotal, abuse.ch, ANY.RUN) said *malicious* or
    *suspicious*, the verdict is **clean**.
 
+**An analyst's verdict wins.** When an analyst has set a verdict on the indicator (*✎ Correct* on its page; see
+[Corrections and quality](corrections.md)), every lookup still stores each provider's answer, but the verdict stays
+what the analyst said. Marking an indicator *not a threat* sets it to *clean* in the same way.
+
 Because the first step starts from the current verdict, a verdict normally only goes up. A later lookup where
 every provider says *unknown* won't turn a *malicious* indicator back. There are two ways down: step 5 (a
 GreyNoise *benign* answer turns *suspicious* or *unknown* into *clean*), and the re-check of an aged verdict
@@ -141,7 +145,7 @@ So every indicator records when its verdict was last given or confirmed, and its
 |---|---|---|
 | Re-check | A *malicious* or *suspicious* IP, domain or URL whose verdict is older than **30 days** and that was mentioned in the last 90 days is looked up again (tier 4 above). The new answer **replaces** the old verdict, even when it is lower. The items that mention the indicator then get the bonus of their strongest remaining indicator, or none | `verdict_recheck_days` (0 = never) |
 | Leave the feeds | Once the verdict is older than **60 days** without being confirmed again, the indicator is left out of the IOC export feeds (txt, csv, json) and TAXII. STIX indicators carry `valid_until` = verdict date + 60 days. The pages and the REST API still list it: the pages mark it *aged*, and the API includes its `verdict_at` | `verdict_feed_days` (0 = keep it in the feeds) |
-| Confirmed again | Any lookup that gets an answer, or a blocklist that lists the indicator again (ScamSniffer, for example), resets the verdict date to today | — |
+| Confirmed again | Any lookup that gets an answer, or a blocklist that lists the indicator again (ScamSniffer, for example), resets the verdict date to today. That includes an analyst's verdict, so it doesn't age out of the feeds while the indicator is still being mentioned | — |
 
 File hashes never age: a file is always the same file.
 
@@ -154,8 +158,8 @@ When a lookup finishes:
 | **Family attribution.** Up to 5 family labels per provider (such as `trojan.lumma/lummastealer` or `Win32/Formbook`) are matched to a known family, skipping generic words (trojan, generic, win32, agent, android…), legitimate tools and platforms. The indicator is linked to the family as `attributed-to`, so a hash posted on Bluesky connects to every article about that family | Always |
 | **Related indicators.** Up to 8 per provider (a domain's IPs, a URL's host) are created and linked as `related` | Always |
 | **Severity goes up.** Every item that mentions the indicator gets +12 (*malicious*) or +5 (*suspicious*), replacing any earlier *indicator confirmed* reason; see [Severity scoring](scoring.md#after-ingest) | The verdict went up |
-| **Severity goes down.** Each item that mentions the indicator gets the bonus of its strongest remaining indicator, or loses the bonus | The verdict went down (an aged verdict re-checked) |
-| **Webhook** `ioc.malicious` | The verdict turned *malicious*, and the indicator may be shared |
+| **Severity goes down.** Each item that mentions the indicator gets the bonus of its strongest remaining indicator, or loses the bonus | The verdict went down (an aged verdict re-checked, or an analyst lowered it) |
+| **Webhook** `ioc.malicious` | The verdict turned *malicious* (through the providers or an analyst), and the indicator may be shared |
 | **Context lookup** (Shodan, Censys…) | The verdict turned *malicious* and *run context lookups when an indicator turns malicious* is on |
 | **Hosting country** of an IP: taken from the offline GeoIP database first, otherwise from IPinfo, Censys, Shodan, VirusTotal, AbuseIPDB, CrowdSec or OTX, in that order | IP indicators |
 

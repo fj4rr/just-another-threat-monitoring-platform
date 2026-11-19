@@ -59,3 +59,15 @@ the same components as the rest of the interface. If the answer can't be used, t
 
 The summary runs every day at 06:00 UTC by default. You can change the time and the time zone under Settings →
 General; see [Daily schedule](configuration.md#daily-schedule).
+
+### Asking questions
+
+*Ask* on the AI insights page answers a question from the data JATMP has collected. Before the model sees the
+question, JATMP picks the items that fit it best: the families, actors, CVEs and indicators the question names
+(aliases included, so "Fancy Bear" finds APT28), the malware types and sectors it mentions ("ransomware on
+hospitals" finds "LockBit hits a healthcare provider"), the period it names ("this week", "minggu ini"), and its
+words through the full-text index. A syndicated story counts once.
+
+The answer cites the items it is based on as [1], [2] and so on, each linking to the item, and lists below it
+which items were used and why they matched. The model is told to answer only from those items and to say when
+something is missing. See [Questions](how-it-works/ai.md#questions).

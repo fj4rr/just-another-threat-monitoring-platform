@@ -19,6 +19,7 @@ python manage.py geotag           # re-run the geography (targets, provinces, la
 python manage.py geoip-update     # download the offline GeoIP database and locate IP indicators
 python manage.py fraudtag         # re-run the scam & fraud analysis on every item (also a button on the fraud pages)
 python manage.py sectortag        # detect the critical infrastructure sectors of every item again
+python manage.py quality          # precision and recall of the detection rules on the cases in tests/quality/
 python manage.py telegram-login   # sign in to Telegram once for MTProto (optional; needs requirements-telegram.txt)
 python manage.py vacuum           # give freed disk space back after deleting a lot of data
 python manage.py copy-db postgresql+psycopg://jatmp:secret@localhost:5432/jatmp   # copy everything into an empty database
@@ -26,6 +27,24 @@ python manage.py create-user alice analyst
 ```
 
 Re-scoring and re-extraction keep the points that don't come from the text (the enrichment bonus and the last AI
-assessment), so they never drop a confirmed item below a threshold. After an upgrade that changes the scoring,
-fraud, sector or geography rules, the matching re-analysis runs on its own; see
-[Housekeeping and re-analysis](how-it-works/housekeeping.md#re-analysis-of-stored-items).
+assessment), so they never drop a confirmed item below a threshold. They also keep analysts' corrections: a link an
+analyst removed is not added back. After an upgrade that changes the scoring, fraud, sector or geography rules, the
+matching re-analysis runs on its own; changes to entity extraction need `reextract`, and the upgrade notes say
+when. See [Housekeeping and re-analysis](how-it-works/housekeeping.md#re-analysis-of-stored-items).
+
+## The quality report
+
+`python manage.py quality` runs the detection rules over the labelled cases in `tests/quality/` and prints the
+precision, recall and F1 of each area (families and actors, indicators, scam reports, sectors, target countries,
+severity), followed by the cases the rules got wrong. Options:
+
+| Option | What it does |
+|---|---|
+| `--corrections FILE` | Adds an export of the analysts' corrections (*Export as test cases* on the Corrections page) and reports how many of them the current rules would still repeat |
+| `--summary` | Prints the numbers without the list of wrong cases |
+| `--json` | Prints the result as JSON |
+| `--check` | Exits with an error when an area falls below `tests/quality/baseline.json` (what CI does) |
+| `--update-baseline` | Records the current numbers as the new baseline (only without `--corrections`) |
+
+What the areas measure and how to read the numbers is explained in
+[Corrections and quality](how-it-works/corrections.md#measuring-the-rules).

@@ -36,15 +36,15 @@ webhooks and MISP.
 | [Getting started](getting-started.md) | Installing from source or with Docker, the setup wizard, running a local AI model alongside it |
 | [Configuration](configuration.md) | API keys for every provider, runtime and deployment settings, the daily schedule, TLP for new sources, extending the knowledge base |
 | [Upgrading](upgrading.md) | What to do when you move to a new version |
-| [Maintenance commands](maintenance.md) | `manage.py`: collecting, enriching, re-scoring, geo-tagging, fraud analysis, Telegram sign-in, copying the database, users |
+| [Maintenance commands](maintenance.md) | `manage.py`: collecting, enriching, re-scoring, geo-tagging, fraud analysis, the quality report, Telegram sign-in, copying the database, users |
 
 ## Using JATMP
 
 | Page | What it covers |
 |---|---|
 | [Sources](sources.md) | The built-in news, Indonesian news, Bluesky, Mastodon, X, Telegram, scam & fraud and threat-intel sources, and the topic filters |
-| [Using JATMP](using-jatmp.md) | Install modes and roles, the two dashboards and their period, tables and the side preview, source health, the enrichment queue, job status and notifications |
-| [Analysis](analysis.md) | Entity extraction, severity, enrichment and verdicts, the relationship graph, infrastructure context, correlation, trends, critical infrastructure sectors, CVE context |
+| [Using JATMP](using-jatmp.md) | Install modes and roles, the two dashboards and their period, tables and the side preview, correcting JATMP, source health, the enrichment queue, job status and notifications |
+| [Analysis](analysis.md) | Entity extraction, severity, enrichment and verdicts, analyst corrections and rule quality, the relationship graph, infrastructure context, correlation, trends, critical infrastructure sectors, CVE context |
 | [Geography and Indonesia](geography.md) | Target, source and hosting countries, Indonesian provinces, the International / National switch, Bahasa Indonesia |
 | [Scams and fraud](fraud.md) | Scam types, impersonated brands, scammer identifiers and personal data (UU PDP), the fraud score, the scam & fraud dashboard and pages |
 | [Sharing and integrations](integrations.md) | REST API, IOC feeds, STIX 2.1 / TAXII 2.1, webhooks, MISP, sharing rules (TLP), dark web tier 1 |
@@ -68,6 +68,7 @@ which follows one article from the feed to the dashboard.
 | [AI processing](how-it-works/ai.md) | Item summaries and their safeguards, auto-summaries, briefs, the executive summary, questions, personal data in prompts |
 | [Sharing and delivery](how-it-works/sharing.md) | TLP, redistribution and personal-data rules, aged indicators, webhook events, signing and retries, MISP push |
 | [Housekeeping and re-analysis](how-it-works/housekeeping.md) | The nightly clean-up, retention, identifier pruning, versioned re-analysis, restarts |
+| [Corrections and quality](how-it-works/corrections.md) | Analyst corrections and why they stick, the Corrections page, the quality report and its CI gate |
 
 ## Developer guide
 

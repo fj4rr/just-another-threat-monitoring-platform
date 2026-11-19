@@ -12,7 +12,9 @@ switch applies here too.
 
 | | How |
 |---|---|
-| **Scam type** | A fixed taxonomy in English and Bahasa Indonesia: investment scam (incl. *investasi bodong*, robot trading, pig butchering), illegal online loan (*pinjol ilegal*), job / task scam, romance scam, sextortion, malicious APK lure (wedding invitations, traffic tickets, bills), courier / package lure, impersonation, phishing, OTP theft / account takeover, online gambling (*judol*), fake shop, prize / giveaway (incl. fake *bansos*), crypto scam / drainer, tech support / refund scam, BEC / invoice fraud, QRIS / QR code fraud, deepfake scam, and *Other scam*. Strong phrases count on their own; weaker ones ("phishing", "APK", "deepfake", "mengatasnamakan") only next to a scam word (within about 200 characters, or a scam word in the title), and outside fraud sources one passing scam word is not enough. An article whose title says nothing about a scam must show the scam in more than one place, so a malware write-up with one sentence about "scammers using fake delivery notices" stays out. Newsletters and weekly round-ups are judged on their title only. |
+| **Scam type** | A fixed taxonomy in English and Bahasa Indonesia: investment scam (incl. *investasi bodong*, robot trading, pig butchering), illegal online loan (*pinjol ilegal*), job / task scam, romance scam, sextortion, malicious APK lure (wedding invitations, traffic tickets, bills), courier / package lure, impersonation, phishing, OTP theft / account takeover, online gambling (*judol*), fake shop, prize / giveaway (incl. fake *bansos*), crypto scam / drainer, tech support / refund scam, BEC / invoice fraud, QRIS / QR code fraud, deepfake scam, and *Other scam*. Typical phrases include fraudulent investment apps, callers who *mengaku dari*
+Bea Cukai, the police, a bank or the tax office, SMS phishing and smishing messages, fake payment or delivery
+pages, fake QRIS stickers, and fake sellers or *jual beli … online* fraud. Strong phrases count on their own; weaker ones ("phishing", "APK", "deepfake", "mengatasnamakan") only next to a scam word (within about 200 characters, or a scam word in the title), and outside fraud sources one passing scam word is not enough. An article whose title says nothing about a scam must show the scam in more than one place, so a malware write-up with one sentence about "scammers using fake delivery notices" stays out. Newsletters and weekly round-ups are judged on their title only. |
 | **Impersonated brand** | About 70 banks, e-wallets, marketplaces, couriers, telecoms, utilities, government bodies, platforms and crypto exchanges, Indonesian first (BCA, BRI, Bank Mandiri, BNI, DANA, OVO, GoPay, Shopee, J&T, PLN, OJK, BPJS, DJP, Bea Cukai…). A brand counts when it appears next to an impersonation cue ("mengatasnamakan BCA", "fake PayPal"). A brand that speaks ("Shopee warns customers…", "BCA mengimbau nasabah", "kata pihak OJK") is the one warning, not the one impersonated, unless the text also says so right next to the name ("fake Shopee websites"). Platforms and government bodies need the cue right next to them, because they are usually the channel ("lewat WhatsApp") or the one issuing the warning ("FBI warns…"). Ambiguous words are matched carefully: *dana* (funds) is not DANA, *mandiri* (independent) is not Bank Mandiri. |
 | **Scammer identifiers** | Phone numbers (Indonesian mobile numbers normalised to `+628…`), bank accounts (with the bank when it is named), e-wallet numbers and crypto wallets (BTC, ETH, TRON; Bitcoin and TRON addresses must pass their Base58Check or bech32 checksum, so an invoice number is no wallet). See the rules below. |
 | **Losses and victims** | The largest loss a report states (headline forms such as "Rp 2,5 T" and "Rp 5 M" included), converted to rupiah (dollar amounts at the rate set under Settings → Scam & fraud), and the largest victim count ("1.200 korban", "ratusan korban", "thousands of victims"). Amounts only count next to a loss word, so prices and fees are ignored, and money that was saved, frozen or returned is not a loss. |
@@ -104,6 +106,14 @@ Existing items are analysed once in the background after an upgrade, and again w
 by hand: *Re-analyse items* on the dashboard or under Settings → Scam & fraud, or `python manage.py fraudtag`.
 Re-analysis loads items in chunks and only touches the database for items that are, or were, about a scam, so it
 runs in about the time it takes to read the items.
+
+## When the analysis is wrong
+
+If an item isn't really about a scam, an analyst or admin can open the fraud-score popover on the item page and
+choose **Not a scam report**, with a reason. The fraud score drops to 0, the item's scam types, brands and
+identifiers are removed, and it leaves the scam section. The correction stays in force when the analysis is run
+again, and it can be undone on the *Corrections* page. A wrong brand or scam type on a real scam report can be
+removed with the ✕ next to it. See [Corrections and quality](how-it-works/corrections.md).
 
 ## Processing
 
