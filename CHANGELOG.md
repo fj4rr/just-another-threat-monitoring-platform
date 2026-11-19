@@ -2,7 +2,10 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
-## Unreleased
+## 0.14.0
+
+Easier navigation: filters that stay, a grouped and collapsible menu, a *New threats* button, and screenshots retaken
+for all of it. Upgrade notes: [docs/upgrading.md](docs/upgrading.md).
 
 **Changes**
 

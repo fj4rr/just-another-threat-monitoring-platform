@@ -4,6 +4,18 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.14.0
+
+Navigation changes and higher minimum versions. No schema change, no re-analysis.
+
+- **Run `pip install -r requirements.txt` again** (and `requirements-postgres.txt` or `requirements-telegram.txt` if you
+  use them): `anthropic` 2.8.0, `feedparser` 6.0.14, `python-docx` 1.2.0, `psycopg` 3.3.9 and `telethon` 1.45.0 are
+  now the minimums. The Docker image installs from the lock file as before.
+- **Feed filters now stay for the session.** A link or form that names one filter changes only that one; *Clear
+  filters* drops them all. Bookmarks keep working, but opening the Feed from the menu shows your last filters.
+- **The menu is regrouped:** *Intelligence*, *Analysis* and *Manage* are dropdowns, and the whole menu folds into an
+  icon rail. Nothing to configure; the state is kept in the browser.
+
 ## Upgrading to 0.13.1
 
 Rule tuning from the first quality report. No new dependency, no schema change.
