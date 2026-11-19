@@ -28,3 +28,7 @@
 {"title": "SMS phishing impersonates toll road operator over unpaid fees", "body": "The smishing messages link to a fake payment page that steals card details.", "scam": true}
 {"title": "Harga tiket pesawat mudik naik 20 persen", "body": "Maskapai menambah penerbangan tambahan.", "scam": false}
 {"title": "Investasi bodong berkedok arisan online rugikan ibu rumah tangga", "body": "Pengelola arisan membawa kabur dana anggota.", "scam": true}
+// added in 0.13.1: counter-examples of the rule tuning, so the gains cannot come from over-fitting
+{"title": "Pejabat mengaku dari partai lain saat kampanye", "body": "Ia menjelaskan program kerjanya.", "scam": false}
+{"title": "APT29 spear-phishing campaign targets diplomats", "body": "The phishing emails carried a malicious PDF.", "scam": false}
+{"title": "Pasar jual beli mobil bekas online tumbuh 20 persen", "body": "Penjualan mobil bekas meningkat.", "scam": false}

@@ -27,7 +27,9 @@ from dataclasses import dataclass
 # (jobs.run_rescore_if_outdated), keeping their enrichment bonus and AI assessment (carry_over), so old and new
 # items are scored by the same rules before trends compare them (PM review 2026-11, item 4).
 # 1 (0.12): first versioned rules (the 0.10.1 rules were never applied to older items automatically)
-RULES_VERSION = 1
+# 2 (0.13.1, from the quality report): English service disruption, scale of a leak, data for sale, credential theft,
+# telecoms as a sensitive sector; no title bonus for roundup / guide titles
+RULES_VERSION = 2
 
 # Signal groups: (group label, [(regex, weight, short reason)]). Order is cosmetic.
 GROUPS: list[tuple[str, list[tuple[str, int, str]]]] = [
@@ -48,6 +50,10 @@ GROUPS: list[tuple[str, list[tuple[str, int, str]]]] = [
          r"\b(?:vulnerab\w*|flaws?|bugs?|severity|cvss|cve-\d{4}-\d+|rated)\b.{0,30}?\bcritical\b", 12, "critical / CVSS ≥ 9"),
         (r"auth(?:entication)?[\s-]bypass|bypass(?:es|ed|ing)? (?:\w+ )?authentication", 12, "authentication bypass"),
         (r"\bwiper\b|destructive (?:malware|attack)|data[\s-]destroying", 14, "destructive / wiper"),
+        (r"halt(?:s|ed|ing)? (?:all )?(?:production|operations|services?|deliveries)|production (?:halt|stopp|"
+         r"disrupt)\w*|shut(?:s|ting)? down (?:its )?(?:operations|production|plants?|systems?|services?|"
+         r"emergency rooms?)|disrupt(?:s|ed|ing)? (?:its )?(?:operations|services?|production|systems)|"
+         r"(?:systems?|services?|networks?) (?:went|were|are|remain(?:ed)?) (?:offline|down)", 10, "service disruption"),
         (r"privilege escalation|\blpe\b|\beop\b", 6, "privilege escalation"),
         (r"\bhigh[\s-]severity\b", 6, "high severity"),
     ]),
@@ -57,17 +63,23 @@ GROUPS: list[tuple[str, list[tuple[str, int, str]]]] = [
         (r"\bzero[\s-]click\b|\bspyware\b|mercenary|commercial surveillance", 12, "spyware / zero-click"),
         (r"\bbackdoor|\brootkit\b|\bbootkit\b|\bimplant\b|\bweb[\s-]?shell\b", 9, "backdoor / implant"),
         (r"\bbotnet\b|\bworm(?:s|able)?\b|self[\s-]propagating|self[\s-]spreading", 9, "botnet / worm"),
-        (r"info[\s-]?stealer|\bstealer\b|credential (?:theft|harvest|stealing)|\bkeylogger\b", 7, "stealer"),
+        (r"info[\s-]?stealer|\bstealer\b|credential (?:theft|harvest|stealing)|\bkeylogger\b|"
+         r"\bst(?:eal|eals|ealing|ole)\b (?:\w+ )?(?:credentials|passwords|logins|session tokens|api keys)", 7, "stealer"),
         (r"data breach|exfiltrat|\bleak(?:ed|s)?\b.{0,30}\b(?:data|records|credentials)\b|stolen data|\bbreached\b", 8, "breach / exfiltration"),
+        (r"(?:sold|for sale|offered|auctioned|put up for sale) (?:on|in) (?:an? |the )?(?:\w+ )?(?:hack(?:er|ing) |"
+         r"dark[\s-]?web |darknet |underground |cybercrime )?(?:forums?|markets?|marketplaces?)", 10, "data for sale"),
         (r"\bphishing\b|\bsmishing\b|\bvishing\b|business email compromise|\bbec\b|\bclickfix\b|\bmalvertis", 6, "phishing / social engineering"),
     ]),
     ("activity", [
         (r"\bcampaign\b|\bdeploy(?:s|ed|ing)?\b.{0,25}\b(?:malware|ransomware|backdoor|payload|loader|stealer|trojan)\b|\b(?:malware|ransomware|backdoor|payload|loader|stealer)\b.{0,25}\bdeployed\b", 10, "active campaign"),
         (r"\bnew\b.{0,30}\b(?:malware|variant|stealer|loader|botnet|ransomware|backdoor|rat|trojan|family|strain)\b|previously (?:unknown|undocumented|unseen)|\bnovel\b", 8, "new malware / variant"),
         (r"\btarget(?:s|ed|ing)\b", 5, "targeting described"),
-        (r"\bwidespread\b|\bmillions? of\b|\bthousands of\b|\bworldwide\b|\bglobal(?:ly)?\b", 6, "wide scale"),
+        (r"\bwidespread\b|\bmillions? of\b|\bthousands of\b|\bworldwide\b|\bglobal(?:ly)?\b|\b(?:of )?(?:thousands|millions)\b|"
+         r"\b\d+(?:[.,]\d+)?\s*(?:million|billion)\s+(?:[A-Za-z]+\s+)?(?:records|users|accounts|customers|people|citizens|patients|"
+         r"subscribers|downloads|installs|devices|times)\b", 6, "wide scale"),
         (r"\bapt\b|state[\s-](?:sponsored|backed|linked|aligned)|nation[\s-]state|\bespionage\b", 8, "state-sponsored / APT"),
-        (r"\bcritical infrastructure\b|\bhealthcare\b|\bhospital|\bgovernment\b|\benergy sector\b|\bics\b|\bscada\b|\bot\b network", 5, "sensitive sector"),
+        (r"\bcritical infrastructure\b|\bhealthcare\b|\bhospital|\bgovernment\b|\benergy sector\b|\bics\b|\bscada\b|\bot\b network|"
+         r"\btelecom(?:s|munications?)?\b|\btelcos?\b|\bwiretap", 5, "sensitive sector"),
     ]),
 ]
 
@@ -102,9 +114,11 @@ ID_TERMS: dict[str, list[tuple[str, int, str]]] = {
         (r"(?:malware|ransomware|varian|modus) baru", 8, "new malware / variant"),
         (r"menargetkan|menyasar|sasaran|(?:jadi|menjadi) (?:target|korban)|target serangan|\bincar\b|mengincar", 5,
          "targeting described"),
-        (r"\bjutaan\b|\bribuan\b|seluruh dunia|secara global", 6, "wide scale"),
+        (r"\bjutaan\b|\bribuan\b|seluruh dunia|secara global|\b\d+(?:[.,]\d+)?\s*(?:juta|miliar)\s+(?:[A-Za-z]+\s+)?(?:data|pengguna|"
+         r"nasabah|peserta|warga|akun|pelanggan|pasien)\b", 6, "wide scale"),
         (r"didukung negara|disponsori negara|\bspionase\b", 8, "state-sponsored / APT"),
-        (r"\bpemerintah\b|\binstansi\b|kementerian|rumah sakit|layanan publik|infrastruktur (?:kritis|vital)|perbankan",
+        (r"\bpemerintah\b|\binstansi\b|kementerian|rumah sakit|layanan publik|infrastruktur (?:kritis|vital)|perbankan|"
+         r"operator seluler|telekomunikasi",
          5, "sensitive sector"),
     ],
 }
@@ -145,6 +159,9 @@ class Reason:
 
 
 def _title_bonus(title_l: str, pat: re.Pattern) -> bool:
+    # a roundup or a guide lists topics in its title, it is not about them (0.13.1): no headline bonus there
+    if META_RE.search(title_l) or NOISE_RE.search(title_l):
+        return False
     return bool(title_l) and bool(pat.search(title_l))
 
 

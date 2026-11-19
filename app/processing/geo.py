@@ -28,7 +28,9 @@ from .. import gazetteer as gz
 
 NATIONAL = "ID"
 REGIONS = {"intl": "International", "id": "National (ID)"}
-GEO_VERSION = 1  # bump when the detection rules change; start-up re-tags existing items once
+# bump when the detection rules change; start-up re-tags existing items once
+# 2 (0.13.1): criminal marketplaces ("Russian forums") and hosting ("hosted in the Netherlands") are no targets
+GEO_VERSION = 2
 
 # --------------------------------------------------------------------------- language
 _ID_TEXT = """yang dan di ke dari ini itu untuk dengan tidak adalah pada dalam akan oleh juga sudah telah bisa
@@ -131,6 +133,19 @@ _PRECEDE_ATTR = re.compile(
     r"sponsored\s+by|on\s+behalf\s+of|(?:peretas|hacker|kelompok(?:\s+peretas)?|grup(?:\s+peretas)?|geng|"
     r"aktor(?:\s+ancaman)?)(?:\s+(?:asal|dari|yang\s+berbasis\s+di|berbasis\s+di|yang\s+didukung))?|"
     r"dikaitkan\s+dengan|didukung(?:\s+oleh)?|disponsori(?:\s+oleh)?)\s+(?:the\s+)?$", re.I)
+# Where criminals trade and where servers sit is no target (0.13.1): "sold on Russian forums", "Chinese-language
+# marketplaces", "hosted in the Netherlands", "a Dutch hosting provider", "server di Singapura".
+_FOLLOW_MARKET = re.compile(
+    r"^[\s-]*(?:language\s+|speaking\s+)?(?:(?:cyber)?crime\s+|hack(?:er|ing)\s+|underground\s+|dark[\s-]?web\s+|"
+    r"darknet\s+|carding\s+)?(?:forums?|marketplaces?|underground|dark[\s-]?web|darknet|carding\s+(?:shops?|sites?)|"
+    r"(?:black|dark|underground)\s+markets?)\b", re.I)
+_FOLLOW_INFRA = re.compile(
+    r"^[\s-]*(?:(?:web\s+)?hosting|hoster|vps|bulletproof|cloud\s+(?:provider|hosting)|data[\s-]*cent(?:er|re)s?|"
+    r"servers?|ip\s+(?:addresses|ranges?|space))\b", re.I)
+_PRECEDE_INFRA = re.compile(
+    r"(?:(?:hosted|located|registered|housed|parked)\s+(?:in|at|on)|servers?\s+(?:located\s+)?in|"
+    r"infrastructure\s+(?:located\s+)?in|(?:ip\s+)?addresses\s+in|data[\s-]*cent(?:er|re)s?\s+in|"
+    r"(?:rented|leased|bought)\s+(?:from|in)|(?:di)?hosting\s+di|server\s+di)\s+(?:the\s+|an?\s+)?$", re.I)
 # Words right before it that make it the place of activity: "in Indonesia", "targeting Japan".
 _PRECEDE_TARGET = re.compile(
     r"(?:\bin|against|targeting|targets|targeted|target|across|throughout|hit|hits|hitting|attacks?\s+on|"
@@ -182,6 +197,8 @@ def _scan(text: str, in_title: bool, lang: str, res: GeoResult, weak_hits: list)
             if _FOLLOW_ATTR.match(after) or _PRECEDE_ATTR.search(before):
                 res.attributed.add(spec.code)
                 continue
+            if _FOLLOW_MARKET.match(after) or _FOLLOW_INFRA.match(after) or _PRECEDE_INFRA.search(before):
+                continue  # a marketplace or a hosting location: neither target nor attacker
             cue = bool(_PRECEDE_TARGET.search(before))
             if spec.strict and not cue:
                 continue

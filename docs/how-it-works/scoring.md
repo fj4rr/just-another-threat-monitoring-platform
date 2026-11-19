@@ -32,7 +32,8 @@ The terms within one group are different ways of saying the same kind of thing, 
 - **Only the strongest term in a group counts in full. The runner-up counts at half weight,** and anything
   after that is ignored.
 - A term that appears **in the title counts 1.5 times**, because headlines name the real subject while the body
-  mentions everything in passing.
+  mentions everything in passing. Not in the title of a roundup, a guide or other non-incident content: such a title
+  lists topics, it isn't about them.
 - An English term and its Indonesian equivalent share a label and count once.
 - The contributions of the different groups are added together.
 
@@ -58,7 +59,7 @@ exploited is still urgent even when a patch is available.
 | destructive / wiper | 14 | wiper, destructive malware, data-destroying |
 | critical / CVSS ≥ 9 | 12 | CVSS 9.8, "critical flaw", "rated critical", *celah kritis* (but not "critical infrastructure") |
 | authentication bypass | 12 | auth bypass, bypasses authentication |
-| service disruption | 10 | *layanan lumpuh*, *sistem lumpuh*, *data terenkripsi* |
+| service disruption | 10 | halts production or operations, shuts down plants or systems, disrupts operations, systems went offline, *layanan lumpuh*, *sistem lumpuh*, *data terenkripsi* |
 | privilege escalation | 6 | privilege escalation, LPE, EoP |
 | high severity | 6 | high-severity |
 
@@ -71,8 +72,9 @@ exploited is still urgent even when a patch is available.
 | spyware / zero-click | 12 | zero-click, spyware, mercenary, commercial surveillance, *penyadapan* |
 | backdoor / implant | 9 | backdoor, rootkit, bootkit, implant, web shell, *pintu belakang* |
 | botnet / worm | 9 | botnet, worm, wormable, self-propagating |
+| data for sale | 10 | sold on a hacker / dark web forum or marketplace, put up for sale |
 | breach / exfiltration | 8 | data breach, exfiltration, leaked data, *kebocoran data, diretas, dibobol, dijual di dark web* |
-| stealer | 7 | infostealer, credential theft, keylogger, *pencurian kredensial* |
+| stealer | 7 | infostealer, credential theft, keylogger, steals credentials / passwords / tokens, *pencurian kredensial* |
 | phishing / social engineering | 6 | phishing, smishing, BEC, ClickFix, malvertising, *penipuan, modus, mengatasnamakan, APK palsu* |
 | website defacement / injection | 6 | *deface*, *judi online*, *situs disusupi* |
 
@@ -83,9 +85,9 @@ exploited is still urgent even when a patch is available.
 | active campaign | 10 | campaign, "deployed ransomware", *kampanye, serangan siber, diserang* |
 | new malware / variant | 8 | new … variant / stealer / family, previously undocumented, novel, *malware baru* |
 | state-sponsored / APT | 8 | APT, state-sponsored, nation-state, espionage, *didukung negara, spionase* |
-| wide scale | 6 | widespread, millions of, worldwide, *jutaan, seluruh dunia* |
+| wide scale | 6 | widespread, millions of, thousands, worldwide, "279 million records", "2 million downloads", *jutaan, seluruh dunia, 6 juta data* |
 | targeting described | 5 | targets, targeted, *menargetkan, menyasar, mengincar* |
-| sensitive sector | 5 | critical infrastructure, healthcare, hospital, government, SCADA, *pemerintah, rumah sakit, layanan publik* |
+| sensitive sector | 5 | critical infrastructure, healthcare, hospital, government, telecoms, wiretap systems, SCADA, *pemerintah, rumah sakit, layanan publik, operator seluler* |
 
 ## Entity signals
 

@@ -24,3 +24,7 @@
 {"text": "Victims were lured to wallet-connect-claim[.]app to drain their wallets", "expect": ["wallet-connect-claim.app"]}
 {"text": "Version 2.4.1 fixes the bug; build 1.0.0.12 is affected", "expect": []}
 {"text": "Malicious npm package typo-lodash contacted 103.77.192.15", "expect": ["103.77.192.15"]}
+// added in 0.13.1: counter-examples of the rule tuning, so the gains cannot come from over-fitting
+{"text": "See hxxps://pastebin[.]com for the full list", "expect": [], "note": "the service, not a paste"}
+{"text": "Downloaded from hxxps://github[.]com/evil/repo/releases/download/x.zip", "expect": ["https://github.com/evil/repo/releases/download/x.zip"]}
+{"text": "The implant checks connectivity with 1.1.1.1 before beaconing to 103.77.192.20", "expect": ["103.77.192.20"]}

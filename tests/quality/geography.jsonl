@@ -2,7 +2,7 @@
 // countries are not targets.
 {"title": "Ransomware attack hits hospital network in Surabaya", "body": "East Java health officials confirmed the outage.", "expect": ["ID"]}
 {"title": "Peretas bobol situs Pemprov Jawa Barat", "body": "Situs resmi pemerintah provinsi menampilkan pesan peretas.", "expect": ["ID"]}
-{"title": "North Korean hackers steal $1.5 billion from Dubai-based exchange", "body": "Lazarus Group laundered the funds through mixers.", "expect": ["AE"]}
+{"title": "North Korean hackers steal $1.5 billion from Dubai-based exchange", "body": "Lazarus Group laundered the funds through mixers.", "expect": ["AE"], "note": "known miss: the gazetteer has no world cities (adding them would make London-based researchers a UK target)"}
 {"title": "Russian state hackers target Ukrainian power grid", "body": "Sandworm deployed wiper malware against energy companies in Ukraine.", "expect": ["UA"]}
 {"title": "Chinese hackers breach US telecom providers", "body": "Salt Typhoon accessed wiretap systems of American carriers.", "expect": ["US"]}
 {"title": "Singapore and Malaysia warn of phishing campaign targeting bank customers", "body": "Customers of banks in both countries received fake SMS messages.", "expect": ["SG", "MY"]}
@@ -20,3 +20,7 @@
 {"title": "Indian government websites defaced after border clash", "body": "Pakistani hacktivists claimed the attacks on India's sites.", "expect": ["IN"]}
 {"title": "Interpol operation spans 40 countries", "body": "Arrests were made worldwide in the fraud crackdown.", "expect": []}
 {"title": "Kebocoran data pelanggan operator seluler di Indonesia", "body": "Data pelanggan Telkomsel diduga dijual di forum.", "expect": ["ID"]}
+// added in 0.13.1: counter-examples of the rule tuning, so the gains cannot come from over-fitting
+{"title": "Ransomware hits hospitals in the Netherlands", "body": "Dutch hospitals postponed operations.", "expect": ["NL"]}
+{"title": "Data of Indonesian users sold on dark web forums", "body": "Penjual di forum menawarkan data warga Indonesia.", "expect": ["ID"]}
+{"title": "Russian energy firms hit by wiper attack", "body": "The attack disrupted pipelines in Russia.", "expect": ["RU"]}

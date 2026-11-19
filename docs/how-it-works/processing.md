@@ -117,8 +117,8 @@ thing. `hxxp(s)` becomes `http(s)`, `fxp` becomes `ftp`, `[.]` `(.)` `{.}` `[dot
 | `cve` | `CVE-YYYY-NNNN…` | — |
 | `technique` | `T1xxx` or `T1xxx.yyy` | — |
 | `sha256`, `sha1`, `md5` | 64, 40 or 32 hex characters | It is part of a longer hash that was already found; it has fewer than 6 different characters (`000000…`); it sits inside a URL (right after `/ = # - _` or right before `/ - _`); or an MD5 / SHA-1 sits in a token containing `utm_`, `token=`, `session`, `/commit/`, `/blob/` and the like |
-| `ip` | IPv4 address | It isn't public (private, loopback, reserved, multicast, link-local); it follows a word such as *version, build, release, firmware, v, Chrome, Windows, kernel* (so it is really a version number); it is followed by `.digit` (as in `1.2.3.4.5`); or it comes right after a `.` |
-| `url` | `http(s)://…` | Its host is a benign domain; or, in strict mode, it wasn't written defanged |
+| `ip` | IPv4 address | It isn't public (private, loopback, reserved, multicast, link-local); it is a well-known public DNS resolver (`8.8.8.8`, `1.1.1.1`, `9.9.9.9`…); it follows the word *version, build, release, firmware, v, Chrome, Windows, kernel* and the like (so it is really a version number; "server 91.92.243.10" is not); it is followed by `.digit` (as in `1.2.3.4.5`); or it comes right after a `.` |
+| `url` | `http(s)://…` | Its host is a benign domain; it is just the front page of a paste or file-sharing service; or, in strict mode, it wasn't written defanged |
 | `domain` | Host names with a 2–24 letter top-level domain | It, or a domain above it, is benign; its "top-level domain" is really a file extension (`.exe`, `.zip`, `.php`, `.json`…); it is an IP; or, in strict mode, it was neither defanged nor the host of a URL that was kept |
 
 **Strict mode.** News and social sources (every category except `intel`) are read in strict mode, where a domain
@@ -131,6 +131,11 @@ they publish is meant as an indicator. IPs and hashes are picked up in both mode
 networks, link shorteners, security media and vendors, standards bodies, and Indonesian media, banks and
 government sites (for example `bleepingcomputer.com`, `cisa.gov`, `t.me`, `detik.com`, `bssn.go.id`). Their
 subdomains are benign too.
+
+**Abused hosting services.** Paste, file-sharing and code-hosting services (Pastebin, GitHub and its raw content,
+Google Drive, Dropbox, MEGA, Discord's CDN, transfer.sh and about 20 more) are legitimate, so their domain is never
+an indicator. A URL on them that points somewhere (a paste, a release asset, a shared file) is one: in an item that
+quotes `hxxps://pastebin[.]com/raw/abcd1234`, the URL is kept and `pastebin.com` is not.
 
 ### Known families and actors (origin `kb`)
 
@@ -268,8 +273,9 @@ A country becomes a target with **1.5 points or more** (countries stated by the 
 per item. Provinces need 1 point, up to 4, and only count when Indonesia is a target.
 
 **Attackers are not targets.** When a country is named as the origin of the attacker, it is set aside: "Russian
-hackers", "China-nexus", "Iran-linked", "attributed to North Korea", "peretas asal Rusia". Likewise, "Latin
-America" doesn't mean the US. Names that only make sense in Indonesian text are ignored elsewhere, and a headline
+hackers", "China-nexus", "Iran-linked", "attributed to North Korea", "peretas asal Rusia". Neither are the places
+where criminals trade or servers sit (0.13.1): "sold on Russian forums", "Chinese-language marketplaces", "hosted in
+the Netherlands", "a Dutch hosting provider", "server di Singapura". Likewise, "Latin America" doesn't mean the US. Names that only make sense in Indonesian text are ignored elsewhere, and a headline
 written in capitals is converted to title case first so that names can be recognised.
 
 Each target is stored with its country, its province if any, its score, and whether it came from the text or the

@@ -2,6 +2,32 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## 0.13.1
+
+Rule tuning from the first quality report: every fix comes with the case that motivated it and counter-examples
+that must not change (`tests/test_v0131.py`, and added to `tests/quality/`). Upgrade notes:
+[docs/upgrading.md](docs/upgrading.md).
+
+- **Indicators**: "server 91.92.243.10" is no longer mistaken for a version number; public DNS resolvers (`8.8.8.8`,
+  `1.1.1.1`…) are no indicators; on paste, file-sharing and code-hosting services (Pastebin, GitHub, Google Drive,
+  Dropbox, MEGA…) the URL of a paste or file is an indicator and the service's domain is not. A defanged GitHub or
+  Drive payload URL used to be dropped.
+- **Families**: a name that is also an everyday word counts without a qualifier when it is written in its own
+  distinctive spelling ("RedLine", "Cl0p", "SafePay"); "redline" and "Safepay checkout" still don't.
+- **Geography**: marketplaces and hosting are no targets ("sold on Russian forums", "hosted in the Netherlands",
+  "a Dutch hosting provider", "server di Singapura").
+- **Scams**: "mengaku dari Bea Cukai / polisi / bank…", fraudulent investment apps, fake QRIS stickers, SMS
+  phishing and smishing messages, fake sellers and "jual beli <thing> online" are recognised.
+- **Sectors**: fuel stations and fuel supply (SPBU) are energy.
+- **Severity**: English service disruption (halted production, shut-down systems), the scale of a leak ("279
+  million records"), data put up for sale, stolen credentials and telecoms as a sensitive sector; a roundup's or
+  guide's title gets no headline bonus.
+- **Quality on the seed set** (now 172 cases, with the counter-examples): families, indicators, scam, sectors and
+  severity precision and recall 1.000; geography precision 1.000, recall 0.955 (a Dubai-based victim, a known miss).
+  Before: families R 0.941, indicators P 0.889 / R 0.941, scam R 0.706, sectors R 0.929, geography P 0.900,
+  severity P 0.875 / R 0.583. The rules were tuned on these cases, so read this as "the misses are fixed and the
+  counter-examples hold", not as accuracy on live feeds; analysts' corrections will show that.
+
 ## 0.13.0
 
 The rest of the product review's urgent items: analysts can correct the platform, the rules are measured, topic

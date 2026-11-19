@@ -1,32 +1,32 @@
 {
   "families": {
     "precision": 1.0,
-    "recall": 0.941,
-    "cases": 43
+    "recall": 1.0,
+    "cases": 46
   },
   "indicators": {
-    "precision": 0.889,
-    "recall": 0.941,
-    "cases": 24
+    "precision": 1.0,
+    "recall": 1.0,
+    "cases": 27
   },
   "scam": {
     "precision": 1.0,
-    "recall": 0.706,
-    "cases": 29
+    "recall": 1.0,
+    "cases": 32
   },
   "sectors": {
     "precision": 1.0,
-    "recall": 0.929,
-    "cases": 19
-  },
-  "geography": {
-    "precision": 0.9,
-    "recall": 0.947,
+    "recall": 1.0,
     "cases": 20
   },
+  "geography": {
+    "precision": 1.0,
+    "recall": 0.955,
+    "cases": 23
+  },
   "severity": {
-    "precision": 0.875,
-    "recall": 0.583,
-    "cases": 22
+    "precision": 1.0,
+    "recall": 1.0,
+    "cases": 24
   }
 }

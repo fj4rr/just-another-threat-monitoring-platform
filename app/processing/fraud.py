@@ -32,9 +32,11 @@ IDENT_LABELS = {"phone": "Phone number", "bank_account": "Bank account", "ewalle
                 "crypto_wallet": "Crypto wallet"}
 
 # Bump when the rules change: the start-up job re-analyses stored items once per version.
-RULES_VERSION = 5  # 3 (0.10): vendor listicles only count their title; 4: charge names ("wire fraud") are no scam cue
+RULES_VERSION = 6  # 3 (0.10): vendor listicles only count their title; 4: charge names ("wire fraud") are no scam cue
 # 5 (0.10.1): weak phrases need a nearby cue, warning brands are not impersonated, identifiers need a scammer cue,
 # wallet checksums, "Rp 2,5 T" / "Rp 5 M"
+# 6 (0.13.1, from the quality report): "mengaku dari <institution>", fraudulent investment apps, English QRIS and
+# smishing forms, fake sellers and "jual beli <thing> online"
 
 # --------------------------------------------------------------------------- scam types
 # (key, display name, weight, strong pattern, weak pattern). Weak patterns need a scam word elsewhere in the item.
@@ -42,7 +44,8 @@ SCAM_TYPES: list[tuple[str, str, int, str, str]] = [
     ("investment", "Investment scam", 26,
      r"investment (?:scam|fraud)s?|ponzi|pig[\s-]butchering|investasi (?:bodong|ilegal|palsu|fiktif|abal)|"
      r"robot trading|money game|binary options?|opsi biner|arisan (?:online )?(?:bodong|fiktif)|skema piramida|"
-     r"pyramid schemes?|satgas pasti", r"investasi|trading (?:platform|app)"),
+     r"pyramid schemes?|satgas pasti|(?:fake|fraudulent|bogus|sham) (?:crypto )?investment (?:apps?|platforms?|schemes?|"
+     r"sites?|websites?)|investment (?:app|platform) scams?", r"investasi|trading (?:platform|app)"),
     ("illegal_loan", "Illegal online loan", 20,
      r"pinjol (?:ilegal|bodong|tak berizin|tidak berizin)|pinjaman (?:online|daring) (?:ilegal|tak berizin)|"
      r"(?:fake|illegal|predatory) loan apps?|loan app (?:scam|fraud|extortion)s?", r"\bpinjol\b|loan apps?"),
@@ -68,12 +71,16 @@ SCAM_TYPES: list[tuple[str, str, int, str, str]] = [
      r"(?:cek|lacak) resi|paket (?:tertahan|bermasalah|gagal dikirim)|parcel delivery"),
     ("impersonation", "Impersonation", 16,
      r"mengaku (?:sebagai )?(?:petugas|pegawai|polisi|pihak|customer service|cs|kurir|teller|staf|karyawan)|"
+     r"mengaku (?:dari|sebagai) (?:pihak |petugas |pegawai |staf )?(?:bank|bea cukai|polisi|polri|kepolisian|"
+     r"(?:kantor )?pajak|bpjs|pln|pengadilan|kejaksaan|ekspedisi|ojk|bank indonesia|kementerian|pemerintah|telkom)\b|"
      r"(?:cs|customer service|petugas) (?:bank )?palsu|impersonation scams?",
      r"mengatasnamakan|mencatut nama|catut nama|dicatut|akun palsu|impersonat(?:e|es|ed|ing|ion|ors?)\b|posing as|"
      r"pretending to be|spoof(?:ed|ing) (?:caller|number|email|sender)"),
     ("phishing", "Phishing", 18,
      r"(?:link|tautan|situs|website|laman|sms) palsu|\bphising\b|\bpishing\b|"
-     r"phishing (?:scam|text|sms|message|link)s?|penipuan (?:phishing|online)",
+     r"phishing (?:scam|text|sms|message|link)s?|penipuan (?:phishing|online)|sms phishing|"
+     r"smishing (?:messages?|texts?|campaigns?|scams?|attacks?)|fake (?:payment|login|toll|parking|tax|delivery) "
+     r"(?:page|site|portal)s?",
      r"phishing|smishing|vishing|quishing"),
     ("otp", "OTP theft / account takeover", 24,
      r"kode otp|(?:minta|meminta|bagikan|membagikan|memberikan|menyerahkan) (?:kode )?otp|otp (?:scam|fraud)|"
@@ -84,8 +91,9 @@ SCAM_TYPES: list[tuple[str, str, int, str, str]] = [
      r"gambling (?:site|ads?|promotion|spam)s?", ""),
     ("shopping", "Fake shop / marketplace", 15,
      r"(?:toko|online shop) (?:online |daring )?(?:palsu|fiktif|bodong)|fake (?:online )?(?:store|shop|webshop)s?|"
-     r"penipuan (?:jual beli|belanja|transaksi) online|non-delivery scams?|fake marketplace",
-     r"marketplace|e-commerce|jual beli online"),
+     r"penipuan (?:jual beli|belanja|transaksi) online|non-delivery scams?|fake marketplace|"
+     r"penjual (?:fiktif|palsu|bodong)|fake (?:online )?sellers?",
+     r"marketplace|e-commerce|jual beli (?:\w+ ){0,2}(?:online|daring)"),
     ("prize", "Prize / giveaway scam", 14,
      r"(?:giveaway|hadiah|undian|kuis|voucher) (?:palsu|bodong|fiktif)|lottery scams?|prize scams?|"
      r"sweepstakes scams?|fake giveaways?|(?:bansos|subsidi|bantuan sosial) palsu|fake (?:grant|subsidy|relief)",
@@ -100,7 +108,8 @@ SCAM_TYPES: list[tuple[str, str, int, str, str]] = [
      r"business email compromise|\bbec\b|invoice fraud|ceo fraud|payment diversion|"
      r"penipuan (?:invoice|faktur|tagihan palsu)", ""),
     ("qris", "QRIS / QR code fraud", 18,
-     r"qris (?:palsu|fiktif|ditempel)|(?:stiker|kode) qr(?:is)? palsu|qr code (?:scam|fraud|phishing)s?", ""),
+     r"qris (?:palsu|fiktif|ditempel)|(?:stiker|kode) qr(?:is)? palsu|qr code (?:scam|fraud|phishing)s?|"
+     r"(?:fake|fraudulent|bogus) qr(?:is)? (?:codes?|stickers?)", ""),
     ("deepfake", "Deepfake scam", 22,
      r"deepfake (?:scam|fraud|video call|voice|penipuan)s?|penipuan (?:\w+ )?deepfake|(?:ai|voice) clon(?:e|ing) scams?|"
      r"suara (?:tiruan|kloning)", r"deepfake"),

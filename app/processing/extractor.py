@@ -92,6 +92,21 @@ BENIGN_DOMAINS = {
     "id-sirtii.or.id", "cekrekening.id", "turnbackhoax.id", "tokopedia.com", "shopee.co.id", "bukalapak.com",
     "gojek.com", "traveloka.com", "klikbca.com", "bca.co.id", "bri.co.id", "bankmandiri.co.id", "bni.co.id",
 }
+# Paste, file-sharing and code-hosting services that attackers abuse: a URL on them with a path (a paste, a release
+# asset, a shared file) is an indicator, the service's domain never is (0.13.1; pastebin.com used to become a domain
+# IOC, and a defanged GitHub or Google Drive payload URL was dropped because the host is benign).
+ABUSED_HOSTING = {
+    "pastebin.com", "paste.ee", "rentry.co", "rentry.org", "ghostbin.com", "controlc.com", "hastebin.com",
+    "github.com", "gist.github.com", "raw.githubusercontent.com", "objects.githubusercontent.com", "gitlab.com",
+    "bitbucket.org", "drive.google.com", "docs.google.com", "storage.googleapis.com", "dropbox.com",
+    "dl.dropboxusercontent.com", "onedrive.live.com", "1drv.ms", "mega.nz", "mediafire.com", "transfer.sh",
+    "cdn.discordapp.com", "media.discordapp.net", "files.catbox.moe", "anonfiles.com", "gofile.io", "temp.sh",
+}
+# Public DNS resolvers: named in articles all the time ("queries 8.8.8.8 to test connectivity"), never an IOC.
+BENIGN_IPS = {
+    "8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "9.9.9.9", "149.112.112.112", "208.67.222.222", "208.67.220.220",
+    "4.2.2.1", "4.2.2.2", "64.6.64.6", "64.6.65.6", "94.140.14.14", "94.140.15.15", "76.76.2.0", "185.228.168.9",
+}
 FILE_EXT_TLDS = {
     "exe", "dll", "zip", "rar", "js", "ps1", "bat", "vbs", "lnk", "msi", "iso", "png", "jpg",
     "gif", "pdf", "doc", "docx", "xls", "xlsx", "txt", "html", "php", "aspx", "py", "sh", "bin",
@@ -108,14 +123,18 @@ def _public_ip(ip: str) -> bool:
                 or addr.is_link_local or addr.is_unspecified)
 
 
+def _in_set(d: str, names: set[str]) -> bool:
+    # every parent of the name ("a.b.example.com" -> "b.example.com", "example.com", "com") is one set lookup,
+    # instead of an endswith() against every entry per domain (audit 2026-11 E-7)
+    labels = d.split(".")
+    return any(".".join(labels[i:]) in names for i in range(len(labels)))
+
+
 def _benign_domain(d: str) -> bool:
     d = d.lower().strip(".")
     if d.rsplit(".", 1)[-1] in FILE_EXT_TLDS:
         return True
-    # every parent of the name ("a.b.example.com" -> "b.example.com", "example.com", "com") is one set lookup,
-    # instead of an endswith() against all BENIGN_DOMAINS entries per domain (audit 2026-11 E-7)
-    labels = d.split(".")
-    return any(".".join(labels[i:]) in BENIGN_DOMAINS for i in range(len(labels)))
+    return _in_set(d, BENIGN_DOMAINS) or _in_set(d, ABUSED_HOSTING)
 
 
 def extract_iocs(text: str, *, strict: bool = True) -> list[Extracted]:
@@ -161,7 +180,10 @@ def extract_iocs(text: str, *, strict: bool = True) -> list[Extracted]:
             # skip version-number-ish matches: "version 1.2.3.4", "v1.2.3.4", "Chrome 131.0.6778.85", "1.2.3.4.5"
             pre = t[max(0, m.start() - 24): m.start()].lower()
             post = t[m.end(): m.end() + 2]
-            if re.search(r"(?:version|versions|build|release|update|firmware|v|ver\.?|chrome|firefox|edge|safari|ios|android|kernel|openssl|php|java|python|node|windows|macos)\s*$", pre):
+            # word boundary first: "server 91.92.243.10" is no "ver 1.2.3.4" (0.13.1)
+            if re.search(r"\b(?:version|versions|build|release|update|firmware|v|ver\.?|chrome|firefox|edge|safari|ios|android|kernel|openssl|php|java|python|node|windows|macos)\s*$", pre):
+                continue
+            if ip in BENIGN_IPS:
                 continue
             if post.startswith(".") and post[1:2].isdigit():
                 continue
@@ -173,12 +195,17 @@ def extract_iocs(text: str, *, strict: bool = True) -> list[Extracted]:
     for m in RE_URL.finditer(t):
         u = m.group(0).rstrip(".,;:")
         host = re.sub(r"^https?://", "", u, flags=re.I).split("/")[0].split(":")[0].lower()
-        if _benign_domain(host):
+        path = re.sub(r"^https?://[^/]+", "", u, flags=re.I).strip("/")
+        abused = _in_set(host, ABUSED_HOSTING)
+        if abused and not path:
+            continue  # the service itself, not a paste or file on it
+        if not abused and _benign_domain(host):
             continue
         if strict and not any(u.lower().startswith(tok) or tok.startswith(u.lower()) or host in tok
                               for tok in defanged_tokens):
             continue
-        url_domains.add(host)
+        if not abused:
+            url_domains.add(host)
         out[("url", u)] = Extracted("url", u, u)
 
     for m in RE_DOMAIN.finditer(t):

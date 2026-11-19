@@ -21,7 +21,8 @@ import re
 from .extractor import Extracted
 from .fraud import ROUNDUP as _FRAUD_ROUNDUP
 
-RULES_VERSION = 2  # bump when the rules change: the start-up job re-tags stored items once
+RULES_VERSION = 3  # bump when the rules change: the start-up job re-tags stored items once
+# 3 (0.13.1, from the quality report): fuel stations and fuel supply ("SPBU") are energy
 # 2 (0.10.1): one title hit is not enough on its own; finance in scam reports needs an attack word
 
 # (key, display name, Indonesian name, case-insensitive pattern, case-sensitive pattern for acronyms)
@@ -41,8 +42,9 @@ SECTORS: list[tuple[str, str, str, str, str]] = [
      r"\belectric(?:ity|al)? (?:grid|utilit\w*|compan\w*|provider)s?|\butilit(?:y|ies) (?:compan\w*|provider|sector)|"
      r"\bpertamina\b|\brefiner(?:y|ies)\b|\bkilang\b|\bpipeline operators?\b|\bnuclear (?:plant|power|facilit\w*)|"
      r"\bmining (?:compan\w*|firm|sector|industry)|\bpertambangan\b|\bperusahaan tambang\b|\bpembangkit\b|"
-     r"\bsolar (?:farm|plant|inverter)s?\b|\bwind (?:farm|turbine)s?\b|\bpetroleum\b|\bsumber daya mineral\b",
-     r"\bPLN\b|\bPGN\b|\bESDM\b"),
+     r"\bsolar (?:farm|plant|inverter)s?\b|\bwind (?:farm|turbine)s?\b|\bpetroleum\b|\bsumber daya mineral\b|"
+     r"\bfuel (?:stations?|pumps?|suppl\w+|distribut\w+|depots?)\b|\bgas stations?\b",
+     r"\bPLN\b|\bPGN\b|\bESDM\b|\bSPBU\b"),
     ("transportation", "Transportation", "Transportasi",
      r"\btransport(?:ation)?\b(?! layer)|\btransportasi\b|\bairlines?\b|\bairports?\b|\bbandara\b|\bmaskapai\b|\baviation\b|"
      r"\bpenerbangan\b|\brail(?:way|road)s?\b|\bkereta(?: api)?\b|\bshipping (?:compan\w*|lines?|giant|firm)|"

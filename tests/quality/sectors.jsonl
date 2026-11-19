@@ -19,3 +19,5 @@
 {"title": "Ransomware lumpuhkan sistem tiket kereta api", "body": "Penumpang KAI harus membeli tiket di loket.", "expect": ["transportation"]}
 {"title": "Situs pemerintah daerah diretas, tampilan diganti", "body": "Halaman utama situs pemkab menampilkan pesan peretas.", "expect": ["government"]}
 {"title": "Ransomware hits school district, classes cancelled", "body": "Teachers returned to paper records.", "expect": []}
+// added in 0.13.1: counter-examples of the rule tuning, so the gains cannot come from over-fitting
+{"title": "Harga BBM naik mulai pekan depan", "body": "Pemerintah menaikkan harga bahan bakar.", "expect": []}

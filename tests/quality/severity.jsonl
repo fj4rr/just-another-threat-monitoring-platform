@@ -23,3 +23,6 @@
 {"title": "Researchers publish analysis of a 2019 malware sample", "body": "The old sample shows how loaders evolved.", "notable": false}
 {"title": "Phishing campaign impersonates tax office, steals credentials of thousands", "body": "The phishing kit collected logins and OTP codes from victims.", "notable": true}
 {"title": "Critical RCE in Ivanti Connect Secure exploited by Chinese hackers", "body": "CISA orders agencies to disconnect devices; exploitation confirmed in the wild.", "notable": true}
+// added in 0.13.1: counter-examples of the rule tuning, so the gains cannot come from over-fitting
+{"title": "Company halts production of its older phone model", "body": "The model will be replaced next year.", "notable": false}
+{"title": "App reaches 2 million users", "body": "The startup celebrates growth.", "notable": false}

@@ -44,3 +44,7 @@
 {"text": "RansomHub affiliates switch to DragonForce after RansomHub goes dark", "expect": ["ransomhub", "dragonforce"]}
 {"text": "Chaos ransomware variant encrypts and wipes files larger than 1 MB", "expect": ["chaos"]}
 {"text": "Traffic chaos as commuters face a third day of train strikes", "expect": []}
+// added in 0.13.1: counter-examples of the rule tuning, so the gains cannot come from over-fitting
+{"text": "The negotiations crossed a redline, the minister said", "expect": []}
+{"text": "SafePay ransomware gang claims attack on retailer", "expect": ["safepay"]}
+{"text": "Safepay checkout is now available in the app", "expect": []}

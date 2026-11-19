@@ -324,6 +324,12 @@ def ambiguous(term: str) -> bool:
     return low in AMBIGUOUS or len(low) <= 4
 
 
+def distinctive(name: str) -> bool:
+    """A spelling no everyday word has: an internal capital ("RedLine", "SafePay") or a digit inside a word
+    ("Cl0p", "LockBit3"). Written that way, an ambiguous name needs no qualifier (0.13.1)."""
+    return bool(re.search(r"[a-z][A-Z]", name or "") or re.search(r"[A-Za-z]\d|\d[A-Za-z]", name or ""))
+
+
 @lru_cache(maxsize=1)
 def compiled_patterns() -> list[tuple[str, str, str, re.Pattern]]:
     """[(entity_type, canonical_name, category, pattern)]"""
@@ -332,10 +338,11 @@ def compiled_patterns() -> list[tuple[str, str, str, re.Pattern]]:
         for term in {name.lower(), *[a.lower() for a in aliases]}:
             esc = re.escape(term).replace(r"\ ", r"[\s\-_]?")
             if term in AMBIGUOUS or len(term) <= 4:
-                pat = re.compile(
-                    rf"\b{esc}\b[\s\-]+{QUALIFIERS}\b|\b{QUALIFIERS}[\s\-]+(?:called\s+|named\s+)?{esc}\b",
-                    re.I,
-                )
+                qualified = rf"\b{esc}\b[\s\-]+{QUALIFIERS}\b|\b{QUALIFIERS}[\s\-]+(?:called\s+|named\s+)?{esc}\b"
+                spelled = name if term == name.lower() else term
+                if distinctive(spelled):  # exactly as the family writes itself: "RedLine", "Cl0p"
+                    qualified += rf"|(?<![\w-])(?-i:{re.escape(spelled)})(?![\w-])"
+                pat = re.compile(qualified, re.I)
             else:
                 pat = re.compile(rf"(?<![\w-]){esc}(?![\w-])", re.I)
             out.append(("malware", name, cat, pat))

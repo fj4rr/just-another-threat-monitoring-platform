@@ -21,7 +21,9 @@ place. They come from:
 - the victim country of leak-site postings, and the targeted countries that OTX and ransomware.live provide.
 
 A country that describes the *attacker* is not a target: "Russian hackers", "China-nexus", "Iran-linked",
-"attributed to North Korea", "peretas asal Rusia".
+"attributed to North Korea", "peretas asal Rusia". Nor is a marketplace or a hosting location: "sold on Russian
+forums", "hosted in the Netherlands", "a Dutch hosting provider". Cities outside Indonesia are not recognised, so
+"a Dubai-based exchange" names no country.
 
 **Source country** is the outlet's country (set per source), or Indonesia for items written in Indonesian.
 

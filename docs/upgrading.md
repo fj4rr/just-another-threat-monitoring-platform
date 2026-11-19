@@ -4,6 +4,19 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.13.1
+
+Rule tuning from the first quality report. No new dependency, no schema change.
+
+- **One-off re-analysis at start-up**, as after other rule changes: geography (`GEO_VERSION` 2), scam analysis
+  (`fraud.RULES_VERSION` 6), sectors (`sectors.RULES_VERSION` 3) and severity (`severity.RULES_VERSION` 2) of every
+  stored item. Expect some target countries to disappear (marketplaces, hosting), more items recognised as scam
+  reports, and some serious incidents to rise into the notable list.
+- **Entity extraction is not re-run automatically.** Run `python manage.py reextract` to apply the new indicator
+  rules (public resolvers, paste and file-sharing services, "server 1.2.3.4") and the family names written in their
+  own spelling ("RedLine", "Cl0p") to stored items. It keeps analysts' corrections, enrichment bonuses and AI
+  assessments.
+
 ## Upgrading to 0.13.0
 
 Analyst corrections, quality measurement, topic filters for every source kind and better Q&A. No new dependency.
