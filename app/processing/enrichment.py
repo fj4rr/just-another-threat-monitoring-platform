@@ -156,6 +156,7 @@ def _link(db: Session, src: Entity, dst: Entity, relation: str, provider: str) -
     ).scalar_one_or_none()
     if not exists:
         db.add(EntityLink(src_id=src.id, dst_id=dst.id, relation=relation, provider=provider))
+        db.flush()  # the session does not autoflush: the same pair may come again in this batch (e.g. two OTX pulses)
 
 
 def _consensus(entity: Entity, results: list[LookupResult], base: str | None = None) -> str:
