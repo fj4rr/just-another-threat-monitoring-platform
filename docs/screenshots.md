@@ -2,11 +2,12 @@
 
 [← Documentation index](README.md)
 
-A tour of the interface as of 0.10, taken on a test install filled from public sources (no enrichment keys, so most
+A tour of the current interface, taken on a test install filled from public sources (no enrichment keys, so most
 indicators show as *pending*).
 
-Cyber threats dashboard: the sidebar with the two dashboards and the cyber and scam pages under *Intelligence*,
-the period switch (7 days to 1 year) with the backfill note, International / National (ID) switch, *Collect now*
+Cyber threats dashboard: the collapsible sidebar (*Cyber threats*, *Scams & fraud* and *Feed* on top, then the
+*Intelligence*, *Analysis* and *Manage* dropdowns, shown here with *Intelligence* open; the arrow by the logo folds
+the whole menu into an icon rail), the period switch (7 days to 1 year) with the backfill note, International / National (ID) switch, *Collect now*
 / *Enrich now* with last and next run, headline ticker, threat radar with families, CVEs and actors, the globe of
 the top 10 target countries, and the KPI tiles.
 
@@ -38,7 +39,7 @@ and the latest identifiers.
 |---|---|
 | ![Entity page](screenshots/entity.png) | ![IOCs](screenshots/iocs.png) |
 
-| Malware families: unified table with trend score, related entities and pagination | CVE list sorted by EPSS, with KEV badges and co-mentioned families |
+| Malware families: unified table with trend score, related entities and pagination | CVE list sorted by EPSS, with KEV badges, co-mentioned families and the *New threats* button |
 |---|---|
 | ![Malware families](screenshots/malware.png) | ![CVEs](screenshots/cves.png) |
 

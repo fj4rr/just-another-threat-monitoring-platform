@@ -14,6 +14,7 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
   to an icon rail with the arrow next to the logo.
 - New **New threats** button on the Intelligence lists (Malware, Threat actors, CVEs, IOCs, Scam types and Impersonated
   brands): it keeps only what was first seen inside the chosen period and leaves your other filters alone.
+- Every screenshot in the docs and the README is retaken for the new menu and layout.
 - Higher minimum versions of optional and core dependencies: `anthropic` 2.8.0, `feedparser` 6.0.14,
   `python-docx` 1.2.0, `psycopg` 3.3.9 (PostgreSQL) and `telethon` 1.45.0 (Telegram MTProto). Run
   `pip install -r requirements.txt` again (and the PostgreSQL or Telegram file if you use them) when upgrading

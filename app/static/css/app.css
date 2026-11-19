@@ -751,8 +751,8 @@ th.has-tip, .has-tip > a { text-decoration: underline dotted; text-underline-off
 .nav-group > summary .lbl { flex: 1; }
 .nav-group > summary .chev { width: 14px; height: 14px; margin-left: auto; transition: transform .15s; }
 .nav-group[open] > summary .chev { transform: rotate(180deg); }
-.nav-sub { margin: 2px 0 6px 18px; padding-left: 8px; border-left: 1px solid var(--border); }
-.nav-sub a { padding: 6px 10px; font-size: 13.5px; }
+.nav-sub { margin: 2px 0 6px 12px; padding-left: 4px; border-left: 1px solid var(--border); }
+.nav-sub a { padding: 6px 8px; gap: 8px; font-size: 13.5px; }
 .nav-sub .sep.sub { margin: 8px 10px 4px; }
 .side-toggle { margin-left: auto; display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border-radius: 8px;
   border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; flex: none; }
