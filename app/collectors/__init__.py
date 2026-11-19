@@ -197,7 +197,7 @@ DEFAULT_SOURCES: list[dict] = [
     {"name": "OTX subscribed pulses", "kind": "otx", "category": "intel", "interval_minutes": 60,
      "config": {"mode": "subscribed"}},
     {"name": "urlscan.io malicious (24h)", "kind": "urlscan", "category": "intel", "interval_minutes": 120,
-     "config": {"query": "verdicts.malicious:true AND date:>now-1d"}},
+     "config": {"query": "task.tags:malicious AND date:>now-1d"}},
     {"name": "ANY.RUN - Lumma tasks", "kind": "anyrun", "category": "intel", "interval_minutes": 360,
      "config": {"query": 'threatName:"lumma"', "depth": "7"}},
     {"name": "ThreatFox recent IOCs", "kind": "threatfox", "category": "intel", "interval_minutes": 180,

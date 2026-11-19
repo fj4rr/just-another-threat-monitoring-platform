@@ -82,13 +82,13 @@ class URLScanCollector(Collector):
     kind = "urlscan"
     category = "intel"
     label = "urlscan.io search"
-    fields = [("query", "Search query", "verdicts.malicious:true AND date:>now-1d")]
+    fields = [("query", "Search query", "task.tags:malicious AND date:>now-1d")]
 
     def backfill_capability(self) -> BackfillCapability:
         return BackfillCapability(False, note="search results are quota-limited; widen the date in the query instead")
 
     def fetch(self) -> list[RawItem]:
-        query = self.cfg.get("query") or "verdicts.malicious:true AND date:>now-1d"
+        query = self.cfg.get("query") or "task.tags:malicious AND date:>now-1d"
         try:
             client = URLScan(require_key=True)
         except NotConfigured as e:

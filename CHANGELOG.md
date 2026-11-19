@@ -6,6 +6,9 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 **Fixes**
 
+- The default urlscan.io source searched `verdicts.malicious:true`, a field free accounts may not search, so it
+  failed with 403 Forbidden. It now searches `task.tags:malicious`, which every plan allows. An existing source
+  keeps its saved query: edit it under Settings → Sources.
 - Enrichment no longer ends every run with "Enrichment failed: object of type 'datetime.datetime' has no len()".
   The family step reused the name of the stale-verdict list for a cutoff time, so the final summary broke.
 
