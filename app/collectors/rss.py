@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import calendar
-import re
 import time
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
@@ -9,38 +8,14 @@ from urllib.parse import urlsplit
 import feedparser
 
 from ..processing.pipeline import RawItem, strip_html
-from .base import BackfillCapability, Collector, SkipCollector, in_window, parse_dt
+from .base import FILTER_FIELD, BackfillCapability, Collector, SkipCollector, in_window, parse_dt
 
 MAX_FEED_BYTES = 10 * 1024 * 1024
 WP_MAX_PAGES = 60  # 6,000 posts per source per backfill run
 WAYBACK_MAX_SNAPSHOTS = 80
 
 
-# "filter: security" keeps only entries about security from general technology feeds (many Indonesian
-# outlets publish one tech feed for gadgets, apps and cyber incidents alike). English and Indonesian terms.
-SECURITY_RE = re.compile(
-    r"\b(?:hack(?:ed|er|ers|ing)?|breach(?:ed|es)?|malware|ransomware|phish(?:ing)?|vulnerab\w*|exploit\w*|"
-    r"cyber\w*|leak(?:ed|s)?|ddos|scam\w*|fraud\w*|spyware|botnet|trojan|zero[\s-]?day|cve-\d{4}|stealer|"
-    r"backdoor|deface\w*|infostealer|data breach|"
-    r"peretas|peretasan|diretas|meretas|retas|kebocoran|bocor|siber|penipuan|penipu|phising|pishing|"
-    r"pembobolan|dibobol|membobol|pencurian data|data pribadi|pembajakan akun|dibajak|serangan (?:siber|ransomware|ddos)|"
-    r"kejahatan digital|keamanan digital|modus|mengatasnamakan|judi online|judol|bssn|pdns|pusat data nasional|"
-    r"skimming|social engineering|rekayasa sosial|kode otp|apk palsu|undangan pernikahan)\b", re.I)
-
-# "filter: cyber" is the stricter version for general news sections (national, economy, law), where words that are
-# fine in a tech section mean something else: "tabung gas bocor", "modus penyelundupan", "dibajak" (a hijacked bus).
-# Only unambiguous cyber and digital-fraud terms count; scam reports are added by the fraud rules.
-CYBER_RE = re.compile(
-    r"\b(?:hack(?:ed|er|ers|ing)|malware|ransomware|phish(?:ing)?|cyber\w*|ddos|spyware|botnet|zero[\s-]?day|"
-    r"cve-\d{4}|infostealer|data breach|deface\w*|"
-    r"peretas|peretasan|diretas|meretas|siber|phising|pishing|serangan (?:siber|ransomware|ddos)|"
-    r"(?:kebocoran|bocornya|pencurian|penjualan|jual beli) data(?: pribadi| pengguna| nasabah| pelanggan)?|"
-    r"data (?:pribadi |pengguna |nasabah |pelanggan |warga )?(?:\w+ ){0,5}(?:bocor|diretas|dicuri|dijual)|"
-    r"(?:akun|sistem|server|situs|website|aplikasi|rekening) (?:\w+ ){0,2}(?:dibobol|diretas|dibajak)|"
-    r"pembobolan (?:rekening|akun|data|sistem|bank)|pembajakan akun|kejahatan (?:digital|siber)|keamanan digital|"
-    r"penipuan (?:online|daring|digital|siber)|judi online|judi daring|judol|pinjol ilegal|investasi bodong|"
-    r"anti-?scam|scam\w*|rekening penipu|kode otp|apk palsu|skimming|rekayasa sosial|social engineering|"
-    r"bssn|pdns|pusat data nasional|id-sirtii|csirt)\b", re.I)
+# The topic filters (security / cyber / fraud) live in processing/topics.py since 0.13.
 
 
 def _entry_time(e) -> datetime | None:
@@ -54,27 +29,7 @@ class RSSCollector(Collector):
     kind = "rss"
     category = "news"
     label = "RSS / Atom feed"
-    fields = [("url", "Feed URL", "https://example.com/feed/"),
-              ("filter", "Topic filter (optional): 'security' keeps only security-related entries (tech sections), "
-                         "'cyber' is stricter for general news sections, 'fraud' keeps only scam reports", "security")]
-
-    def _keep(self, raws: list[RawItem]) -> list[RawItem]:
-        topic = str(self.cfg.get("filter") or "").strip().lower()
-        if topic == "fraud":  # fact-check and consumer-alert feeds: keep only entries about a scam
-            from ..processing.fraud import scam_types
-
-            return [r for r in raws if scam_types(r.title, f"{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}")]
-        if topic == "cyber":  # general news sections: unambiguous cyber terms, or a scam report
-            from ..processing.fraud import scam_types
-
-            def keep(r: RawItem) -> bool:
-                body = f"{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}"
-                return bool(CYBER_RE.search(f"{r.title}\n{body}") or scam_types(r.title, body))
-
-            return [r for r in raws if keep(r)]
-        if topic != "security":
-            return raws
-        return [r for r in raws if SECURITY_RE.search(f"{r.title}\n{strip_html(r.content)[:3000]}\n{' '.join(r.tags)}")]
+    fields = [("url", "Feed URL", "https://example.com/feed/"), FILTER_FIELD]
 
     def _url(self) -> str:
         url = self.cfg.get("url")
@@ -101,7 +56,7 @@ class RSSCollector(Collector):
                 external_id=e.get("id") or e.get("link") or e.get("title", ""), title=e.get("title", ""),
                 url=e.get("link", ""), author=e.get("author", ""), content=content_txt, published_at=_entry_time(e),
                 kind="post" if self.source.category == "social" else "article", tags=tags))
-        return self._keep(out)
+        return out  # the topic filter is applied for every collector (Collector.keep)
 
     def fetch(self) -> list[RawItem]:
         url = self._url()
@@ -163,11 +118,11 @@ class RSSCollector(Collector):
                     return
                 total_pages = r.headers.get("x-wp-totalpages", "?")
                 progress(f"WordPress page {page}/{total_pages}")
-                yield self._keep([RawItem(
+                yield [RawItem(
                     external_id=(p.get("guid") or {}).get("rendered") or p.get("link") or str(p.get("id")),
                     title=strip_html((p.get("title") or {}).get("rendered", "")), url=p.get("link", ""),
                     content=(p.get("content") or {}).get("rendered") or (p.get("excerpt") or {}).get("rendered", ""),
-                    published_at=parse_dt(p.get("date_gmt")), kind="article") for p in posts])
+                    published_at=parse_dt(p.get("date_gmt")), kind="article") for p in posts]
                 if total_pages != "?" and page >= int(total_pages):
                     return
 

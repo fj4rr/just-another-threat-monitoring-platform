@@ -123,6 +123,7 @@ AI output that is not attached to an item or entity: `kind` `digest` (executive 
 | `api_keys` | `prefix` (public part), `secret_hash` (SHA-256 of the secret, never the secret), `scopes` (`read`, `export`, `write`), `expires_at`, `revoked_at`, `last_used_*`. |
 | `watchlist` | Entities a user watches (`entity.watched` webhook, watchlist page). |
 | `audit_log` | Who did what (`audit(db, user, action, detail, request)`), with the client IP. |
+| `corrections` | Analyst corrections (0.13): `kind` (`unlink`, `false_positive`, `verdict`, `not_scam`), `item_id` / `entity_id`, `value` (the verdict), `reason`, who and when, `active` until undone (`undone_at`, `undone_by`), and in `data` what it changed (removed links with their origin, the previous verdict) for the undo and the quality report. See [Corrections and quality](how-it-works/corrections.md). |
 
 ## Operations
 

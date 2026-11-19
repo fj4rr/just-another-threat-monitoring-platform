@@ -24,6 +24,7 @@ from . import notify, settings
 from .collectors import REGISTRY, SkipCollector
 from .db import SessionLocal
 from .models import CollectorRun, Entity, EntityLink, Insight, Item, ItemEntity, Source, utcnow
+from .processing import topics
 
 log = logging.getLogger(__name__)
 scheduler = BackgroundScheduler(timezone="UTC", job_defaults={"coalesce": True, "max_instances": 1,
@@ -172,7 +173,8 @@ def run_backfill(batch_id: str, since_iso: str, until_iso: str) -> str:
                     if batch_id in _cancelled:
                         break
                     fetched += len(page)
-                    new += len(ingest_committed(db, src, page, origin="backfill"))
+                    new += len(ingest_committed(db, src, topics.keep(page, (src.config or {}).get("filter")),
+                                                origin="backfill"))
                     src = db.get(Source, src.id)
                     count["new"] = new
                     _progress(run.id, new, 0, f"{src.name}: {fetched} fetched"[:64])
@@ -273,7 +275,11 @@ def run_source(source_id: int, batch_id: str = "") -> str:
         prev_status = src.last_status
         try:
             _progress(run.id, 0, 0, "fetching")
-            raws = cls(src).fetch()
+            coll = cls(src)
+            fetched = coll.fetch()
+            raws = topics.keep(fetched, (src.config or {}).get("filter"))  # every source kind (0.13)
+            if len(raws) < len(fetched):
+                _progress(run.id, 0, 0, f"{len(fetched) - len(raws)} off topic")
             from .processing.pipeline import ingest_committed
 
             new_ids = ingest_committed(db, src, raws, progress=lambda d, t: _progress(run.id, d, t, "storing"))
@@ -282,7 +288,7 @@ def run_source(source_id: int, batch_id: str = "") -> str:
             src.last_run = utcnow()
             db.commit()
             _after_ingest(db, new_ids)
-            _finish(db, run, "ok", f"fetched {len(raws)}, new {len(new_ids)}", len(new_ids))
+            _finish(db, run, "ok", f"fetched {len(fetched)}" + (f", {len(fetched) - len(raws)} off topic" if len(raws) < len(fetched) else "") + f", new {len(new_ids)}", len(new_ids))
             _maybe_auto_summarize(new_ids)
             return f"{src.name}: {len(new_ids)} new / {len(raws)} fetched"
         except SkipCollector as e:
@@ -574,13 +580,27 @@ def run_fraudtag(force: bool = False) -> str:
 DEDUP_VERSION = 1  # 1 (0.10.1): cross-source fingerprints (pipeline.fingerprint)
 
 
+def _repair_self_copies() -> int:
+    """Items marked as a copy of themselves (find_original before 0.13): they are originals. Cheap, every start."""
+    db = SessionLocal()
+    try:
+        n = db.execute(update(Item).where(Item.dup_of == Item.id).values(dup_of=None)).rowcount or 0
+        db.commit()
+        if n:
+            log.info("repaired %d item(s) marked as a copy of themselves", n)
+        return n
+    finally:
+        db.close()
+
+
 def run_dedup(force: bool = False) -> str:
     """Fingerprint the articles stored before cross-source dedup existed and mark syndicated copies, oldest first,
     so the first outlet to publish a story stays the original. Runs once after an upgrade."""
     from .processing.pipeline import find_original, fingerprint
 
+    repaired = _repair_self_copies()
     if not force and int(settings.get("dedup_version") or 0) >= DEDUP_VERSION:
-        return "dedup fingerprints are up to date"
+        return "dedup fingerprints are up to date" + (f"; {repaired} original(s) repaired" if repaired else "")
     db = SessionLocal()
     try:
         ids = [i for (i,) in db.execute(select(Item.id).where(Item.kind == "article")

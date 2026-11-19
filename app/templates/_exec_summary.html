@@ -16,3 +16,10 @@
 {% else %}
 <div class="prose small">{{ d.content|md }}</div>
 {% endif %}
+{% if d.kind == 'answer' and d.data and d.data.get('sources') %}
+{% set m = d.data.get('matched') or {} %}
+<details class="answer-sources small">
+  <summary class="muted">Based on {{ d.data.sources|selectattr('cited')|list|length or d.data.sources|length }} item(s){% if m.days %}, last {{ m.days }} day{{ 's' if m.days != 1 }}{% endif %}{% if m.entities or m.concepts %} · matched {{ ((m.entities or []) + (m.concepts or []))|join(', ') }}{% endif %}</summary>
+  <ol>{% for s in d.data.sources %}<li value="{{ s.n }}" class="{{ '' if s.cited else 'muted' }}"><a href="/items/{{ s.id }}" data-preview="/items/{{ s.id }}/preview">{{ s.title }}</a> <span class="muted">· {{ s.source }}, {{ s.date }}{{ '' if s.cited else ' · not cited' }}</span></li>{% endfor %}</ol>
+</details>
+{% endif %}

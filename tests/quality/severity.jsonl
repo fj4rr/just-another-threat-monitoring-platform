@@ -1,0 +1,25 @@
+// Should the item be among the notable items (severity 30 or more, the dashboard's "Notable recent items")?
+// Active, impactful incidents and campaigns yes; patch notes, guides, roundups, product news and routine leak-site
+// postings of small victims no.
+{"title": "Zero-day in Fortinet VPN actively exploited in the wild, CISA adds to KEV", "body": "Attackers exploit CVE-2024-21762 to run code on unpatched devices.", "notable": true}
+{"title": "LockBit ransomware attack shuts down hospital emergency rooms", "body": "Patients were diverted as the ransomware encrypted clinical systems and data was exfiltrated.", "notable": true}
+{"title": "Mass exploitation of MOVEit flaw: Cl0p steals data of hundreds of companies", "body": "The zero-day was exploited in the wild for data theft and extortion.", "notable": true}
+{"title": "Pusat Data Nasional diserang ransomware, 200 instansi lumpuh", "body": "Serangan ransomware Brain Cipher mengenkripsi server dan meminta tebusan.", "notable": true}
+{"title": "Salt Typhoon breached nine US telecoms and accessed wiretap systems", "body": "State-sponsored hackers maintained access for months.", "notable": true}
+{"title": "Exploited in the wild: critical Citrix NetScaler flaw used to steal sessions", "body": "Attackers hijack sessions without credentials.", "notable": true}
+{"title": "Supply chain attack: malicious update of popular npm package steals credentials", "body": "The backdoor was downloaded 2 million times before removal.", "notable": true}
+{"title": "Ransomware attack halts production at car maker plants", "body": "The ransomware gang threatens to leak stolen data.", "notable": true}
+{"title": "Data breach exposes 279 million BPJS records sold on hacker forum", "body": "The leaked data includes NIK numbers and addresses.", "notable": true}
+{"title": "Wiper malware destroys systems at Ukrainian energy company", "body": "Sandworm deployed destructive malware against the grid operator.", "notable": true}
+{"title": "Microsoft November Patch Tuesday fixes 63 vulnerabilities", "body": "Administrators should apply the updates.", "notable": false}
+{"title": "How to protect your small business from ransomware", "body": "Back up your data and train employees.", "notable": false}
+{"title": "Weekly roundup: ransomware, zero-days and breaches", "body": "A summary of this week's security news.", "notable": false}
+{"title": "New smartphone launches with improved camera", "body": "The device goes on sale next week.", "notable": false}
+{"title": "Security vendor raises $50 million in funding", "body": "The startup plans to hire more engineers.", "notable": false}
+{"title": "Chrome 120 released with new privacy features", "body": "The update also fixes several security bugs.", "notable": false}
+{"title": "Conference recap: highlights from the security summit", "body": "Talks covered AI and cloud security.", "notable": false}
+{"title": "Tips memilih password yang kuat", "body": "Gunakan pengelola kata sandi.", "notable": false}
+{"title": "Akira leak site lists new victim: small accounting firm", "body": "The group posted the company name on its leak site.", "kind": "post", "notable": false}
+{"title": "Researchers publish analysis of a 2019 malware sample", "body": "The old sample shows how loaders evolved.", "notable": false}
+{"title": "Phishing campaign impersonates tax office, steals credentials of thousands", "body": "The phishing kit collected logins and OTP codes from victims.", "notable": true}
+{"title": "Critical RCE in Ivanti Connect Secure exploited by Chinese hackers", "body": "CISA orders agencies to disconnect devices; exploitation confirmed in the wild.", "notable": true}

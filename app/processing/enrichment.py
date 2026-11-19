@@ -271,6 +271,9 @@ def enrich_entity(db: Session, entity: Entity, providers: list | None = None, au
     old = entity.verdict or ""
     if results:
         new = _consensus(entity, results, base="" if recheck else None) or "unknown"
+        if (entity.meta or {}).get("analyst"):  # an analyst's verdict wins over the providers (0.13)
+            new = old or new
+            msgs.append(f"analyst verdict {new} kept")
         entity.verdict = new
         entity.verdict_at = utcnow()
         if VERDICT_RANK.get(new, 0) < VERDICT_RANK.get(old, 0):

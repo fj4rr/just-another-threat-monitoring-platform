@@ -1,0 +1,26 @@
+// Indicators (IPs, domains, URLs, hashes) an analyst would act on. "expect" lists every one, lower-case.
+// Benign platforms, private addresses, version numbers and file names are not indicators.
+{"text": "The loader beacons to 45.155.205.233 over port 443.", "expect": ["45.155.205.233"]}
+{"text": "C2 at 185[.]220[.]101[.]47 and hxxp://update-check[.]top/gate.php", "expect": ["185.220.101.47", "update-check.top", "http://update-check.top/gate.php"]}
+{"text": "Phishing pages were hosted on secure-bca-login[.]com and klikbca-verify[.]xyz", "expect": ["secure-bca-login.com", "klikbca-verify.xyz"]}
+{"text": "SHA-256 of the dropper: 2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae", "expect": ["2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"]}
+{"text": "MD5 44d88612fea8a8f36de82e1278abb02f (EICAR test file)", "expect": ["44d88612fea8a8f36de82e1278abb02f"]}
+{"text": "Users should update to version 10.2.3.4 of the client.", "expect": []}
+{"text": "The router's admin page is at 192.168.1.1 by default.", "expect": []}
+{"text": "Victims downloaded update.exe and invoice.pdf.js from the attachment.", "expect": []}
+{"text": "Read the advisory on microsoft.com and the analysis on github.com", "expect": []}
+{"text": "The campaign abused Google Drive links and a Telegram bot for exfiltration.", "expect": []}
+{"text": "Exfiltration server 91.92.243.10, staging domain cdn-static-files[.]net", "expect": ["91.92.243.10", "cdn-static-files.net"]}
+{"text": "Contact the SOC at soc@example.org for the full IOC list.", "expect": []}
+{"text": "Payload URL: hxxps://pastebin[.]com/raw/abcd1234 decodes to the stage two", "expect": ["https://pastebin.com/raw/abcd1234"]}
+{"text": "SHA1 da39a3ee5e6b4b0d3255bfef95601890afd80709 belongs to an empty file and is no indicator", "expect": ["da39a3ee5e6b4b0d3255bfef95601890afd80709"]}
+{"text": "Domain pembayaran-bpjs[.]id dipakai untuk menipu peserta", "expect": ["pembayaran-bpjs.id"]}
+{"text": "Situs palsu bantuan-sosial-kemensos[.]online menyebar lewat WhatsApp", "expect": ["bantuan-sosial-kemensos.online"]}
+{"text": "IP 8.8.8.8 is Google's public DNS resolver", "expect": []}
+{"text": "Scanning came from 2001:db8::1 in the documentation range", "expect": []}
+{"text": "The attackers used 203.0.113.5 in the vendor's example", "expect": []}
+{"text": "CVE-2024-3400 lets attackers run code on PAN-OS GlobalProtect gateways", "expect": []}
+{"text": "Stage two from 194.26.29.113:8080/x.sh installs a miner", "expect": ["194.26.29.113"]}
+{"text": "Victims were lured to wallet-connect-claim[.]app to drain their wallets", "expect": ["wallet-connect-claim.app"]}
+{"text": "Version 2.4.1 fixes the bug; build 1.0.0.12 is affected", "expect": []}
+{"text": "Malicious npm package typo-lodash contacted 103.77.192.15", "expect": ["103.77.192.15"]}

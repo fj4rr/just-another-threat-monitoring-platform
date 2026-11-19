@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..processing.pipeline import RawItem, strip_html
-from .base import BackfillCapability, Collector, SkipCollector, parse_dt
+from .base import FILTER_FIELD, BackfillCapability, Collector, SkipCollector, parse_dt
 
 BACKFILL_MAX_PAGES = 100  # 4,000 statuses
 
@@ -12,7 +12,7 @@ class MastodonCollector(Collector):
     kind = "mastodon"
     category = "social"
     label = "Mastodon account"
-    fields = [("account", "Account (user@instance)", "malware_traffic@infosec.exchange")]
+    fields = [("account", "Account (user@instance)", "malware_traffic@infosec.exchange"), FILTER_FIELD]
 
     def _account(self, c) -> tuple[str, str, str]:
         acct = (self.cfg.get("account") or "").lstrip("@").strip()

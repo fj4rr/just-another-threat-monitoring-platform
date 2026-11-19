@@ -1,0 +1,30 @@
+// Is the item a scam report (about a scam, a scam warning or a scam arrest)? English and Indonesian.
+{"title": "Waspada penipuan undangan pernikahan berupa file APK di WhatsApp", "body": "Pelaku mengirim file APK yang mencuri data perbankan korban.", "scam": true}
+{"title": "Polisi tangkap sindikat penipuan online yang mengatasnamakan BCA", "body": "Pelaku menghubungi korban dari nomor yang mengaku petugas bank.", "scam": true}
+{"title": "OJK blokir 600 entitas pinjol ilegal dan investasi bodong", "body": "Satgas PASTI meminta masyarakat waspada penawaran investasi dengan imbal hasil tidak wajar.", "scam": true}
+{"title": "Modus penipuan kurir paket: korban diminta klik link resi", "body": "Link mengarah ke aplikasi yang membaca SMS OTP.", "scam": true}
+{"title": "Korban kehilangan Rp 1,2 miliar akibat penipuan investasi kripto", "body": "Pelaku menjanjikan keuntungan 30 persen per bulan.", "scam": true}
+{"title": "Hati-hati telepon mengaku dari Bea Cukai soal paket tertahan", "body": "Penipu meminta transfer biaya pajak ke rekening pribadi.", "scam": true}
+{"title": "FBI warns of 'pig butchering' crypto investment scams", "body": "Victims lost $4 billion last year to fake trading platforms.", "scam": true}
+{"title": "Scammers impersonate PayPal support in callback phishing wave", "body": "Victims are told to call a number where fraudsters install remote access tools.", "scam": true}
+{"title": "Fake job offers on Telegram trick victims into paying 'task' fees", "body": "The task scam lures victims with small payouts before asking for deposits.", "scam": true}
+{"title": "Deepfake video of the president promotes fraudulent investment app", "body": "The scam video spread on social media before platforms removed it.", "scam": true}
+{"title": "Bank Indonesia warns of fake QRIS stickers at mosques", "body": "Penipu menempel stiker QRIS palsu di kotak amal.", "scam": true}
+{"title": "Kemenkominfo minta masyarakat tidak tergiur judi online", "body": "Pemerintah memblokir ribuan situs judi online.", "scam": true, "note": "online gambling is a scam type in JATMP"}
+{"title": "Polisi gagalkan penyelundupan 20 kg sabu dengan modus kiriman paket", "body": "Barang bukti disita di pelabuhan.", "scam": false}
+{"title": "Bank BRI luncurkan fitur baru di aplikasi BRImo", "body": "Nasabah kini bisa membuka deposito dari aplikasi.", "scam": false}
+{"title": "LockBit ransomware hits regional hospital", "body": "The attackers encrypted patient records and demanded a ransom.", "scam": false}
+{"title": "Microsoft patches exploited Windows zero-day", "body": "The flaw was used in targeted attacks.", "scam": false}
+{"title": "Weekly security roundup: ransomware, scams and patches", "body": "This week: a new scam, a ransomware attack and Patch Tuesday.", "scam": false}
+{"title": "OJK terbitkan aturan baru soal modal minimum fintech", "body": "Perusahaan fintech wajib menambah modal disetor.", "scam": false}
+{"title": "Hubungi Polres Jakarta Selatan di nomor 0812-1234-5678 untuk laporan kehilangan", "body": "Layanan pengaduan dibuka 24 jam.", "scam": false}
+{"title": "Kebocoran data 6 juta NPWP dijual di forum peretas", "body": "Data berisi nama, NIK dan alamat wajib pajak.", "scam": false}
+{"title": "Tips memilih password yang kuat untuk akun bank digital", "body": "Gunakan kombinasi huruf dan angka.", "scam": false}
+{"title": "Penipu catut nama Kapolri untuk minta transfer uang", "body": "Akun palsu di WhatsApp meminta sumbangan dari kenalan korban.", "scam": true}
+{"title": "Warga Medan tertipu jual beli mobil online, rugi Rp 150 juta", "body": "Penjual fiktif meminta uang muka lalu menghilang.", "scam": true}
+{"title": "Interpol operation arrests 1,000 suspects in online fraud crackdown", "body": "Operation HAECHI targeted romance scams and business email compromise.", "scam": true}
+{"title": "New Android banking trojan spreads through fake government apps", "body": "The malware abuses accessibility services to read OTP codes.", "scam": false}
+{"title": "Bjorka klaim retas data Kemenkes, polisi selidiki", "body": "Peretas mengunggah sampel data di forum.", "scam": false}
+{"title": "SMS phishing impersonates toll road operator over unpaid fees", "body": "The smishing messages link to a fake payment page that steals card details.", "scam": true}
+{"title": "Harga tiket pesawat mudik naik 20 persen", "body": "Maskapai menambah penerbangan tambahan.", "scam": false}
+{"title": "Investasi bodong berkedok arisan online rugikan ibu rumah tangga", "body": "Pengelola arisan membawa kabur dana anggota.", "scam": true}

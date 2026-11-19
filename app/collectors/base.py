@@ -29,6 +29,11 @@ class BackfillCapability:
 
 Progress = Callable[[str], None]
 
+# The topic filter (processing/topics.py) as a source setting. Since 0.13 every news and social collector offers it
+# (RSS, Telegram, X, Mastodon, Bluesky); intel feeds are on topic by nature.
+FILTER_FIELD = ("filter", "Topic filter (optional): 'security' keeps only security-related entries, 'cyber' is "
+                          "stricter for general news and general channels, 'fraud' keeps only scam reports", "security")
+
 
 class Collector:
     kind = ""
@@ -48,6 +53,15 @@ class Collector:
 
     def fetch(self) -> list[RawItem]:  # pragma: no cover - interface
         raise NotImplementedError
+
+    def keep(self, raws: list[RawItem]) -> list[RawItem]:
+        """Entries of ``raws`` that match the source's topic filter (all when it has none). Applied by the jobs to
+        what ``fetch`` and ``backfill`` return, for every source kind (PM review 2026-11, item 10)."""
+        from ..processing import topics
+
+        return topics.keep(raws, self.cfg.get("filter"))
+
+    _keep = keep  # the name used before 0.13
 
     # ---- historical backfill (app/backfill.py). Collectors that support it override both methods.
     def backfill_capability(self) -> BackfillCapability:

@@ -171,10 +171,13 @@ def link_entities(db: Session, item: Item, extracted: list[Extracted]) -> int:
         eid for (eid,) in db.execute(select(ItemEntity.entity_id).where(ItemEntity.item_id == item.id))
     } if item.id else set()
     ents = _entities_for(db, extracted, item.published_at or utcnow())
+    from ..corrections import blocked_entities
+
+    blocked = blocked_entities(db, item.id)  # analysts' corrections stay in force (0.13)
     added = 0
     for ex in extracted:
         ent = ents[(ex.type, ex.value)]
-        if ent.id in existing:
+        if ent.id in existing or ent.id in blocked:
             continue
         existing.add(ent.id)
         db.add(ItemEntity(item_id=item.id, entity_id=ent.id, origin=ex.origin))
@@ -263,7 +266,10 @@ def find_original(db: Session, item: Item, batch: dict[str, tuple[int, int, date
         .order_by(Item.published_at, Item.id).limit(1)).first()
     if row is None:
         return None
-    return row.dup_of or row.id
+    # the match may be a copy that already points at this item (the 0.10.1 one-off dedup ran over copies the first
+    # collector runs had linked): then this item is the original, never a copy of itself (0.13)
+    oid = row.dup_of or row.id
+    return None if oid == item.id else oid
 
 
 def tag_families(tags: list[str], source: Source | None) -> list[Extracted]:

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Corrections{% endblock %}
+{% block content %}
+{% set labels = {'unlink': 'Wrong entity on an item', 'false_positive': 'Not a threat / wrong entity everywhere', 'verdict': 'Analyst verdict', 'not_scam': 'Not a scam report'} %}
+<div class="page-head"><div><h1>Corrections</h1>
+  <p class="muted">What analysts corrected, by whom and why. Corrections stay in force through re-extraction, re-analysis and new lookups, can be undone, and are the labelled data of the quality report.</p></div>
+  {% if user.role in ('admin','analyst') %}<a class="btn" href="/api/corrections/export.jsonl" title="The active corrections as labelled test cases (JSON lines) for python manage.py quality --corrections">⇩ Export as test cases</a>{% endif %}</div>
+
+<div class="grid tiles-row" style="margin-bottom:16px">
+  {% for k in kinds %}<a class="card lift tile" href="?kind={{ k }}"><div class="label">{{ labels[k] }}</div>
+    <div class="value">{{ stats.per_kind[k] }}</div><div class="delta">active, last {{ stats.days }} days</div></a>{% endfor %}
+</div>
+
+<div class="grid g-2" style="margin-bottom:16px;align-items:start">
+  <div class="card">
+    <div class="card-head"><h2>Error rate reported by analysts</h2><span class="muted small">last {{ stats.days }} days</span></div>
+    {% if stats.rates %}<table class="small"><thead><tr><th>Area</th><th class="num">Corrected</th><th class="num">Of</th><th class="num">Rate</th></tr></thead><tbody>
+      {% for r in stats.rates %}<tr><td>{{ r.label }}</td><td class="num">{{ r.removed }}</td><td class="num">{{ r.total }}</td><td class="num">{{ r.pct }}%</td></tr>{% endfor %}
+    </tbody></table>
+    <p class="muted small" style="margin:8px 0 0">A lower bound: only what analysts noticed and corrected. The quality report (<code>python manage.py quality</code>) measures precision and recall on labelled cases.</p>
+    {% else %}<p class="muted small">Nothing collected or corrected in this period yet.</p>{% endif %}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Most corrected</h2><span class="muted small">rules to tune</span></div>
+    {% if stats.hot %}<table class="small"><tbody>
+      {% for h in stats.hot %}<tr><td><span class="badge">{{ h.type }}</span> {{ h.name }}</td><td class="num">{{ h.count }} link(s)</td></tr>{% endfor %}
+    </tbody></table>
+    <p class="muted small" style="margin:8px 0 0">Names corrected again and again usually need a rule change: an everyday word to the knowledge base's <code>COMMON_WORDS</code>, a generic term to <code>GENERIC_WORDS</code>, a benign domain to the allow-list (see Extending JATMP in the docs).</p>
+    {% else %}<p class="muted small">No entity corrected in this period.</p>{% endif %}
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <select name="kind" aria-label="Kind" data-autosubmit><option value="">All kinds</option>
+    {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if f.kind == k }}>{{ labels[k] }}</option>{% endfor %}</select>
+  <select name="show" aria-label="Status" data-autosubmit>
+    {% for v, l in [('active', 'Active'), ('undone', 'Undone'), ('all', 'All')] %}<option value="{{ v }}" {{ 'selected' if f.show == v }}>{{ l }}</option>{% endfor %}</select>
+</form>
+<div class="card table-wrap data-table">
+  <table>
+    <thead><tr><th class="col-time">When</th><th>Correction</th><th>Target</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+    {% for c in rows %}
+    <tr class="{{ 'is-disabled' if not c.active }}">
+      <td class="col-time muted small" title="{{ c.created_at }} UTC">{{ c.created_at|timeago }}</td>
+      <td><span class="badge">{{ labels[c.kind] }}</span><div class="small" style="margin-top:4px">{{ correction_text(c) }}</div></td>
+      <td class="small">{% if c.item_id %}{% set it = items.get(c.item_id) %}{% if it %}<a href="/items/{{ it.id }}" data-preview="/items/{{ it.id }}/preview">{{ it.title|truncate(60) }}</a>{% else %}<span class="muted">item deleted</span>{% endif %}{% endif %}
+        {% if c.entity_id %}{% set e = ents.get(c.entity_id) %}{% if e %}<div><a href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview">{{ e.display|truncate(50) }}</a></div>{% endif %}{% endif %}</td>
+      <td class="small">{% if c.active %}<span class="badge good">active</span>{% else %}<span class="muted">undone {{ c.undone_at|timeago if c.undone_at }}{% if c.undone_by %} by {{ c.undone_by }}{% endif %}</span>{% endif %}</td>
+      <td class="actions">{% if c.active and user.role in ('admin','analyst') %}<button type="button" class="btn sm" data-post="/api/corrections/{{ c.id }}/undo" data-confirm="Undo this correction and restore what it changed?" data-reload>Undo</button>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty">No corrections{{ ' of this kind' if f.kind }}. Analysts correct from item and entity pages: ✕ next to an entity, “✎ Correct” on an entity, “Not a scam report” on a scam item.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

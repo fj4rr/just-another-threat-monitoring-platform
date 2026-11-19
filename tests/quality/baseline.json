@@ -1,0 +1,32 @@
+{
+  "families": {
+    "precision": 1.0,
+    "recall": 0.941,
+    "cases": 43
+  },
+  "indicators": {
+    "precision": 0.889,
+    "recall": 0.941,
+    "cases": 24
+  },
+  "scam": {
+    "precision": 1.0,
+    "recall": 0.706,
+    "cases": 29
+  },
+  "sectors": {
+    "precision": 1.0,
+    "recall": 0.929,
+    "cases": 19
+  },
+  "geography": {
+    "precision": 0.9,
+    "recall": 0.947,
+    "cases": 20
+  },
+  "severity": {
+    "precision": 0.875,
+    "recall": 0.583,
+    "cases": 22
+  }
+}

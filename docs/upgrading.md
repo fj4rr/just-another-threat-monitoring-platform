@@ -4,6 +4,23 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 0.13.0
+
+Analyst corrections, quality measurement, topic filters for every source kind and better Q&A. No new dependency.
+One new table (`corrections`) is created on start-up.
+
+- **Corrections.** Analysts and admins see ✕ next to entities on item pages, *✎ Correct* on entity pages and *Not
+  a scam report* on scam items; viewers see the corrections but can't make them. Nothing changes until someone
+  corrects something. See [Corrections and quality](how-it-works/corrections.md).
+- **Topic filters on social sources.** Telegram, X, Mastodon and Bluesky sources now have a *Filter* field. Existing
+  sources keep taking everything until you set one; for a general news channel, `cyber` is the usual choice.
+- **Q&A** finds items by the entities, malware types and sectors a question names, and its answers link the items
+  they cite. Old answers are unchanged.
+- **CI** runs the quality gate (`tests/test_quality.py`). If you maintain your own rule changes, run
+  `python manage.py quality` before pushing.
+- **A repair at start-up**: articles marked as a copy of themselves (possible since the 0.10.1 upgrade) become
+  originals again and reappear in the feed; the log says how many ("repaired N item(s)").
+
 ## Upgrading to 0.12.0
 
 Trust and coverage items from the product review. No new dependency. One new column (`entities.verdict_at`) is

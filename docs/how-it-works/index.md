@@ -230,3 +230,4 @@ Knowing the limits helps you read the results correctly.
 | [AI processing](ai.md) | Item summaries and their safeguards, the auto-summary queue, briefs, the executive summary, questions, personal data |
 | [Sharing and delivery](sharing.md) | TLP, redistribution and personal-data rules, aged indicators, webhooks (events, signing, retries), MISP push |
 | [Housekeeping and re-analysis](housekeeping.md) | The nightly clean-up, retention, identifier pruning, versioned re-analysis, restarts |
+| [Corrections and quality](corrections.md) | Analyst corrections and why they stick, the Corrections page, the quality report and its CI gate |

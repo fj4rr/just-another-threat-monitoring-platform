@@ -29,7 +29,8 @@ on the backfill page; see [History and storage](history-and-storage.md).
 
 ## Topic filters
 
-Any RSS source can carry a topic filter (*Filter* in the source's Edit dialog):
+Any news or social source (RSS, Telegram, X, Mastodon, Bluesky) can carry a topic filter (*Filter* in the
+source's Edit dialog), for example to keep only the cyber posts of a general news channel:
 
 - `security` keeps only entries about breaches, hacking, fraud, malware and the like (English and Indonesian terms).
   Used for the general technology sections of Indonesian outlets.

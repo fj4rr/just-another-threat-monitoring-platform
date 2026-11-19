@@ -19,6 +19,10 @@
     python manage.py fraudtag                  re-run the scam & fraud analysis (scam types, brands, identifiers, score)
     python manage.py sectortag                 re-detect the critical infrastructure sectors (government, finance, health...) of every item
     python manage.py telegram-login            sign in to Telegram once (MTProto, optional) and store the session
+    python manage.py quality [options]         precision / recall of the detection rules on the labelled cases in
+                                               tests/quality/ (--corrections FILE adds an export of the analysts'
+                                               corrections, --json, --summary, --check fails below the baseline,
+                                               --update-baseline records the current numbers)
 """
 from __future__ import annotations
 
@@ -132,6 +136,37 @@ def main(argv: list[str]) -> int:
 
         counts = copy_database(args[0])
         print(f"copied {sum(counts.values())} rows; now set JATMP_DATABASE_URL to the new database and restart")
+    elif cmd == "quality":
+        import json
+        from pathlib import Path
+
+        from app import quality
+
+        extra = {}
+        if "--corrections" in args:
+            i = args.index("--corrections")
+            if i + 1 >= len(args):
+                print("usage: python manage.py quality --corrections jatmp-corrections.jsonl")
+                return 1
+            extra = quality.load_extra(Path(args[i + 1]))
+        res, base = quality.run(extra=extra), quality.baseline()
+        if "--json" in args:
+            print(json.dumps({"areas": [r.as_dict() for r in res["areas"]], "rejects": res["rejects"]}, indent=2))
+        else:
+            print(quality.report_markdown(res, base, errors=0 if "--summary" in args else 10))
+        if "--update-baseline" in args:
+            if extra:
+                print("the baseline is measured on tests/quality only: run without --corrections")
+                return 1
+            path = quality.DATA_DIR / "baseline.json"
+            path.write_text(json.dumps({r.area: {"precision": round(r.precision, 3), "recall": round(r.recall, 3),
+                                                 "cases": r.cases} for r in res["areas"]}, indent=2) + "\n",
+                            encoding="utf-8", newline="")
+            print(f"baseline written to {path}")
+        regs = quality.regressions(res, base)
+        if regs and "--check" in args:
+            print("\nBelow the baseline: " + "; ".join(regs))
+            return 1
     elif cmd == "seed-sources":
         from app.setup_service import seed_missing_sources
 

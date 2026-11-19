@@ -105,6 +105,7 @@ nav:
       - AI processing: how-it-works/ai.md
       - Sharing and delivery: how-it-works/sharing.md
       - Housekeeping and re-analysis: how-it-works/housekeeping.md
+      - Corrections and quality: how-it-works/corrections.md
   - Developer guide:
       - Development: development.md
       - Architecture: architecture.md

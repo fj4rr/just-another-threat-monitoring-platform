@@ -356,6 +356,72 @@ def ask(payload: dict = Body(...), user: User = Depends(require("analyst")), db:
     return {"ok": True, "id": ins.id, "html": html}
 
 
+# --------------------------------------------------------------------------- analyst corrections (0.13)
+CORRECTION_DONE = {
+    "unlink": "Removed from this item; it will not be linked again",
+    "false_positive": "Marked as not a threat: removed everywhere, it will not be linked again",
+    "verdict": "Analyst verdict set; it wins over the providers",
+    "not_scam": "Marked as not a scam report",
+}
+
+
+def _opt_int(v) -> int | None:
+    try:
+        return int(v) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        raise HTTPException(400, "ids must be numbers") from None
+
+
+@router.post("/corrections", dependencies=[Depends(verify_csrf)])
+def correction_create(request: Request, payload: dict = Body(...), user: User = Depends(require("analyst")),
+                      db: Session = Depends(get_db)):
+    from .. import corrections
+
+    kind = str(payload.get("kind") or "")
+    try:
+        corr = corrections.create(db, user, kind, item_id=_opt_int(payload.get("item_id")),
+                                  entity_id=_opt_int(payload.get("entity_id")), value=str(payload.get("value") or ""),
+                                  reason=str(payload.get("reason") or ""))
+    except corrections.CorrectionError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(db, user, f"correction_{kind}", f"#{corr.id} item={corr.item_id or '-'} entity={corr.entity_id or '-'} "
+                                          f"value={corr.value or '-'} reason={corr.reason[:200]}", request)
+    db.commit()
+    trends.invalidate_cache()
+    return {"ok": True, "id": corr.id, "message": CORRECTION_DONE[kind]}
+
+
+@router.post("/corrections/{correction_id}/undo", dependencies=[Depends(verify_csrf)])
+def correction_undo(correction_id: int, request: Request, user: User = Depends(require("analyst")),
+                    db: Session = Depends(get_db)):
+    from .. import corrections
+    from ..models import Correction
+
+    corr = db.get(Correction, correction_id)
+    if corr is None:
+        raise HTTPException(404, "correction not found")
+    try:
+        corrections.undo(db, corr, user)
+    except corrections.CorrectionError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(db, user, "correction_undone", f"#{corr.id} {corr.kind}", request)
+    db.commit()
+    trends.invalidate_cache()
+    return {"ok": True, "message": "Correction undone; what it changed is restored"}
+
+
+@router.get("/corrections/export.jsonl")
+def corrections_export(user: User = Depends(require("analyst")), db: Session = Depends(get_db)):
+    """The active corrections as labelled cases for the quality report (``manage.py quality --corrections``)."""
+    from fastapi.responses import PlainTextResponse
+
+    from .. import quality
+
+    lines = quality.cases_from_corrections(db)
+    return PlainTextResponse("".join(lines), media_type="application/x-ndjson",
+                             headers={"Content-Disposition": 'attachment; filename="jatmp-corrections.jsonl"'})
+
+
 @router.post("/llm/test", dependencies=[Depends(verify_csrf)])
 def llm_test(_: User = Depends(require("admin"))):
     try:

@@ -2,9 +2,57 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
-## Unreleased
+## 0.13.0
+
+The rest of the product review's urgent items: analysts can correct the platform, the rules are measured, topic
+filters work for every source kind, and Q&A finds items by meaning it already knows. Upgrade notes:
+[docs/upgrading.md](docs/upgrading.md).
+
+**Analyst corrections**
+
+- Analysts and admins can mark an entity as wrong on one item (✕ on the item page), mark a family, actor or
+  indicator as wrong / not a threat everywhere, set an analyst verdict that wins over the providers, and mark an
+  item as not a scam report. Each correction asks for a reason, is logged with the analyst's name (and in the
+  audit log), and can be undone.
+- Corrections stay in force: re-extraction, AI extraction, the ThreatFox merge and new items skip removed links;
+  the scam re-analysis keeps *not a scam report*; enrichment keeps an analyst verdict. Severity and the enrichment
+  bonus follow.
+- New **Corrections** page: the log with undo, the error rate analysts reported per area over 30 days, and the
+  names corrected most often (rules worth tuning).
+
+**Quality measurement**
+
+- `python manage.py quality` reports precision, recall and F1 of the extractor (families and actors,
+  indicators), the scam rules, sectors, target countries and severity on labelled cases in `tests/quality/`, with
+  every case the rules get wrong. First measurement on the hand-written seed set: families P 1.000 / R 0.941,
+  indicators 0.889 / 0.941, scam 1.000 / 0.706, sectors 1.000 / 0.929, geography 0.900 / 0.947, severity
+  (notable) 0.875 / 0.583.
+- The active corrections export as test cases (Corrections page, `--corrections FILE`); the report says how many
+  analyst corrections the current rules would still repeat.
+- CI fails when an area falls below `tests/quality/baseline.json` and shows the report in the job summary.
+
+**Collection**
+
+- Topic filters (`security`, `cyber`, `fraud`) work for every news and social source: Telegram, X, Mastodon and
+  Bluesky gained the *Filter* field. The filter runs before storing, for scheduled runs and backfills, and the run
+  message counts the entries it dropped.
+
+**AI**
+
+- Q&A finds items by the entities a question names (aliases included), by malware type and sector ("ransomware
+  on hospitals" finds "LockBit hits a healthcare provider"), by the period it names, and by each word through the
+  full-text index; copies count once. Answers cite their items as [n] links and list what they are based on.
+
+**Fixes**
+
+- An original article could be marked as a copy of itself, which hid it from the feed: the one-off dedup job of
+  0.10.1 ran over copies that the first collector runs had already linked. `find_original` never returns the item
+  itself now, and existing cases are repaired at start-up.
 
 **Documentation**
+
+- New page [Corrections and quality](docs/how-it-works/corrections.md); collection, AI, sources, using JATMP,
+  development (release checklist: run the quality report), architecture and data model updated.
 
 - *How it works* and the user guide pages (getting started, configuration, using JATMP, analysis, geography,
   integrations, reporting and AI, history and storage, maintenance, the docs index) are rewritten in plainer,

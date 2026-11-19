@@ -29,8 +29,21 @@
     <button class="btn" data-post="/api/misp/push/entity/{{ ent.id }}" data-busy="Sending…" title="{{ 'Already sent as MISP event #' ~ mp.id if mp else 'Create a MISP event with the shareable indicators' }}">⇪ {{ 'In MISP #' ~ mp.id if mp else 'Send to MISP' }}</button>{% endif %}
     {% if not is_ident %}<a class="btn" href="/api/v1/stix/entities/{{ ent.id }}" download="jatmp-{{ ent.type }}-{{ ent.id }}.stix.json" title="STIX 2.1 bundle, subject to the sharing rules">⇩ STIX</a>{% endif %}
     <a class="btn" href="/feed?entity={{ ent.id }}&days=0">All items →</a>
+    {% if user.role in ('admin','analyst') and not is_ident %}
+    <details class="pop"><summary class="btn" title="Correct the platform: the correction stays in force and is logged">✎ Correct</summary>
+      <div class="card pop-card"><div class="card-head"><h2>Correct {{ ent.display|truncate(40) }}</h2><button type="button" class="btn sm" data-pop-close aria-label="Close">✕</button></div>
+        {% if is_ioc %}<p class="small" style="margin:0 0 6px">Analyst verdict (wins over the providers' consensus):</p>
+        <div class="row">{% for v in ('malicious', 'suspicious', 'clean') %}<button type="button" class="btn sm" data-post="/api/corrections" data-body='{{ {"kind": "verdict", "entity_id": ent.id, "value": v}|tojson }}' data-prompt="Why is it {{ v }}? (kept in the corrections log)" data-reload>{{ v }}</button>{% endfor %}</div>{% endif %}
+        {% if not (ent.meta or {}).get('false_positive') %}
+        <p class="small" style="margin:12px 0 6px">{{ 'Not a threat: removes it from every item, marks it clean and keeps it out of the feeds.' if is_ioc else 'Wrong entity: removes it from every item and stops it from being linked again (for one item only, use ✕ on the item page).' }}</p>
+        <button type="button" class="btn sm danger" data-post="/api/corrections" data-body='{{ {"kind": "false_positive", "entity_id": ent.id}|tojson }}' data-prompt="Why is {{ ent.display|truncate(40) }} {{ 'not a threat' if is_ioc else 'a wrong entity' }}? (kept in the corrections log)" data-confirm="Remove {{ ent.display|truncate(40) }} from all {{ ent.mention_count }} item(s)? You can undo it on the Corrections page." data-reload>{{ 'Not a threat' if is_ioc else 'Wrong entity everywhere' }}</button>{% endif %}
+        <p class="muted small" style="margin:10px 0 0">Every correction is logged with your name and reason and can be undone on the <a href="/corrections">Corrections</a> page.</p>
+      </div></details>{% endif %}
   </div>
 </div>
+{% set fp = (ent.meta or {}).get('false_positive') %}{% set an = (ent.meta or {}).get('analyst') %}
+{% if fp %}<div class="alert small" style="margin-bottom:12px"><b>Marked {{ 'not a threat' if is_ioc else 'as a wrong entity' }}</b> by {{ fp.by or 'an analyst' }} on {{ (fp.at or '')[:10] }}{% if fp.reason %}: “{{ fp.reason }}”{% endif %}. It is not linked to items any more. <a href="/corrections?kind=false_positive">Corrections →</a></div>
+{% elif an %}<div class="alert small" style="margin-bottom:12px"><b>Analyst verdict: {{ an.verdict }}</b>, set by {{ an.by or 'an analyst' }} on {{ (an.at or '')[:10] }}{% if an.reason %}: “{{ an.reason }}”{% endif %}. Provider lookups no longer change it. <a href="/corrections?kind=verdict">Corrections →</a></div>{% endif %}
 
 <div class="grid g-21">
   <div class="grid" style="align-content:start">

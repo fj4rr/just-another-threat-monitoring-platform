@@ -27,11 +27,12 @@ from app.setup_service import perform_install
 @pytest.fixture(autouse=True)
 def _fresh_caches():
     """Short-lived in-process caches (trending lists, manual-action throttles) must not leak between tests."""
-    from app import throttle
+    from app import corrections, throttle
     from app.processing import trends
 
     trends.invalidate_cache()
     throttle.reset()
+    corrections.invalidate()
     yield
 
 

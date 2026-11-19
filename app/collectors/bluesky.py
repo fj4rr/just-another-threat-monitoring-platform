@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..processing.pipeline import RawItem
-from .base import BackfillCapability, Collector, SkipCollector, parse_dt
+from .base import FILTER_FIELD, BackfillCapability, Collector, SkipCollector, parse_dt
 
 PUBLIC_API = "https://public.api.bsky.app/xrpc"
 BACKFILL_MAX_PAGES = 60  # 6,000 posts
@@ -13,7 +13,7 @@ class BlueskyCollector(Collector):
     kind = "bluesky"
     category = "social"
     label = "Bluesky account"
-    fields = [("handle", "Handle", "vxunderground.bsky.social")]
+    fields = [("handle", "Handle", "vxunderground.bsky.social"), FILTER_FIELD]
 
     def _handle(self) -> str:
         handle = (self.cfg.get("handle") or "").lstrip("@").strip()

@@ -220,6 +220,27 @@ class Insight(Base):
     data: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class Correction(Base):
+    """An analyst's correction of the platform (0.13, app/corrections.py): unlink | false_positive | verdict |
+    not_scam. Active until undone; the rows are the audit trail and the labelled data of the quality report."""
+
+    __tablename__ = "corrections"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(24), index=True)
+    item_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    value: Mapped[str] = mapped_column(String(32), default="")  # the verdict, for kind "verdict"
+    reason: Mapped[str] = mapped_column(Text, default="")
+    # what the correction changed, for its undo and for the quality report (removed links, previous verdict...)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    username: Mapped[str] = mapped_column(String(64), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    undone_by: Mapped[str] = mapped_column(String(64), default="")
+
+
 class Watch(Base):
     __tablename__ = "watchlist"
     __table_args__ = (UniqueConstraint("user_id", "entity_id", name="uq_watch"),)

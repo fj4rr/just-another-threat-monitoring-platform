@@ -1,0 +1,22 @@
+// Countries the item is about as a target or place of the activity (ISO-2). The attacker's origin and hosting
+// countries are not targets.
+{"title": "Ransomware attack hits hospital network in Surabaya", "body": "East Java health officials confirmed the outage.", "expect": ["ID"]}
+{"title": "Peretas bobol situs Pemprov Jawa Barat", "body": "Situs resmi pemerintah provinsi menampilkan pesan peretas.", "expect": ["ID"]}
+{"title": "North Korean hackers steal $1.5 billion from Dubai-based exchange", "body": "Lazarus Group laundered the funds through mixers.", "expect": ["AE"]}
+{"title": "Russian state hackers target Ukrainian power grid", "body": "Sandworm deployed wiper malware against energy companies in Ukraine.", "expect": ["UA"]}
+{"title": "Chinese hackers breach US telecom providers", "body": "Salt Typhoon accessed wiretap systems of American carriers.", "expect": ["US"]}
+{"title": "Singapore and Malaysia warn of phishing campaign targeting bank customers", "body": "Customers of banks in both countries received fake SMS messages.", "expect": ["SG", "MY"]}
+{"title": "Philippine government agencies hit by DDoS attacks", "body": "Websites of several departments in Manila went offline.", "expect": ["PH"]}
+{"title": "Data of 6 million Indonesian taxpayers sold online", "body": "The leak includes NPWP numbers of citizens.", "expect": ["ID"]}
+{"title": "Microsoft patches 72 vulnerabilities", "body": "Two zero-days were exploited in the wild.", "expect": []}
+{"title": "New stealer malware sold on Russian forums", "body": "The malware targets browsers and crypto wallets worldwide.", "expect": []}
+{"title": "Australian health insurer Medibank fined over 2022 breach", "body": "The regulator in Australia imposed the penalty.", "expect": ["AU"]}
+{"title": "Japanese port of Nagoya halts operations after ransomware attack", "body": "Container terminals in Japan stopped for two days.", "expect": ["JP"]}
+{"title": "Bank in Vietnam loses millions to SWIFT fraud", "body": "Hackers sent fraudulent transfers from the Vietnamese bank.", "expect": ["VN"]}
+{"title": "Polisi Bali tangkap WNA pelaku skimming ATM", "body": "Pelaku warga negara asing memasang alat skimming di Denpasar.", "expect": ["ID"]}
+{"title": "German retailer data leaked by ransomware group", "body": "The company in Germany confirmed customer data was stolen.", "expect": ["DE"]}
+{"title": "Thailand arrests call-centre scam gang targeting Chinese citizens", "body": "Thai police raided the compound near the border.", "expect": ["TH", "CN"]}
+{"title": "Attack infrastructure hosted in the Netherlands targets Indonesian banks", "body": "The phishing servers were rented from a Dutch provider.", "expect": ["ID"]}
+{"title": "Indian government websites defaced after border clash", "body": "Pakistani hacktivists claimed the attacks on India's sites.", "expect": ["IN"]}
+{"title": "Interpol operation spans 40 countries", "body": "Arrests were made worldwide in the fraud crackdown.", "expect": []}
+{"title": "Kebocoran data pelanggan operator seluler di Indonesia", "body": "Data pelanggan Telkomsel diduga dijual di forum.", "expect": ["ID"]}

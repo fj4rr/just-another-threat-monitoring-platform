@@ -124,13 +124,16 @@ text, not just defanged text, and their tags may name malware families. See
 
 ## Topic filters
 
-An RSS source can have a topic filter (`filter` in its configuration). The filter runs **inside the collector**,
-before anything is stored, so entries it drops leave no trace.
+Any news or social source can have a topic filter (`filter` in its configuration): RSS feeds, Telegram channels,
+X, Mastodon and Bluesky accounts (since 0.13; it used to exist for RSS only, so a general Telegram channel brought
+in everything). Intel feeds don't offer it. The filter runs on what a collector fetched **before anything is
+stored** (`processing/topics.py`, for scheduled runs and backfills alike), so entries it drops leave no trace; the
+run message says how many were off topic ("fetched 40, 31 off topic, new 9").
 
 | Filter | Keeps an entry when | Used for |
 |---|---|---|
 | `security` | A security term (English or Indonesian) appears in the title, the first 3,000 characters of the text, or the tags | General technology sections |
-| `cyber` | An unambiguous cyber or digital-fraud term appears, **or** the [scam analysis](../fraud.md) recognises a scam | General news sections, where words like "bocor" or "modus" usually mean something else |
+| `cyber` | An unambiguous cyber or digital-fraud term appears, **or** the [scam analysis](../fraud.md) recognises a scam | General news sections and general Telegram or X channels, where words like "bocor" or "modus" usually mean something else |
 | `fraud` | The scam analysis recognises a scam | Fact-checkers, whose feeds are mostly about political hoaxes |
 
 The source **topic** *scam & fraud* is a separate setting. It doesn't filter anything. Instead it tells the scam

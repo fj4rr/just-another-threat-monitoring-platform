@@ -73,6 +73,13 @@ def _verdict_stale(e) -> bool:
     return verdict_is_stale(e)
 
 
+def _correction_text(c) -> str:
+    from .corrections import describe
+
+    return describe(c)
+
+
+templates.env.globals["correction_text"] = _correction_text
 templates.env.globals["verdict_stale"] = _verdict_stale  # aged out of the export feeds (verdict_feed_days)
 
 

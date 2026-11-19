@@ -1,0 +1,46 @@
+// Malware families and threat actors named in the text. "expect" lists every one (lower-case canonical names).
+// Hand-labelled seed set (0.13): real headlines rewritten, plus the traps the rules were tuned on. Grow it from
+// analyst corrections (python manage.py quality --corrections export.jsonl) and real items.
+{"text": "LockBit ransomware gang claims attack on regional hospital network", "expect": ["lockbit"]}
+{"text": "Akira ransomware hits US manufacturer, leaks 40 GB of data", "expect": ["akira"]}
+{"text": "Akira Kurosawa retrospective opens at the national film archive", "expect": []}
+{"text": "Lumma Stealer infections surge after takedown attempt; operators move infrastructure", "expect": ["lumma stealer"]}
+{"text": "LummaC2 and RedLine dominate infostealer logs sold on Russian markets", "expect": ["lumma stealer", "redline"]}
+{"text": "North Korea's Lazarus Group stole $1.5 billion from a crypto exchange", "expect": ["lazarus group"]}
+{"text": "APT28 phishing campaign targets European defence ministries with fake conference invites", "expect": ["apt28"]}
+{"text": "Fancy Bear, also known as APT28, used a new backdoor against embassies", "expect": ["apt28"]}
+{"text": "Volt Typhoon pre-positioned in US water utilities, CISA warns", "expect": ["volt typhoon"]}
+{"text": "Salt Typhoon breached at least nine telecom providers", "expect": ["salt typhoon"]}
+{"text": "Typhoon Haikui forces flight cancellations across Taiwan", "expect": []}
+{"text": "Play ransomware claims attack on city of Oakland", "expect": ["play"]}
+{"text": "Google removes 30 malicious apps from the Play Store after report", "expect": []}
+{"text": "The play staged at the national theatre drew record crowds", "expect": []}
+{"text": "Medusa ransomware demands $2 million from school district", "expect": ["medusa"]}
+{"text": "Museum exhibition explores the myth of Medusa in Greek art", "expect": []}
+{"text": "Pegasus spyware found on phones of journalists in three countries", "expect": ["pegasus"]}
+{"text": "Pegasus, the winged horse, returns as the theme of the summer festival", "expect": []}
+{"text": "Bitter APT targets Pakistani government with CHM files", "expect": ["bitter"]}
+{"text": "A bitter dispute between the two ministries delayed the budget", "expect": []}
+{"text": "Fog ransomware operators exploit SonicWall VPN accounts", "expect": ["fog"]}
+{"text": "Heavy fog closes Jakarta airport runway for three hours", "expect": []}
+{"text": "Embargo ransomware group leaks data of a German retailer", "expect": ["embargo"]}
+{"text": "The trade embargo on rare earths hits chip makers", "expect": []}
+{"text": "AsyncRAT and Remcos delivered through fake invoice emails in Indonesia", "expect": ["asyncrat", "remcos"]}
+{"text": "XWorm and Agent Tesla spread via malicious SVG attachments", "expect": ["xworm", "agent tesla"]}
+{"text": "Qilin ransomware attack disrupts blood tests at London hospitals", "expect": ["qilin"]}
+{"text": "Scattered Spider members arrested after casino breaches", "expect": ["scattered spider"]}
+{"text": "ShinyHunters extortion group leaks Salesforce customer data", "expect": ["shinyhunters"]}
+{"text": "Kimsuky uses fake job offers to target South Korean researchers", "expect": ["kimsuky"]}
+{"text": "Mustang Panda deploys PlugX through USB drives in Southeast Asia", "expect": ["mustang panda", "plugx"]}
+{"text": "Peretas grup ransomware Brain Cipher mengklaim serangan ke Pusat Data Nasional", "expect": ["brain cipher"]}
+{"text": "Serangan ransomware LockBit 3.0 lumpuhkan layanan bank syariah", "expect": ["lockbit"]}
+{"text": "Polisi tangkap pelaku penipuan online bermodus undangan pernikahan APK", "expect": []}
+{"text": "Indonesian ransomware gang threatens to leak ministry files", "expect": []}
+{"text": "Facebook malware campaign steals business accounts", "expect": []}
+{"text": "Microsoft patches 72 flaws including two zero-days in November update", "expect": []}
+{"text": "New Android banking trojan targets Indonesian bank customers", "expect": []}
+{"text": "SmokeLoader botnet dismantled in Operation Endgame; GuLoader infrastructure seized", "expect": ["smokeloader", "guloader"]}
+{"text": "Cl0p exploits Oracle E-Business Suite zero-day in mass extortion campaign", "expect": ["cl0p"]}
+{"text": "RansomHub affiliates switch to DragonForce after RansomHub goes dark", "expect": ["ransomhub", "dragonforce"]}
+{"text": "Chaos ransomware variant encrypts and wipes files larger than 1 MB", "expect": ["chaos"]}
+{"text": "Traffic chaos as commuters face a third day of train strikes", "expect": []}

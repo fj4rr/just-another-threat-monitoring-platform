@@ -13,7 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from app import jobs, settings, sourcehealth
+from app import corrections, jobs, quality, settings, sourcehealth
+from app.llm import retrieval
 from app.processing import enrichment, pipeline, severity
 
 DOCS = Path(__file__).resolve().parent.parent / "docs" / "how-it-works"
@@ -76,6 +77,14 @@ CHECKS = [
     # enrichment capacity (0.12)
     ("enrichment.md", r"batch × runs per day: (\d+) × (\d+) =",
      (_default("enrichment_batch"), 1440 // _default("enrichment_interval"))),
+    # corrections and quality (0.13)
+    ("corrections.md", r"notable items \(severity \*\*(\d+)\*\* or more\)", quality.NOTABLE),
+    ("corrections.md", r"cached in memory for at most (\d+) seconds", int(corrections.CACHE_TTL)),
+    ("ai.md", r"scam types and brands by the fraud rules \| (\d+) \|", int(retrieval.W_ENTITY)),
+    ("ai.md", r"or a question about scams \| (\d+) \|", int(retrieval.W_CONCEPT)),
+    ("ai.md", r"an item doesn't need every word \| (\d+), plus ([\d.]+) when it is in the title",
+     (int(retrieval.W_WORD), retrieval.W_TITLE)),
+    ("ai.md", r"The (\d+) best items, numbered", retrieval.MAX_ITEMS),
     # cross-source dedup
     ("processing.md", r"published within \*\*(\d+) days\*\*", pipeline.DUP_WINDOW.days),
     # daily schedule defaults

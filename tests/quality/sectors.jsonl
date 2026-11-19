@@ -1,0 +1,21 @@
+// Critical infrastructure sectors the item is about as a target (keys: government, energy, transportation, finance,
+// health, ict, food, defense). A sector only mentioned in passing is not a target.
+{"title": "Ransomware attack disrupts hospital network in Surabaya", "body": "Patient registration and lab systems were offline for two days.", "expect": ["health"]}
+{"title": "Rumah sakit di Bandung lumpuh akibat serangan siber", "body": "Layanan rekam medis tidak bisa diakses.", "expect": ["health"]}
+{"title": "Hackers breach ministry of finance portal and leak taxpayer data", "body": "The kementerian keuangan confirmed the incident.", "expect": ["government"], "note": "a ministry of finance is government administration"}
+{"title": "Pusat Data Nasional diserang ransomware, layanan imigrasi terganggu", "body": "Ratusan instansi pemerintah terdampak.", "expect": ["government"]}
+{"title": "Bank syariah hit by ransomware, ATMs and mobile banking down", "body": "Customers could not withdraw money for three days.", "expect": ["finance"]}
+{"title": "Power grid operator investigates intrusion at substation", "body": "The energy company said electricity supply was not affected.", "expect": ["energy"]}
+{"title": "Pertamina confirms cyber attack on fuel payment system", "body": "Pembayaran digital di SPBU sempat terganggu.", "expect": ["energy"]}
+{"title": "Airport check-in systems fail after ransomware attack on IT supplier", "body": "Flights were delayed at several European airports.", "expect": ["transportation"]}
+{"title": "Telecom provider confirms breach of customer database", "body": "The ISP said 2 million subscriber records were exposed.", "expect": ["ict"]}
+{"title": "Defence contractor targeted by North Korean hackers", "body": "The attackers sought military drone designs.", "expect": ["defense"]}
+{"title": "Food distributor halts deliveries after cyber attack", "body": "Supermarkets reported empty shelves of dairy products.", "expect": ["food"]}
+{"title": "New smartphone camera beats rivals in low light", "body": "The phone launches next month.", "expect": []}
+{"title": "How to choose a strong password", "body": "Use a password manager and enable two-factor authentication.", "expect": []}
+{"title": "Bank account scams rise in Jakarta", "body": "Police warn residents about fake bank officers.", "scam_item": true, "expect": []}
+{"title": "Government-backed hackers target journalists with spyware", "body": "Researchers attributed the campaign to a state actor.", "expect": []}
+{"title": "Kebocoran data pasien BPJS Kesehatan dijual di forum", "body": "Data 279 juta peserta diduga bocor.", "expect": ["health"]}
+{"title": "Ransomware lumpuhkan sistem tiket kereta api", "body": "Penumpang KAI harus membeli tiket di loket.", "expect": ["transportation"]}
+{"title": "Situs pemerintah daerah diretas, tampilan diganti", "body": "Halaman utama situs pemkab menampilkan pesan peretas.", "expect": ["government"]}
+{"title": "Ransomware hits school district, classes cancelled", "body": "Teachers returned to paper records.", "expect": []}

@@ -8,6 +8,7 @@
     <h1 style="margin-top:6px;overflow-wrap:anywhere">{{ item.title }}</h1>
     {% if geo.targets or geo.src_country or geo.lang %}<div style="margin-top:8px">{{ geo_chips(geo.targets, geo.src_country, geo.lang) }}</div>{% endif %}
     {{ dup_note(dup) }}
+    {% for c in item_corrections %}<div class="dup-note small"><span class="badge warn">corrected</span> {{ correction_text(c) }} <a href="/corrections?kind={{ c.kind }}">log →</a></div>{% endfor %}
   </div>
   <div class="row">
     <details class="pop"><summary class="sev-why" title="Why this severity?">{{ sev(item.severity) }}</summary>
@@ -21,6 +22,7 @@
       <div class="card pop-card"><div class="card-head"><h2>Fraud score {{ item.fraud_score }} / 100</h2><button type="button" class="btn sm" data-pop-close aria-label="Close">✕</button></div>
         <table class="small"><tbody>{% for d in item.fraud_detail or [] %}<tr><td>{{ d.label }}</td><td class="num">{{ '%+d'|format(d.points) }}</td></tr>{% endfor %}</tbody></table>
         <p class="muted small" style="margin:8px 0 0">Separate from the threat severity. Losses are the largest figure the report states, in rupiah. <a href="/fraud">Scams & fraud →</a></p>
+        {% if can_correct %}<div class="row" style="margin-top:8px"><button type="button" class="btn sm" data-post="/api/corrections" data-body='{{ {"kind": "not_scam", "item_id": item.id}|tojson }}' data-prompt="Why is this not a scam report? (optional, kept in the corrections log)" data-reload>Not a scam report</button></div>{% endif %}
       </div></details>{% endif %}
     {% if misp_configured() and user.role in ('admin','analyst') and item.source.kind != 'misp' %}
     {% set mp = (item.raw or {}).get('misp_pushed') %}
@@ -71,11 +73,12 @@
     {% for type, links in groups %}
       <h3 style="margin-top:12px">{{ type }} ({{ links|length }})</h3>
       {% for l in links %}
-        {% if type in ('malware','actor','cve','technique','scam_type','brand','sector') %}{{ chip(l.entity) }}{% if l.origin == 'llm' %}<span class="badge" title="Proposed by the AI summary, not found by the rule-based extraction">AI</span>{% endif %}
+        {% if type in ('malware','actor','cve','technique','scam_type','brand','sector') %}<span class="chip-fix">{{ chip(l.entity) }}{% if l.origin == 'llm' %}<span class="badge" title="Proposed by the AI summary, not found by the rule-based extraction">AI</span>{% endif %}{% if can_correct %}<button type="button" class="fix-x" title="Wrong here: remove {{ l.entity.display }} from this item (it will not be linked again)" aria-label="Remove {{ l.entity.display }} from this item" data-post="/api/corrections" data-body='{{ {"kind": "unlink", "item_id": item.id, "entity_id": l.entity.id}|tojson }}' data-prompt="Why is {{ l.entity.display }} wrong here? (optional, kept in the corrections log)" data-reload>✕</button>{% endif %}</span>
         {% else %}
         <div class="row" style="justify-content:space-between;margin:4px 0;flex-wrap:nowrap">
           <a class="mono" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview" style="word-break:break-all">{{ l.entity.display|truncate(70, True) }}</a>
-          {% if type in ('md5','sha1','sha256','ip','domain','url') %}{{ verdict(l.entity.verdict if l.entity.enriched_at else '') }}{% else %}<span class="badge" title="Scammer identifier from this scam report">scammer</span>{% endif %}
+          <span class="row" style="flex-wrap:nowrap;gap:4px">{% if type in ('md5','sha1','sha256','ip','domain','url') %}{{ verdict(l.entity.verdict if l.entity.enriched_at else '') }}{% else %}<span class="badge" title="Scammer identifier from this scam report">scammer</span>{% endif %}
+          {% if can_correct %}<button type="button" class="fix-x" title="Wrong here: remove it from this item (it will not be linked again)" aria-label="Remove {{ l.entity.display }} from this item" data-post="/api/corrections" data-body='{{ {"kind": "unlink", "item_id": item.id, "entity_id": l.entity.id}|tojson }}' data-prompt="Why is this indicator wrong here? (optional, kept in the corrections log)" data-reload>✕</button>{% endif %}</span>
         </div>
         {% for e in enr.get(l.entity.id, []) %}<div class="muted small" style="margin-left:8px">{{ e.provider }}: {{ e.summary|truncate(90) }}</div>{% endfor %}
         {% endif %}

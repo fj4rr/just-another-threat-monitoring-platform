@@ -21,6 +21,9 @@ jobs:
       - run: pip install -r requirements-dev.txt -c requirements.lock
       - run: ruff check .
       - run: pytest
+      # precision / recall of the detection rules on tests/quality (the gate itself is tests/test_quality.py)
+      - if: matrix.python-version == '3.12'
+        run: python manage.py quality --summary >> "$GITHUB_STEP_SUMMARY"
 
   audit:
     # known vulnerabilities in the pinned dependencies (audit 2026-11 S-9)

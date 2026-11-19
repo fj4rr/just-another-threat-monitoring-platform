@@ -21,7 +21,7 @@ from datetime import datetime
 
 from .. import settings
 from ..processing.pipeline import RawItem
-from .base import BackfillCapability, Collector, SkipCollector, parse_dt
+from .base import FILTER_FIELD, BackfillCapability, Collector, SkipCollector, parse_dt
 
 CHANNEL_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{3,31}$")
 WEB_BASE = "https://t.me/s/"
@@ -145,7 +145,8 @@ class TelegramCollector(Collector):
     category = "social"
     label = "Telegram public channel"
     fields = [("channel", "Channel (username or t.me link)", "vxunderground"),
-              ("via", "Via (optional): web | mtproto; empty = MTProto when configured, else the web preview", "")]
+              ("via", "Via (optional): web | mtproto; empty = MTProto when configured, else the web preview", ""),
+              FILTER_FIELD]
 
     def _via(self) -> str:
         via = str(self.cfg.get("via") or "").strip().lower()

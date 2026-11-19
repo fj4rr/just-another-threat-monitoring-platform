@@ -124,14 +124,27 @@ a day).
 
 *Ask* (on the AI insights page) answers a question using the collected data:
 
-1. Words of 3 or more letters in the question (common words left out, up to 8) are matched against the titles and
-   text of items from the last **30 days**.
-2. The 25 most recent matches, each with its summary or first 500 characters, and the top 10 trending families
-   are added to the prompt.
-3. The model is told to answer **only** from that material, and to say what is missing.
+1. **Which items.** `llm/retrieval.py` scores the items of the period the question names ("today", "minggu ini",
+   "this month"; otherwise the last **30 days**), copies of a syndicated story left out:
 
-This is a keyword search, not a search by meaning: a question that uses different words from the articles may
-find nothing. Answers are saved under *AI insights* and deleted after 90 days.
+    | Signal | How it is found | Weight |
+    |---|---|---|
+    | Entities the question names | Families, actors, CVEs and indicators by the extractor (aliases included: "Fancy Bear" is APT28), scam types and brands by the fraud rules | 4 |
+    | Concepts | A malware type ("ransomware", "stealer", "pencuri data"), a critical infrastructure sector ("hospital", "rumah sakit", "bank"), or a question about scams | 2 |
+    | Words | Each word of 3 or more letters (common English and Indonesian words left out, up to 8) through the full-text index; an item doesn't need every word | 1, plus 0.5 when it is in the title |
+
+    "Ransomware attacks on hospitals" therefore finds "LockBit hits a healthcare provider" although they share no
+    word. When nothing matches, the most severe recent items are used so the model can say what there is.
+2. The 25 best items, numbered [1]…[25], each with its summary or first 500 characters, and the top 10 trending
+   families are added to the prompt.
+3. The model is told to answer **only** from that material, to **cite** the items it uses as [n], and to say what
+   is missing.
+4. Each citation becomes a link to the item, and under the answer *Based on N item(s)* lists the items with what
+   the question matched (entities, concepts, period); items the model did not cite are greyed.
+
+It is still not a search by meaning (embeddings would be the next step), but synonyms that JATMP already knows
+(aliases, sectors, malware types) now carry the question. Answers are saved under *AI insights* and deleted after
+90 days.
 
 ## What leaves your network
 

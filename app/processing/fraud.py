@@ -714,6 +714,11 @@ def analyse(title: str, body: str, *, topic: str = "", db=None, at: datetime | N
 
 def apply(db, item, topic: str = "", cache: dict | None = None) -> list[Extracted]:
     """Analyse ``item`` and store its fraud fields. Returns the fraud entities to link."""
+    from ..corrections import is_not_scam
+
+    if db is not None and is_not_scam(db, item.id):  # an analyst said it is not a scam report (0.13)
+        item.fraud_score, item.fraud_detail, item.fraud_loss_idr, item.fraud_victims = 0, [], 0.0, 0
+        return []
     body = f"{item.content or ''}\n{' '.join(item.tags or [])}"
     r = analyse(item.title, body, topic=topic, db=db, at=item.published_at, cache=cache)
     item.fraud_score, item.fraud_detail = r.score, r.reasons

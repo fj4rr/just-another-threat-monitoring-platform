@@ -200,9 +200,13 @@ def item_detail(item_id: int, request: Request, user: User = Depends(current_use
     if ent_ids:
         for e in db.execute(select(Enrichment).where(Enrichment.entity_id.in_(ent_ids))).scalars():
             enr.setdefault(e.entity_id, []).append(e)
+    from ..models import Correction
+
     return render(request, "item.html", {"user": user, "item": item, "ents": ents, "related": related,
                                          "enr": enr, "llm_on": llm.is_configured(), "geo": item_geo(db, item),
-                                         "dup": copy_info(db, item)})
+                                         "dup": copy_info(db, item), "can_correct": user.role in ("admin", "analyst"),
+                                         "item_corrections": db.execute(select(Correction).where(
+                                             Correction.item_id == item.id, Correction.active)).scalars().all()})
 
 
 def item_geo(db: Session, item: Item) -> dict:
@@ -532,6 +536,31 @@ def watchlist(request: Request, user: User = Depends(current_user), db: Session 
             if len(latest[eid]) < 3:
                 latest[eid].append(item)
     return render(request, "watchlist.html", {"user": user, "rows": rows, "latest": latest})
+
+
+# --------------------------------------------------------------------------- analyst corrections (0.13)
+@router.get("/corrections")
+def corrections_page(request: Request, kind: str = "", show: str = "active", user: User = Depends(current_user),
+                     db: Session = Depends(get_db)):
+    from .. import corrections
+    from ..models import Correction
+
+    kind = kind if kind in corrections.KINDS else ""
+    show = show if show in ("active", "undone", "all") else "active"
+    q = select(Correction)
+    if kind:
+        q = q.where(Correction.kind == kind)
+    if show != "all":
+        q = q.where(Correction.active.is_(show == "active"))
+    rows = db.execute(q.order_by(Correction.created_at.desc()).limit(300)).scalars().all()
+    ents = {e.id: e for e in db.execute(select(Entity).where(
+        Entity.id.in_([c.entity_id for c in rows if c.entity_id] or [0]))).scalars()}
+    items = {i.id: i for i in db.execute(select(Item).where(
+        Item.id.in_([c.item_id for c in rows if c.item_id] or [0]))).unique().scalars()}
+    return render(request, "corrections.html", {
+        "user": user, "rows": rows, "ents": ents, "items": items, "stats": corrections.stats(db),
+        "f": {"kind": kind, "show": show}, "kinds": corrections.KINDS,
+    })
 
 
 # --------------------------------------------------------------------------- side preview (fragments)

@@ -305,6 +305,8 @@ Charts use the vendored Chart.js; the radar and sparklines are in `motion.js`, t
 | `knowledge.py` | Malware families and actors with aliases, everyday-word rules, `knowledge_extra.json` |
 | `notify.py` | Notification center (de-duplicated by key, per-user read watermark) |
 | `sourcehealth.py` | Source health: last new item, this week against usual, usual gap, failing since, summary-only feeds; quiet / failing notifications |
+| `corrections.py` | Analyst corrections (wrong entity here / everywhere, analyst verdict, not a scam report): apply, keep in force, undo, statistics |
+| `quality.py` | Precision / recall of the detection rules on `tests/quality/`, corrections as test cases, the CI baseline |
 | `jobs.py` | Scheduler, every job, runs, batches, progress, `status()` |
 | `dbcopy.py` | `copy-db` between database engines |
 
@@ -313,9 +315,9 @@ Charts use the vendored Chart.js; the radar and sparklines are in `motion.js`, t
 | Package | Contents |
 |---|---|
 | `collectors/` | `base.Collector` and one module per source kind; `REGISTRY` and `DEFAULT_SOURCES` in `__init__.py` |
-| `processing/` | `pipeline` (ingest), `extractor`, `severity`, `fraud`, `fraudstats`, `sectors`, `geo`, `enrichment`, `trends`, `graph` |
+| `processing/` | `pipeline` (ingest), `extractor`, `severity`, `fraud`, `fraudstats`, `sectors`, `geo`, `enrichment`, `trends`, `graph`, `topics` (the topic filters of every news and social source) |
 | `intel/` | Provider clients (`clients.py`), `quota` (daily budgets used and their pace), `context` lookups, `darkweb` deep dives, `cve` intel, `misp` push and pull |
-| `llm/` | `client` (Ollama, OpenAI-compatible, Anthropic), `presets` (vendors), `insights` (summaries, briefs, executive summary, Q&A), `redact` (personal data out of cloud prompts) |
+| `llm/` | `client` (Ollama, OpenAI-compatible, Anthropic), `presets` (vendors), `insights` (summaries, briefs, executive summary, Q&A), `retrieval` (which items answer a question), `redact` (personal data out of cloud prompts) |
 | `routers/` | `pages`, `fraud_pages`, `api` (JSON for the UI and actions), `api_v1` (REST API), `taxii`, `settings_routes`, `reports_routes`, `backfill_routes`, `admin`, `auth_routes` (setup, login, profile), `apikeys_routes`, `webhooks_routes` |
 | `templates/` | Pages and partials (`_macros.html`, `_preview_*.html`, `_fraud_row.html`…) |
 | `static/` | `css/app.css`, `js/` (`app.js`, `motion.js`, `graph.js`, `geomap.js`, `globe.js`, `vendor/chart.umd.min.js`), `geo/`, `img/` |

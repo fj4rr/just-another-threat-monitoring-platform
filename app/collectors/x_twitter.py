@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .. import settings
 from ..processing.pipeline import RawItem
-from .base import BackfillCapability, Collector, SkipCollector, parse_dt
+from .base import FILTER_FIELD, BackfillCapability, Collector, SkipCollector, parse_dt
 from .rss import RSSCollector
 
 API = "https://api.x.com/2"
@@ -18,6 +18,7 @@ class XCollector(Collector):
     fields = [
         ("username", "Username", "vxunderground"),
         ("rss_bridge", "RSS bridge URL (optional, used when no API token)", "http://rsshub:1200/twitter/user/vxunderground"),
+        FILTER_FIELD,
     ]
 
     def backfill_capability(self) -> BackfillCapability:

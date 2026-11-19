@@ -193,10 +193,14 @@ Which page to update:
    an admin has to do or should expect: new columns, one-off jobs, new dependencies, changed defaults).
 4. Update **How it works** (`docs/how-it-works/`) for every changed rule, weight, threshold, interval or job, and
    the checks in `tests/test_docs_numbers.py` when a quoted number moved or a new one was added.
-5. Run `ruff check .`, `pytest`, `pip-audit -r requirements.lock` and `mkdocs build --strict`.
-6. Try the upgrade path: copy a `data/` folder from the previous version, start the new version on the copy
+5. Rules changed? Run `python manage.py quality`. If an area got better, record it with
+   `python manage.py quality --update-baseline` and put the new precision / recall in the changelog; if one got
+   worse, `tests/test_quality.py` fails until the rule or the case is fixed. See
+   [Corrections and quality](how-it-works/corrections.md#measuring-the-rules).
+6. Run `ruff check .`, `pytest`, `pip-audit -r requirements.lock` and `mkdocs build --strict`.
+7. Try the upgrade path: copy a `data/` folder from the previous version, start the new version on the copy
    (`JATMP_DATA_DIR`), and check the start-up log and the one-off jobs.
-7. Commit, push, and check that CI is green.
+8. Commit, push, and check that CI is green (the job summary shows the quality report).
 
 ## Troubleshooting
 

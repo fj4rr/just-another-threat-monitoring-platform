@@ -94,6 +94,19 @@ export feeds until a provider confirms it again (see
   indicators are waiting to be looked up, whether the job is keeping up, and how much of each provider's daily
   budget has been used. See [The queue](how-it-works/enrichment.md#the-queue).
 
+## Correcting JATMP
+
+Analysts and admins can fix the platform's mistakes, and the fix stays in force:
+
+- **✕ next to an entity** on an item page removes it from that item ("Pegasus" in an article about a musical).
+- **✎ Correct** on an entity page marks a family or actor as a wrong entity everywhere, an indicator as not a
+  threat, or sets an analyst verdict (*malicious*, *suspicious*, *clean*) that wins over the providers.
+- **Not a scam report** in the fraud-score popover of an item.
+
+Each asks for a reason. The *Corrections* page lists them all with who, when and why, can undo any of them, and
+shows which names are corrected most often (rules worth tuning). Details in
+[Corrections and quality](how-it-works/corrections.md).
+
 ## Job status and notifications
 
 Under *Collect now* and *Enrich now*, the dashboard shows when each job last ran and when it runs next. While a

@@ -283,28 +283,38 @@ when it matters. Skip routine noise."""
     return ins
 
 
+_CITE = re.compile(r"\[(\d{1,2})\](?!\()")
+
+
 def ask(db: Session, question: str, user_id: int | None = None) -> Insight:
-    words = [w for w in re.findall(r"[\w\-\.]{3,}", question.lower()) if w not in
-             {"what", "which", "the", "and", "about", "how", "are", "is", "this", "week", "today", "latest", "there"}]
-    since = utcnow() - timedelta(days=30)
-    q = select(Item).where(Item.published_at >= since)
-    if words:
-        q = q.where(or_(*[Item.title.ilike(f"%{w}%") for w in words[:8]],
-                        *[Item.content.ilike(f"%{w}%") for w in words[:8]]))
-    items = db.execute(q.order_by(Item.published_at.desc()).limit(25)).scalars().all()
-    ctx = "\n".join(f"- [{i.published_at:%Y-%m-%d}] ({i.source.name}) {i.title} :: {_clip(i.llm_summary or i.content, 500)}"
-                    for i in items)
+    """Answer a question from the collected data. The items come from retrieval.find_items (entities, concepts and
+    full-text words, not word-by-word LIKE); the model cites them as [n] and the answer lists them (0.13)."""
+    from .retrieval import find_items
+
+    found = find_items(db, question)
+    items = found.items
+    ctx = "\n".join(f"[{n}] {i.published_at:%Y-%m-%d} ({i.source.name}) {i.title} :: "
+                    f"{_clip(i.llm_summary or i.content, 500)}" for n, i in enumerate(items, 1))
     trend = trends.trending(db, "malware", limit=10)
     prompt = f"""Question from an analyst: {question}
 
-Answer in {_lang()} using ONLY the context below (our collected data from the last 30 days).
-If the context is insufficient, say what is missing.
+Answer in {_lang()} using ONLY the context below (our collected data from the last {found.days} days).
+Cite the items you use by their number in square brackets, like [2]. If the context is insufficient, say what is
+missing.
 
 TRENDING MALWARE: {json.dumps(trend, default=str)}
 RELEVANT ITEMS:
 {ctx or 'no matching items'}"""
     out = client.complete(SYSTEM, prompt, max_tokens=2500)
+    # [n] -> a link to the item, so the analyst can check every claim
+    ids = {n: i.id for n, i in enumerate(items, 1)}
+    out = _CITE.sub(lambda m: f"[[{m.group(1)}]](/items/{ids[int(m.group(1))]})" if int(m.group(1)) in ids
+                    else m.group(0), out)
+    cited = {int(n) for n in _CITE.findall(out.replace("](/items/", "]("))} & set(ids)
+    sources = [{"n": n, "id": i.id, "title": (i.title or "(untitled)")[:200], "source": i.source.name,
+                "date": f"{i.published_at:%Y-%m-%d}", "cited": n in cited} for n, i in enumerate(items, 1)]
     ins = Insight(kind="answer", title=question[:500], content=out,
-                  model=f"{client.provider()}:{client.model_name()}", user_id=user_id)
+                  model=f"{client.provider()}:{client.model_name()}", user_id=user_id,
+                  data={"sources": sources, "matched": found.matched()})
     db.add(ins)
     return ins

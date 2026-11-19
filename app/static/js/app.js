@@ -1,6 +1,7 @@
 /* JATMP front-end helpers: CSRF-aware fetch, action buttons, theme, navigation, charts.
    No inline event handlers anywhere (strict CSP); behaviour is attached via data-attributes:
      [data-post]          POST to a JSON endpoint, show toast / inject HTML / reload
+                          ([data-body] = JSON to send, [data-prompt] = ask for a reason first, sent as "reason")
      [data-ask]           Q&A form
      [data-confirm]       confirm() before a form or button submits
      [data-autosubmit]    submit the parent form on change
@@ -151,12 +152,19 @@
     const btn = e.target.closest("[data-post]");
     if (!btn || btn.disabled) return;
     e.preventDefault();
+    let body = {};
+    try { body = btn.dataset.body ? JSON.parse(btn.dataset.body) : {}; } catch { body = {}; }
+    if (btn.dataset.prompt !== undefined) {
+      const reason = prompt(btn.dataset.prompt, "");
+      if (reason === null) return;  // cancelled
+      body.reason = reason;
+    }
     const label = btn.innerHTML;
     btn.disabled = true;
     btn.setAttribute("aria-busy", "true");
     btn.textContent = btn.dataset.busy || "Working…";
     try {
-      const data = await api(btn.dataset.post);
+      const data = await api(btn.dataset.post, body);
       if (btn.dataset.target && data.html) {
         const target = document.querySelector(btn.dataset.target);
         if (target) { target.innerHTML = data.html; target.classList.add("flash"); setTimeout(() => target.classList.remove("flash"), 1200); }
