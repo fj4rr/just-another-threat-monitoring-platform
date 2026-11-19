@@ -14,6 +14,10 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
   to an icon rail with the arrow next to the logo.
 - New **New threats** button on the Intelligence lists (Malware, Threat actors, CVEs, IOCs, Scam types and Impersonated
   brands): it keeps only what was first seen inside the chosen period and leaves your other filters alone.
+- Higher minimum versions of optional and core dependencies: `anthropic` 2.8.0, `feedparser` 6.0.14,
+  `python-docx` 1.2.0, `psycopg` 3.3.9 (PostgreSQL) and `telethon` 1.45.0 (Telegram MTProto). Run
+  `pip install -r requirements.txt` again (and the PostgreSQL or Telegram file if you use them) when upgrading
+  from source; the Docker image installs from the lock file as before.
 
 **Fixes**
 
@@ -27,9 +31,9 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 **Documentation**
 
-- *Using JATMP* describes the grouped, collapsible menu, the *New threats* button and how Feed filters stay until
-  cleared (only the Feed keeps them; the other lists still have *Reset*). *Trends and correlation* explains what
-  *New threats* filters. *Collection* and *Configuration* give the new urlscan.io default query and why the old
+- *Using JATMP* describes the grouped, collapsible menu, the *New threats* button of the Intelligence lists (and
+  its 30-day / 7-day fallback under *All time*) and how Feed filters stay until cleared (only the Feed keeps them;
+  the other lists still have *Reset*). *Trends and correlation* points from the *new* badge to that button. *Collection* and *Configuration* give the new urlscan.io default query and why the old
   one failed on free accounts. *Scams and fraud* points at the new menu.
 - The pages that 0.13.0 and 0.13.1 left out now describe them too. *How it works*: the overview's numbers table and
   key terms (corrections, error rate, precision and recall), enrichment (an analyst's verdict wins and keeps its

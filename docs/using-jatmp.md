@@ -47,10 +47,6 @@ far back it can go ([History and storage](history-and-storage.md#backfill)).
 
 From top to bottom:
 
-- **New threats.** The *✦ New threats* button next to the period switch narrows the radar and the three trending
-  lists to malware families, CVEs and threat actors **first seen** within the chosen period, so you can see what
-  has just appeared rather than what is always in the news. Click it again (*showing only new ✕*) to see
-  everything. The tiles and charts don't change.
 - **Threat radar and globe.** The radar shows trending malware families (bug icon), CVEs (broken shield) and
   threat actors (hooded figure). The closer an entry is to the centre, the higher its trend score; the larger
   it is, the more it was mentioned. A dashed ring marks entries first seen in the period, and the buttons in the
@@ -81,6 +77,12 @@ describes what each outlet published. The details are in
 The Feed, IOC, Malware, Threat actor and CVE lists all share one table design: sortable headers that stay visible
 while you scroll, a bold main column with a second line and a row of related entities, the same period filter
 (24 hours to 1 year, or all time), a button to clear the filters, and pagination.
+
+**New threats.** The Malware, Threat actors, CVEs and IOCs lists, and the Scam types and Impersonated brands lists,
+have a *✦ New threats* button next to the filters. It keeps only the entries **first seen** within the chosen
+period, so you can see what has just appeared rather than what is always in the news. When the period is *All
+time*, it uses the last 30 days (7 days on the IOC list). Your other filters stay as they are, and clicking the
+button again (*New threats ✕*) or *Reset* shows everything.
 
 **Feed filters stay until you clear them.** On the Feed, the filters you pick are kept for your session. Choosing
 a language after a minimum severity keeps the severity, and coming back to the Feed later shows the same view.

@@ -82,10 +82,10 @@ A few more rules:
 - An entity with no story in the period isn't listed at all.
 - A malware name that was **only ever found by the "*Name* ransomware" pattern** only appears once **two
   sources** name it in the period, so a single misread headline can't make something trend.
-- An entity first seen during the period gets the **new** badge. The *✦ New threats* button on the dashboard
-  keeps only those entries, so you see what has just appeared rather than what is always discussed. The three
-  trending lists look through the top 60 by trend score and keep the new ones; the radar hides the entries among
-  its own that aren't new.
+- An entity first seen during the period gets the **new** badge. To list only such entities, use the
+  *✦ New threats* button on the Intelligence lists (Malware, Threat actors, CVEs, IOCs, Scam types, Impersonated
+  brands), which keeps the entries whose first-seen date falls in the chosen period; see
+  [Using JATMP](../using-jatmp.md#tables-and-preview).
 - Actors are grouped by type (nation-state, ransomware, extortion, cybercrime or unclassified), using the
   knowledge base or a `category` you set in `data/knowledge_extra.json`.
 
