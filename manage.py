@@ -6,6 +6,8 @@
     python manage.py cve-intel                 refresh CISA KEV / EPSS / CVSS for recent CVEs
     python manage.py digest                    generate the AI digest now
     python manage.py reextract                 re-run entity extraction on every item
+    python manage.py ioc-clean [--apply]       drop IP / SHA-1 indicators the extractor now rejects (version numbers, git
+                                               commits) without re-extracting; a dry run unless --apply is given
     python manage.py rescore                   recompute severity scores (keeps entities)
     python manage.py slim                      apply the retention tier now (trim old items' text)
     python manage.py vacuum                    give freed space back to the disk (SQLite VACUUM / PG VACUUM)
@@ -110,11 +112,24 @@ def main(argv: list[str]) -> int:
         for ent in db.execute(select(Entity)).scalars():
             ent.mention_count = counts.get(ent.id, 0)
         linked = select(EntityLink.src_id).union(select(EntityLink.dst_id))
+        db.flush()  # the recount above must reach the database before the bulk DELETE reads mention_count
         res = db.execute(delete(Entity).where(Entity.mention_count == 0, Entity.id.not_in(linked),
-                                              Entity.type.in_(["malware", "actor", "md5", "sha1", "sha256", "ip",
-                                                               "domain", "url"])))
+                                              Entity.type.in_(["malware", "actor"])))
         db.commit()
         print(f"re-extracted {n} items, removed {res.rowcount} orphaned entities")
+    elif cmd == "ioc-clean":
+        from app.processing.ioccheck import clean_false_iocs
+
+        db = SessionLocal()
+        try:
+            r = clean_false_iocs(db, apply="--apply" in args)
+        finally:
+            db.close()
+        verb = "removed" if "--apply" in args else "would remove"
+        print(f"{verb} {r['links']} false IP / SHA-1 link(s) on {r['entities_touched']} indicator(s); "
+              f"{r['entities_deleted']} indicator(s) deleted; {r['kept_unjudged']} kept (text no longer stored)")
+        if "--apply" not in args:
+            print("dry run: add --apply to change the database")
     elif cmd == "rescore":
         print(jobs.run_rescore())
     elif cmd == "slim":

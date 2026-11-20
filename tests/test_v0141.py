@@ -93,6 +93,62 @@ def test_git_commit_in_a_page_title_is_not_a_sample_hash():
     assert [e.value for e in extract_iocs(f"Sample SHA1: {sha}") if e.type == "sha1"] == [sha]
 
 
+def test_ioc_clean_removes_only_judgeable_regex_links(installed):
+    from app.models import Entity, ItemEntity
+    from app.processing.ioccheck import clean_false_iocs
+
+    with session_scope() as db:
+        s = _src(db, "zz-clean")
+        bad = Item(source_id=s.id, external_id="zzclean-1", published_at=utcnow(), title="CVE advisory",
+                   content="IBM API Connect 12.1.0.0 through 12.1.1.2 is affected. C2 at 91.92.243.77 seen.")
+        trimmed = Item(source_id=s.id, external_id="zzclean-2", published_at=utcnow(), title="Old post", content="trimmed")
+        db.add_all([bad, trimmed])
+        db.flush()
+        link_entities(db, bad, [Extracted("ip", "12.1.0.0", "12.1.0.0", "", "regex"),
+                                Extracted("ip", "91.92.243.77", "91.92.243.77", "", "regex"),
+                                Extracted("ip", "12.1.1.2", "12.1.1.2", "", "feed")])
+        link_entities(db, trimmed, [Extracted("ip", "33.44.55.66", "33.44.55.66", "", "regex")])
+        db.flush()
+        ids = [bad.id, trimmed.id]
+        dry = clean_false_iocs(db, apply=False, item_ids=ids)
+        assert dry["links"] == 1 and dry["kept_unjudged"] == 1  # 12.1.0.0 only; 33.44.55.66 has no text to judge
+        out = clean_false_iocs(db, apply=True, item_ids=ids)
+        assert out["links"] == 1 and out["entities_deleted"] == 1
+        vals = {e.value for e in db.execute(select(Entity).join(ItemEntity, ItemEntity.entity_id == Entity.id)
+                                            .where(ItemEntity.item_id.in_(ids))).scalars()}
+        assert vals == {"91.92.243.77", "12.1.1.2", "33.44.55.66"}  # real IP, feed link and unjudgeable link stay
+
+
+def test_reextract_keeps_entities_that_only_a_feed_links(tmp_path):
+    """Regression: reextract recounted mentions in the session but deleted before flushing, so an indicator listed
+    only by a feed looked unreferenced and went, taking its verdict and its link with it."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    env = {**__import__("os").environ, "JATMP_DATA_DIR": str(tmp_path)}
+    setup = (
+        "from app.setup_service import perform_install; perform_install(mode='single', seed_sources=False)\n"
+        "from app.db import session_scope\n"
+        "from app.models import Entity, Item, ItemEntity, Source, utcnow\n"
+        "with session_scope() as db:\n"
+        "    s = Source(name='zz-feed', kind='rss', category='intel', config={}); db.add(s); db.flush()\n"
+        "    i = Item(source_id=s.id, external_id='r1', title='list', content='nothing here', published_at=utcnow())\n"
+        "    db.add(i); db.flush()\n"
+        "    e = Entity(type='domain', value='evil-feed.example', display='evil-feed.example', mention_count=1,\n"
+        "               verdict='malicious'); db.add(e); db.flush()\n"
+        "    db.add(ItemEntity(item_id=i.id, entity_id=e.id, origin='feed'))\n")
+    check = ("from app.db import session_scope\nfrom app.models import Entity\nfrom sqlalchemy import select\n"
+             "with session_scope() as db:\n"
+             "    print([(e.value, e.mention_count, e.verdict) for e in db.execute(select(Entity)).scalars()])\n")
+    for code in (setup,):
+        subprocess.run([sys.executable, "-c", code], cwd=root, env=env, check=True, capture_output=True)
+    subprocess.run([sys.executable, "manage.py", "reextract"], cwd=root, env=env, check=True, capture_output=True)
+    res = subprocess.run([sys.executable, "-c", check], cwd=root, env=env, check=True, capture_output=True, text=True)
+    assert "('evil-feed.example', 1, 'malicious')" in res.stdout
+
+
 def test_digests_do_not_correlate_through_recurring_hashes(installed):
     with session_scope() as db:
         talos, other = _src(db, "zz-dig-talos"), _src(db, "zz-dig-other")

@@ -12,6 +12,7 @@ python manage.py enrich           # run one enrichment batch
 python manage.py cve-intel        # refresh CISA KEV, EPSS and CVSS for recently mentioned CVEs
 python manage.py digest           # write the AI executive summary now
 python manage.py reextract        # extract the entities of every item again
+python manage.py ioc-clean        # dry run: IP / SHA-1 indicators the extractor now rejects; add --apply to remove them
 python manage.py rescore          # recalculate severity with the current rules (also a button in Settings → General)
 python manage.py seed-sources     # add new built-in sources to an existing install (also a button in Settings)
 python manage.py slim             # apply the retention tier now (trim the text of old items)
