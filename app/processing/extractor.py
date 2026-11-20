@@ -201,7 +201,7 @@ def extract_iocs(text: str, *, strict: bool = True) -> list[Extracted]:
         ip = m.group(0)
         if _public_ip(ip):
             before = t[max(0, m.start() - 70): m.start()].lower()
-            if _VER_PRE.search(before) or _VER_CHAIN.search(before) and _chained(before, versions) \
+            if _VER_PRE.search(before) or (_VER_CHAIN.search(before) and _chained(before, versions)) \
                     or _VER_POST.match(t[m.end(): m.end() + 40].lower()):
                 versions.add(ip)
                 continue
