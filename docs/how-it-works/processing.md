@@ -20,7 +20,7 @@ For every entry in a batch, `pipeline.ingest()` runs these steps in order:
 |---|---|---|---|
 | 1 | [Skip entries already stored](#1-new-or-already-stored) | — | `ingest` |
 | 2 | [Clean the text and apply limits](#2-cleaning-and-limits) | Title, text, link, tags, provider data, TLP, publication date | `strip_html`, `safe_url`, `_slim_raw` |
-| 3 | [Spot copies from other outlets](#3-cross-source-duplicates) | Fingerprint, and which item it copies | `fingerprint`, `find_original` |
+| 3 | [Spot copies from other outlets](#3-cross-source-duplicates), and newsletters | Fingerprint, which item it copies, whether it is a newsletter or round-up | `fingerprint`, `find_original`, `digest.is_digest` |
 | 4 | [Extract entities](#4-entity-extraction) | (the entities, linked in step 8) | `extractor.extract_all`, `tag_families` |
 | 5 | [Score severity](#5-severity) | Severity and its reasons | `severity.score_item` |
 | 6 | [Analyse for scams and fraud](#6-scam-and-fraud-analysis) | Fraud score, reasons, losses, victims | `fraud.apply` |
@@ -108,6 +108,13 @@ reports) counts a story and its copies **once**. Only per-outlet figures, such a
 copy for the outlet that published it. See [Counting rules](trends.md#counting-rules). Posts, pulses and scans
 are not fingerprinted.
 
+**Newsletters and round-ups.** In the same step, every item (not only articles) is checked for being a digest: a
+newsletter, weekly round-up or podcast that wraps several unrelated stories in one post, such as Cisco Talos'
+*Threat Source*. The answer is stored as `items.is_digest`. A digest is still a normal item everywhere (feed,
+counts, severity), but what it mentions side by side is not evidence that those things belong together, so
+co-mentions skip it and correlation discounts it. How it is recognised is described under
+[Correlation](trends.md#correlation).
+
 ## 4. Entity extraction
 
 JATMP scans the title, the text and the tags together. Extraction has four parts.
@@ -122,7 +129,7 @@ thing. `hxxp(s)` becomes `http(s)`, `fxp` becomes `ftp`, `[.]` `(.)` `{.}` `[dot
 |---|---|---|
 | `cve` | `CVE-YYYY-NNNN…` | — |
 | `technique` | `T1xxx` or `T1xxx.yyy` | — |
-| `sha256`, `sha1`, `md5` | 64, 40 or 32 hex characters | It is part of a longer hash that was already found; it has fewer than 6 different characters (`000000…`); it sits inside a URL (right after `/ = # - _` or right before `/ - _`); or an MD5 / SHA-1 sits in a token containing `utm_`, `token=`, `session`, `/commit/`, `/blob/` and the like |
+| `sha256`, `sha1`, `md5` | 64, 40 or 32 hex characters | It is part of a longer hash that was already found; it has fewer than 6 different characters (`000000…`); it sits inside a URL (right after `/ = # - _` or right before `/ - _`); or an MD5 / SHA-1 sits in a token containing `utm_`, `token=`, `session`, `/commit/`, `/blob/` and the like; or a SHA-1 follows *at*, *commit*, *rev*, *revision* or *sha* (a git commit, as in "file.py at 4fbffbc6…") |
 | `ip` | IPv4 address | It isn't public (private, loopback, reserved, multicast, link-local); it is a well-known public DNS resolver (`8.8.8.8`, `1.1.1.1`, `9.9.9.9`…); it follows the word *version, build, release, firmware, v, Chrome, Windows, kernel* and the like (so it is really a version number; "server 91.92.243.10" is not); it is part of an advisory's version list (*versions prior to 6.14.105.0*, *up to 1.5.1.6*, *12.1.0.0 through 12.1.1.2*, *builds include 17.0.21.1, 21.0.13.1*), and then it is dropped everywhere in that text; it is followed by `.digit` (as in `1.2.3.4.5`); or it comes right after a `.` |
 | `url` | `http(s)://…` | Its host is a benign domain; it is just the front page of a paste or file-sharing service; or, in strict mode, it wasn't written defanged |
 | `domain` | Host names with a 2–24 letter top-level domain | It, or a domain above it, is benign; its "top-level domain" is really a file extension (`.exe`, `.zip`, `.php`, `.json`…); it is an IP; or, in strict mode, it was neither defanged nor the host of a URL that was kept |

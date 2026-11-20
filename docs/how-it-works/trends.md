@@ -127,8 +127,8 @@ The data comes from the [CVE intel refresh](enrichment.md#cve-intel).
 
 ## Correlation
 
-The *Related items* list on an item's page ranks other items by **how strong the evidence they share is**, not
-just by how many entities they have in common.
+The *Correlated items* card on an item's page (and in its preview) ranks other items by **how strong the evidence
+they share is**, not just by how many entities they have in common.
 
 Each shared entity contributes:
 
@@ -154,22 +154,37 @@ different source of the same type. Matches through an indicator are flagged as *
 
 **Newsletters and round-ups.** A digest (Cisco Talos' *Threat Source*, weekly round-ups, podcasts) covers several
 unrelated stories and repeats a "most prevalent files" list every issue, so what it shares with another item is
-weak evidence. An item counts as a digest when its title or tags match the round-up pattern (*newsletter*, *threat
-source*, *week in review*, *roundup*, *bulletin*, *in other news*, *weekly threat report*, *mingguan*…), when its
-body carries newsletter boilerplate (*Welcome to this week's edition…*, *Upcoming events where you can find*;
-Talos issue titles say nothing, so the title alone is not enough), or when its source has `"digest": true` in its config (`false` opts a
-source out). Links through a digest are scored ×0.4, ×0.1 when both items are digests, never made between two
-issues of the same source, and dropped when the score ends below 1. They carry a *digest* badge and are never
-flagged *strong*. The flag is stored on the item (`items.is_digest`), set when it is collected and re-set after an
-upgrade or `manage.py digesttag`.
+weak evidence. JATMP treats an item as a digest when:
 
-**Co-mentions.** *Mentioned together with*, the indicators listed on a family's page and the chips on the lists count
-the entities that appear in the same items, and they leave out digests entirely: a hash from a newsletter's weekly
+- its source's config has `"digest": true` (`false` opts a source out, and then nothing else is checked). The
+  source form in Settings has no field for it yet; it is kept in the source's stored `config`, and saving the form
+  leaves it in place;
+- its title or tags use round-up wording (*newsletter*, *threat source*, *week in review*, *roundup*, *bulletin*,
+  *in other news*, *weekly threat report*, *daily briefing*, *mingguan*, *kilas siber*…). Words that the scam and
+  sector analysis treat as round-ups but that name a single story here (*interview*, as in the *Contagious
+  Interview* campaign, *lessons from*, *webinar*) don't count;
+- or its body carries newsletter boilerplate (*Welcome to this week's edition…*, *Upcoming events where you can
+  find*, *most prevalent malware files*). Talos issue titles such as "Never be afraid to ask questions" say
+  nothing, so the title alone is not enough.
+
+When one of the two items is a digest, the score is multiplied by **0.4**, and by **0.1** when both are. Two
+issues of the same source are never linked (what they share is the recurring boilerplate), and a digest link whose
+discounted score falls below **1** is dropped before the source bonus above is applied. The links that remain
+carry a *digest* badge and are never flagged *strong*.
+
+The flag is stored on the item (`items.is_digest`) when it is collected. After an upgrade that changes the
+detection rules, `run_digesttag` sets it again on every stored item, and `manage.py digesttag` does the same by
+hand (for example after changing a source's `"digest"` setting). An item whose text retention has already trimmed
+keeps a digest flag it had, since the body phrases that proved it are gone.
+
+**Co-mentions.** *Mentioned together with* on an entity's page and in its preview, the indicators listed on a
+family's page, the related chips on the lists and the `related` list of `GET /api/v1/entities/{id}` count the
+entities that appear in the same items, and they leave out digests entirely: a hash from a newsletter's weekly
 *most prevalent files* list sits next to the family of another story, and that is no evidence the two belong
 together. Even outside digests, being in the same article is not attribution (on this deployment's data, an
-indicator and a family from the same article agreed with the provider's family only about a third of the time), so on
-an indicator's page the card is called *Seen in the same items as*, and *Linked by enrichment* (what a provider
-attributes) comes first.
+indicator and a family from the same article agreed with the provider's family only about a third of the time).
+So on an indicator's page the card is called *Seen in the same items as* and says so, and *Linked by enrichment*
+(what a provider attributes) is shown above it.
 
 To keep this fast, entities mentioned in more than 400 items aren't used to *find* candidates (although they
 still add weight to candidates found through rarer entities), and at most the 4,000 most recent links are read.
@@ -200,7 +215,9 @@ the same claim.
 | Dotted (*Mentioned together*) | Two entities named in the same items: not attribution | needs validation |
 
 *Needs validation* marks relations that come from co-occurrence only. An analyst can remove a wrong link with
-**Correct** ([Analyst corrections](corrections.md)). Newsletters and round-ups are left out of both kinds.
+**Correct** ([Analyst corrections](corrections.md)). Newsletters and round-ups are left out of *Mentioned
+together*; an *Also mentions* line can still lead to one, because those lines come from the correlation above,
+where a digest counts for less.
 
 ## Other figures
 

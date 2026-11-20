@@ -39,6 +39,12 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 - Reviewed against 0.14.0 and its new screenshots: the settings tab is called *Sharing & API* everywhere the docs
   send you to it (they said *Sharing*), and *Using JATMP* and *Enrichment and verdicts* describe the IOC page's
   *Enrichment* panel, *Run enrichment batch* and *Copy visible* buttons.
+- Synced with the newsletter and false-indicator fixes: *Trends and correlation* lists how a digest is recognised,
+  how its links are discounted and which views leave it out (including the REST `related` list), and that an *Also
+  mentions* line in the graph can still lead to one; *Ingest and analysis* covers the digest flag and the git-commit
+  rule for SHA-1; *Analysis* explains the graph's line legend; *Upgrading* has the steps for the next release
+  (`digesttag` runs once, then `ioc-clean` as a dry run and with `--apply`). The item page's card is called
+  *Correlated items*, as in the interface.
 
 ## 0.14.0
 

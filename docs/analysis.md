@@ -94,6 +94,11 @@ and verdict. Click a node to preview it, double-click to open it, drag and zoom 
 (Tab, Enter, O). The graph is drawn by a small built-in SVG renderer rather than a third-party library. It starts
 with up to 60 nodes, and *Show more* raises that to 150.
 
+A second row in the legend explains each kind of line in the graph and whose claim it is: *Mentions* (automatic),
+*Provider link* (a provider's claim), and *Also mentions* and *Mentioned together*, which are marked *needs
+validation* because they only come from appearing in the same items. Hover a legend entry or a line for the
+explanation; see [Reading the lines](how-it-works/trends.md#relationship-graph).
+
 ## Infrastructure context, on demand
 
 *Context lookup* on an IP, domain or hash asks Shodan (open ports, host names, known CVEs), Censys (services,
@@ -109,8 +114,11 @@ lookups are allowed.
 
 The item page ranks related items by how strong the evidence they share is. A shared hash, URL or domain counts
 for far more than a shared CVE, rare entities count for more than frequently mentioned ones, and items from
-another source or source type get a bonus. Entity pages show coverage per source, the entities mentioned
-alongside it, related indicators, and enrichment results.
+another source or source type get a bonus. Newsletters and round-ups, which name many unrelated things in one
+issue, count for much less and are marked *digest*. Entity pages show coverage per source, the entities mentioned
+alongside it (leaving newsletters out), related indicators, and enrichment results. On an indicator's page the
+provider links (*Linked by enrichment*) come first, and the co-mentions are called *Seen in the same items as*,
+because appearing in the same report is not attribution. See [Correlation](how-it-works/trends.md#correlation).
 
 ## Trends
 

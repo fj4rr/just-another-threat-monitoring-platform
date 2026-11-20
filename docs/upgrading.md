@@ -4,6 +4,27 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to the next release (unreleased)
+
+One new column and a clean-up command. No manual migration.
+
+- **Newsletters are flagged on their own.** The new column `items.is_digest` is added at start-up, and about 75
+  seconds later `run_digesttag` flags the newsletters and round-ups among the stored items once (its progress is
+  in the job status). Correlation and co-mentions use the flag from then on.
+- **Remove the false IP and SHA-1 indicators** that version numbers and git commits created. Run the dry run
+  first, check the numbers, then apply:
+
+  ```bash
+  python manage.py ioc-clean
+  python manage.py ioc-clean --apply
+  ```
+
+  It only removes `regex` links of IP and SHA-1 indicators that the current extractor rejects, and only where the
+  item's text is still stored. Prefer it to `reextract`, which rebuilds everything from the stored text and so
+  cannot find again what retention has trimmed.
+- **Optional:** to force a source to count as a newsletter (or never to), set `"digest": true` or `false` in its
+  stored config and run `python manage.py digesttag`.
+
 ## Upgrading to 0.14.0
 
 Navigation changes and higher minimum versions. No schema change, no re-analysis.

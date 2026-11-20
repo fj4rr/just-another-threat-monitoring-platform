@@ -175,7 +175,7 @@ they are no more than 10 minutes late). All jobs share a pool of 10 threads.
 | **Verdict** on an indicator, and its date | The combined answer of the enrichment providers, with the date it was last given or confirmed. An analyst's verdict, when one is set, wins over the providers | [Enrichment and verdicts](enrichment.md#consensus) |
 | **Trend score**, *new*, growth | How often something was mentioned in the period compared with the period before, weighted by how many sources and source types reported it | [Trends and correlation](trends.md#trend-score) |
 | **CVE priority**, KEV / EPSS / CVSS | The CVE intel refresh, combined with the trend score | [Trends and correlation](trends.md#cve-priority) |
-| **Related items** and their score | The entities two items share, weighted by type and rarity | [Trends and correlation](trends.md#correlation) |
+| **Correlated items** and their score | The entities two items share, weighted by type and rarity; newsletters and round-ups count for less | [Trends and correlation](trends.md#correlation) |
 | **Target countries** and provinces | Place names, nationalities, institutions and data from the feed, when the item is stored | [Ingest and analysis](processing.md#10-geography) |
 | **Sectors** | Sector vocabulary in the title and body, when the item is stored | [Ingest and analysis](processing.md#7-critical-infrastructure-sectors) |
 | **"Copy of …"**, and story counts | Fingerprints compared across sources when the item is stored | [Ingest and analysis](processing.md#3-cross-source-duplicates) |
