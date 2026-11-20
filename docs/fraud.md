@@ -14,8 +14,9 @@ switch applies here too.
 |---|---|
 | **Scam type** | A fixed taxonomy in English and Bahasa Indonesia: investment scam (incl. *investasi bodong*, robot trading, pig butchering), illegal online loan (*pinjol ilegal*), job / task scam, romance scam, sextortion, malicious APK lure (wedding invitations, traffic tickets, bills), courier / package lure, impersonation, phishing, OTP theft / account takeover, online gambling (*judol*), fake shop, prize / giveaway (incl. fake *bansos*), crypto scam / drainer, tech support / refund scam, BEC / invoice fraud, QRIS / QR code fraud, deepfake scam, and *Other scam*. Typical phrases include fraudulent investment apps, callers who *mengaku dari*
 Bea Cukai, the police, a bank or the tax office, SMS phishing and smishing messages, fake payment or delivery
-pages, fake QRIS stickers, and fake sellers or *jual beli … online* fraud. Strong phrases count on their own; weaker ones ("phishing", "APK", "deepfake", "mengatasnamakan") only next to a scam word (within about 200 characters, or a scam word in the title), and outside fraud sources one passing scam word is not enough. An article whose title says nothing about a scam must show the scam in more than one place, so a malware write-up with one sentence about "scammers using fake delivery notices" stays out. Newsletters and weekly round-ups are judged on their title only. |
-| **Impersonated brand** | About 70 banks, e-wallets, marketplaces, couriers, telecoms, utilities, government bodies, platforms and crypto exchanges, Indonesian first (BCA, BRI, Bank Mandiri, BNI, DANA, OVO, GoPay, Shopee, J&T, PLN, OJK, BPJS, DJP, Bea Cukai…). A brand counts when it appears next to an impersonation cue ("mengatasnamakan BCA", "fake PayPal"). A brand that speaks ("Shopee warns customers…", "BCA mengimbau nasabah", "kata pihak OJK") is the one warning, not the one impersonated, unless the text also says so right next to the name ("fake Shopee websites"). Platforms and government bodies need the cue right next to them, because they are usually the channel ("lewat WhatsApp") or the one issuing the warning ("FBI warns…"). Ambiguous words are matched carefully: *dana* (funds) is not DANA, *mandiri* (independent) is not Bank Mandiri. |
+pages, fake QRIS stickers, and fake sellers or *jual beli … online* fraud. Tools and policies against scams (*aplikasi anti-scam*, an anti-fraud team) are no scam word. Strong phrases count on their own; weaker ones ("phishing", "APK", "deepfake", "mengatasnamakan") only next to a scam word (within about 200 characters, or a scam word in the title), and outside fraud sources one passing scam word is not enough. An article whose title says nothing about a scam must show the scam in more than one place, so a malware write-up with one sentence about "scammers using fake delivery notices" stays out. Newsletters and weekly round-ups are judged on their title only. |
+| **Impersonated brand** | About 70 banks, e-wallets, marketplaces, couriers, telecoms, utilities, government bodies, platforms and crypto exchanges, Indonesian first (BCA, BRI, Bank Mandiri, BNI, DANA, OVO, GoPay, Shopee, J&T, PLN, OJK, BPJS, DJP, Bea Cukai…). A brand counts when it appears next to an impersonation cue ("mengatasnamakan BCA", "fake PayPal"). A brand that speaks or acts ("Shopee warns customers…", "BCA mengimbau nasabah", "kata pihak OJK", "Coinbase blocks $4.7 million in transfers to scammers", "BRI Ajak…", a headline "Indodax: …") is not the one impersonated, unless the text says so right next to the name ("fake Shopee websites"). A brand's own advisory that names no case ("nasabah diimbau berhati-hati saat menerima komunikasi yang mengatasnamakan BRI", with no victim, perpetrator, loss or circulating fake) talks about impersonation in general and names no brand. A plain scam word only counts right next to the name ("phishing BCA", "penipuan berkedok hadiah BRI"), not a sentence away. Platforms and government bodies need the cue right next to them, because they are usually the channel ("lewat WhatsApp") or the one issuing the warning ("FBI warns…"). Ambiguous words are matched carefully: *dana* (funds) is not DANA, *mandiri* (independent) is not Bank Mandiri. |
+| **Impersonated person** | Public figures whose name or face a scam borrows: deepfake giveaways and investment ads ("Deepfake Elon Musk", "an AI-generated deepfake of Elon Musk"), *mencatut nama Menteri Keuangan Sri Mulyani*, fake accounts of officials. They are brands of the type *person* (same lists, filters, chips and graph). A list of about 45 often-borrowed names (Elon Musk, Donald Trump, Prabowo Subianto, Sri Mulyani, Raffi Ahmad…) counts next to an impersonation cue or in a sentence about a deepfake; other names only count right after an office or calling ("mencatut nama Bupati Bandung Dadang Supriatna", "posing as billionaire …"). A name without one is left alone, because it may belong to a private person. |
 | **Scammer identifiers** | Phone numbers (Indonesian mobile numbers normalised to `+628…`), bank accounts (with the bank when it is named), e-wallet numbers and crypto wallets (BTC, ETH, TRON; Bitcoin and TRON addresses must pass their Base58Check or bech32 checksum, so an invoice number is no wallet). See the rules below. |
 | **Losses and victims** | The largest loss a report states (headline forms such as "Rp 2,5 T" and "Rp 5 M" included), converted to rupiah (dollar amounts at the rate set under Settings → Scam & fraud), and the largest victim count ("1.200 korban", "ratusan korban", "thousands of victims"). Amounts only count next to a loss word, so prices and fees are ignored, and money that was saved, frozen or returned is not a loss. |
 
@@ -28,7 +29,7 @@ Each scam report gets a **fraud score** from 0 to 100, separate from the threat 
 |---|---|
 | Scam type (the strongest one) | 10–28, e.g. malicious APK lure 28, investment scam 26, OTP theft 24, phishing 18, online gambling 12 |
 | More scam types in the same report | +4 each, up to +8 |
-| Impersonated bank, e-wallet or government body / other brand | +10 / +6 |
+| Impersonated bank, e-wallet or government body / person / other brand | +10 / +8 / +6 |
 | Reported losses | +5 below Rp 100 million, up to +30 from Rp 1 trillion |
 | Reported victims | +5 from 10, up to +20 from 10,000 |
 | Scammer identifiers published | +8 |
@@ -76,12 +77,14 @@ look them up by hand; JATMP does not query them (cekrekening.id sits behind a CA
 
 ## Pages
 
-The detail pages are in the menu's *Intelligence* dropdown, in its scams part:
+**Scam reports** are the second feed: *Feed → Scams & fraud* (`/feed/scams`, a tab next to *Cyber threats* on the
+Feed page). It lists every scam report, filterable by scam type, brand, sector, minimum fraud score, period and
+text (and by target country or province when opened from the globe), sortable by fraud score, loss, victims and
+time. The old address `/fraud/items` forwards there with its filters.
 
-- **Scam reports**: every scam report, filterable by scam type, brand, sector, minimum fraud score, period and
-  text (and by target country or province when opened from the globe), sortable by fraud score, loss, victims and
-  time.
-- **Scam types** and **Impersonated brands**: the usual entity tables (mentions, sources, trend, first / last seen)
+The other pages are in the menu's *Intelligence* dropdown, in its scams part:
+
+- **Scam types** and **Brands & people** (impersonated brands and people, with a *Type* filter): the usual entity tables (mentions, sources, trend, first / last seen)
   with the malware and brands or scam types seen alongside.
 - **Scammer identifiers**: phone numbers, bank accounts, e-wallets and wallets with the scam types and brands they
   appeared with, where they were seen, and a *Copy* button.

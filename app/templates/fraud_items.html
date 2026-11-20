@@ -1,9 +1,10 @@
 {% extends "base.html" %}
-{% from "_macros.html" import th, pager, period_select, fraud_score %}
-{% block title %}Scam reports{% endblock %}
+{% from "_macros.html" import th, pager, period_select, fraud_score, feed_tabs %}
+{% block title %}Feed · Scams & fraud{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Scam reports</h1>
+<div class="page-head"><div><h1>Feed</h1>
   <p class="muted">{{ total }} scam report(s){% if f.country %} targeting {{ country_name(f.country) }}{% endif %}{% if f.province %} in {{ province_name(f.province) }}{% endif %}{% if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %} · click a title to preview, a column header to sort</p></div></div>
+{{ feed_tabs('scams') }}
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content" aria-label="Search" maxlength="200">
   <select name="scam" aria-label="Scam type"><option value="0">All scam types</option>
@@ -19,7 +20,7 @@
   {{ period_select(f) }}
   <input type="hidden" name="sort" value="{{ f.sort }}"><input type="hidden" name="dir" value="{{ f.dir }}">
   <button class="btn">Filter</button>
-  {% if f.q or f.scam or f.brand or f.sector or f.min_score or f.country or f.province or f.days != 30 %}<a class="btn" href="/fraud/items">Reset</a>{% endif %}
+  {% if f.q or f.scam or f.brand or f.sector or f.min_score or f.country or f.province or f.days != 30 %}<a class="btn" href="/feed/scams">Reset</a>{% endif %}
 </form>
 <div class="card table-wrap data-table">
   <table>
@@ -40,7 +41,7 @@
         {% set fx = i.entity_links|selectattr('entity.type', 'in', ['scam_type', 'brand', 'malware', 'actor'])|list %}
         {% set ids = i.entity_links|selectattr('entity.type', 'in', ['phone', 'bank_account', 'ewallet', 'crypto_wallet'])|list %}
         <div class="ent-row"><span class="badge cat-{{ i.source.category }}">{{ i.source.name }}</span>
-          {% for l in fx[:8] %}<a class="chip" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview"><span class="t">{{ l.entity.type|replace('scam_type', 'scam') }}</span>{{ l.entity.display|truncate(32, True) }}</a>{% endfor %}
+          {% for l in fx[:8] %}<a class="chip" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview"><span class="t">{{ 'person' if l.entity.category == 'person' else l.entity.type|replace('scam_type', 'scam') }}</span>{{ l.entity.display|truncate(32, True) }}</a>{% endfor %}
           {% if ids %}<a class="chip" href="/items/{{ i.id }}" title="Scammer phone numbers, accounts or wallets in this report"><span class="t">ids</span>{{ ids|length }}</a>{% endif %}</div>
         {% set tg = targets.get(i.id) %}{% if tg %}<div class="target-line" title="Target countries">→ {% for t in tg %}{{ country_name(t.code) }}{% if t.provinces %} ({% for p in t.provinces %}{{ province_name(p) }}{{ ', ' if not loop.last }}{% endfor %}){% endif %}{{ ' · ' if not loop.last }}{% endfor %}</div>{% endif %}
       </td>

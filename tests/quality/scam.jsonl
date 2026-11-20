@@ -32,3 +32,6 @@
 {"title": "Pejabat mengaku dari partai lain saat kampanye", "body": "Ia menjelaskan program kerjanya.", "scam": false}
 {"title": "APT29 spear-phishing campaign targets diplomats", "body": "The phishing emails carried a malicious PDF.", "scam": false}
 {"title": "Pasar jual beli mobil bekas online tumbuh 20 persen", "body": "Penjualan mobil bekas meningkat.", "scam": false}
+// added in 0.14.1: a tool or policy against scams is not a scam report
+{"title": "Indodax: Aplikasi Anti-Scam OJK bantu masyarakat verifikasi transaksi", "body": "Pelaku industri aset kripto menilai positif rencana Otoritas Jasa Keuangan (OJK) untuk meluncurkan aplikasi anti-scam.", "scam": false}
+{"title": "Bank launches anti-fraud team for mobile payments", "body": "The anti-scam unit will review suspicious transfers.", "scam": false}

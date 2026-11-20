@@ -19,11 +19,13 @@ for search, and a layout that works on a phone. The Docker image comes with a he
 ## Dashboards
 
 The menu on the left starts with the two dashboards, **Cyber threats** (`/`) and **Scams & fraud** (`/fraud`, see
-[Scams and fraud](fraud.md#dashboard)), followed by the **Feed**. Everything else is grouped in three dropdowns:
+[Scams and fraud](fraud.md#dashboard)), followed by the **Feed**, which has the same two sides: **Cyber threats** (`/feed`, every item) and **Scams &
+fraud** (`/feed/scams`, the scam reports). Both are in the Feed dropdown and as tabs on the Feed page. Everything
+else is grouped in three dropdowns:
 
 | Group | Pages |
 |---|---|
-| **Intelligence** | Malware, Threat actors, CVEs and IOCs for cyber threats; Scam reports, Scam types, Impersonated brands and Scammer identifiers for scams |
+| **Intelligence** | Malware, Threat actors, CVEs and IOCs for cyber threats; Scam types, Brands & people (impersonated brands and people) and Scammer identifiers for scams |
 | **Analysis** | Geography, Watchlist, Reports, Corrections, AI insights |
 | **Manage** | Settings, Backfill, and Admin in multi-user mode |
 

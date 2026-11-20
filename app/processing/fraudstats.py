@@ -171,7 +171,8 @@ def scam_type_breakdown(db: Session, days: int, region: str) -> list[dict]:
 
 BRAND_CATEGORY_LABELS = {"bank": "Banks", "ewallet": "E-wallets", "payment": "Payments", "marketplace": "Marketplaces",
                          "app": "Super apps", "courier": "Couriers", "telco": "Telecoms", "utility": "Utilities",
-                         "government": "Government", "platform": "Platforms", "crypto": "Crypto exchanges"}
+                         "government": "Government", "platform": "Platforms", "crypto": "Crypto exchanges",
+                         "person": "People"}
 
 
 def brand_category_breakdown(db: Session, days: int, region: str) -> list[dict]:

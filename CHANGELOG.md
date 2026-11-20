@@ -4,7 +4,29 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 ## Unreleased
 
+**Changes**
+
+- Scam reports are now the second feed, next to cyber threats, like the two dashboards: *Feed → Scams & fraud*
+  (`/feed/scams`), with tabs on the Feed page to switch. They left the *Intelligence* dropdown; `/fraud/items`
+  forwards to the new address with its filters.
+- Impersonated people. Scams that borrow a public figure (a deepfake Elon Musk giveaway, *mencatut nama Menteri
+  Keuangan Sri Mulyani*, fake accounts of a governor) now name that person, as a brand of the type *person*. A
+  list of often-borrowed names counts next to an impersonation cue or in a sentence about a deepfake; other names
+  only right after an office or calling ("Bupati …", "billionaire …"), so private people are left alone. The
+  page is now called *Brands & people*; an impersonated person adds 8 to the fraud score.
+
 **Fixes**
+
+- Brands that speak or act are no longer taken for impersonated. Coinbase, which blocked $4.7 million in transfers
+  to an Elon Musk deepfake scam, was listed as impersonated in five reports. A brand that blocks, stops, detects,
+  reports, launches, *mengajak*, *menilai*… or opens a headline ("Indodax: …") is the actor, and a plain scam word
+  now has to sit right next to the name ("phishing BCA"), not anywhere within 80 characters or anywhere in the title.
+- A brand's own advisory no longer names it as impersonated. "BRI Ajak Kenali Kanal Komunikasi Resmi" (customers
+  are urged to be careful with messages *mengatasnamakan BRI*) reports no case: no victim, perpetrator, loss or fake
+  going round.
+- "Anti-scam" is no scam word. "Indodax: Aplikasi Anti-Scam OJK bantu masyarakat verifikasi transaksi", about an
+  OJK app, was filed as a crypto scam impersonating Indodax.
+- Stored items are re-analysed once after the upgrade (fraud rules version 7).
 
 - Newsletters and round-ups no longer flood *Related items*. A Cisco Talos *Threat Source* issue lists a CVE, a
   ransomware story and the same weekly "most prevalent files" hashes as every other issue, which tied it to a dozen

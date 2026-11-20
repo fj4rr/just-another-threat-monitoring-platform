@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -20,9 +21,11 @@ from ..web import current_region, render
 from .pages import _clamp, _dir, _entity_list, _keep, _qs, coverage, dashboard_period, related_chips
 
 router = APIRouter(prefix="/fraud")
+# Scam reports are the second feed (0.14.1), next to the cyber-threat feed at /feed, like the two dashboards
+feed_router = APIRouter()
 PAGE = 40
 IDENT_PAGE = 60
-BRAND_CATEGORIES = sorted({c for _, c, _, _ in fraud.BRANDS})
+BRAND_CATEGORIES = sorted({c for _, c, _, _ in fraud.BRANDS} | {"person"})
 
 
 def _since(days: int):
@@ -70,6 +73,13 @@ ITEM_SORTS = {
 
 
 @router.get("/items")
+def old_items(request: Request):
+    """The scam reports moved to the feed (0.14.1); old links and bookmarks keep their filters."""
+    q = request.url.query
+    return RedirectResponse("/feed/scams" + (f"?{q}" if q else ""), status_code=301)
+
+
+@feed_router.get("/feed/scams")
 def items(request: Request, q: str = "", scam: int = 0, brand: int = 0, sector: int = 0, min_score: int = 0,
           days: int = 30, page: int = 1, sort: str = "time", dir: str = "", country: str = "", province: str = "",
           user: User = Depends(current_user), db: Session = Depends(get_db), region: str = Depends(current_region)):
@@ -108,7 +118,7 @@ def items(request: Request, q: str = "", scam: int = 0, brand: int = 0, sector: 
                    province=province)}
     sector_list = db.execute(select(Entity).where(Entity.type == "sector").order_by(Entity.display)).scalars().all()
     return render(request, "fraud_items.html", {
-        "user": user, "section": "items", "items": rows, "total": total, "page": page,
+        "user": user, "section": "items", "feed_tab": "scams", "items": rows, "total": total, "page": page,
         "pages": max(1, -(-total // PAGE)), "f": f, "scam_types": scam_types, "brand_list": brand_list,
         "sector_list": sector_list,
         "targets": geo.targets_for(db, [i.id for i in rows]),
@@ -127,7 +137,7 @@ def brands(request: Request, category: str = "", q: str = "", days: int = 30, so
            page: int = 1, user: User = Depends(current_user), db: Session = Depends(get_db),
            region: str = Depends(current_region)):
     category = category if category in BRAND_CATEGORIES else ""
-    return _entity_list(request, user, db, "brand", "Impersonated brands", category, q, days, sort, dir, page, region,
+    return _entity_list(request, user, db, "brand", "Impersonated brands & people", category, q, days, sort, dir, page, region,
                         related_types=("scam_type", "sector"), categories=BRAND_CATEGORIES, section="brands")
 
 

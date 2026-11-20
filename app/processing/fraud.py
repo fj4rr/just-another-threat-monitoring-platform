@@ -9,7 +9,9 @@ the malware it uses (wedding-invitation APKs and banking trojans, phishing kits,
   ("investasi bodong", "pig butchering"); *weak* ones ("phishing", "deepfake", "APK") only when the item also
   uses a scam word, so ordinary malware reporting does not end up in the fraud section.
 * **Brands** (banks, e-wallets, marketplaces, couriers, government bodies, platforms) count when they appear next
-  to an impersonation cue ("mengatasnamakan BCA", "fake PayPal") or in the title of a scam item.
+  to an impersonation cue ("mengatasnamakan BCA", "fake PayPal"), not when they speak or act ("Coinbase blocks…",
+  "BRI mengimbau…"). **People** (public figures in deepfakes, "mencatut nama Menteri …") are brands of the category
+  "person": a known list plus names that follow an office ("Gubernur … Dedi Mulyadi"), never private people.
 * **Scammer identifiers** (phone numbers, bank accounts, e-wallets, crypto wallets) are taken only from scam items,
   only next to a cue that marks them as the scammer's, never when the text marks them as official or as the
   victim's, and account holder names are never stored (UU PDP / Law 27/2022 data minimisation).
@@ -32,11 +34,13 @@ IDENT_LABELS = {"phone": "Phone number", "bank_account": "Bank account", "ewalle
                 "crypto_wallet": "Crypto wallet"}
 
 # Bump when the rules change: the start-up job re-analyses stored items once per version.
-RULES_VERSION = 6  # 3 (0.10): vendor listicles only count their title; 4: charge names ("wire fraud") are no scam cue
+RULES_VERSION = 7  # 3 (0.10): vendor listicles only count their title; 4: charge names ("wire fraud") are no scam cue
 # 5 (0.10.1): weak phrases need a nearby cue, warning brands are not impersonated, identifiers need a scammer cue,
 # wallet checksums, "Rp 2,5 T" / "Rp 5 M"
 # 6 (0.13.1, from the quality report): "mengaku dari <institution>", fraudulent investment apps, English QRIS and
 # smishing forms, fake sellers and "jual beli <thing> online"
+# 7 (0.14.1): "anti-scam" is no scam word, a brand that speaks or acts (or issues its own advisory) is not
+# impersonated, plain scam words must sit next to the name, impersonated people (brand category "person")
 
 # --------------------------------------------------------------------------- scam types
 # (key, display name, weight, strong pattern, weak pattern). Weak patterns need a scam word elsewhere in the item.
@@ -122,12 +126,15 @@ SCAM_NAMES = {k: n for k, n, *_ in SCAM_TYPES} | {OTHER[0]: OTHER[1]}
 # an insider stealing from wallets is charged with wire fraud too.
 _NOT_CHARGE = ("(?<!wire )(?<!mail )(?<!bank )(?<!tax )(?<!securities )(?<!computer )(?<!insurance )(?<!accounting )"
                "(?<!health care )(?<!healthcare )(?<!visa )(?<!benefits )")
+# "aplikasi anti-scam", "anti-fraud team", "satgas anti penipuan": a tool or a policy against scams, not a scam
+_NOT_ANTI = "(?<!anti-)(?<!anti )(?<!anti)"
 FRAUD_CUE = re.compile(
-    r"\bscam(?:s|mer|mers|med|ming)?\b|" + _NOT_CHARGE + r"\bfraud(?:s|ster|sters)?\b|\bpenipuan\b|\bpenipu\b|"
+    _NOT_ANTI + r"\bscam(?:s|mer|mers|med|ming)?\b|" + _NOT_CHARGE + _NOT_ANTI + r"\bfraud(?:s|ster|sters)?\b|"
+    + _NOT_ANTI + r"\bpenipuan\b|\bpenipu\b|"
     r"\bmenipu\b|\bditipu\b|\btertipu\b|\bdefraud(?:ed|ing)?\b|\bswindl\w*|\bcon artists?\b|"
     r"\bmodus (?:baru|penipuan|operandi)\b|\bkorban penipuan\b|\bpenipuan online\b", re.I)
-_STRONG_CUE = re.compile(r"\bscam(?:s|mer|mers)?\b|\bpenipuan\b|\bpenipu\b|" + _NOT_CHARGE + r"\bfraud(?:ster|sters)?\b|"
-                         r"\bditipu\b|\btertipu\b|\bdefraud", re.I)
+_STRONG_CUE = re.compile(_NOT_ANTI + r"\bscam(?:s|mer|mers)?\b|" + _NOT_ANTI + r"\bpenipuan\b|\bpenipu\b|" + _NOT_CHARGE
+                         + _NOT_ANTI + r"\bfraud(?:ster|sters)?\b|\bditipu\b|\btertipu\b|\bdefraud", re.I)
 
 _TYPES = [(k, n, w, re.compile(s, re.I), re.compile(wk, re.I) if wk else None) for k, n, w, s, wk in SCAM_TYPES]
 
@@ -275,25 +282,68 @@ BANK_CODES = {"bca": "BCA", "bri": "BRI", "bni": "BNI", "mandiri": "Bank Mandiri
 IMPERSONATION_STRONG = re.compile(
     r"mengatasnamakan|catut|dicatut|palsu|fiktif|\bfake\b|impersonat\w*|posing as|pretend\w*|spoof\w*|mengaku|"
     r"tiruan|mirip|look-?alike|clone[ds]?|kloning|berkedok|kedok", re.I)
-IMPERSONATION_CUE = re.compile(IMPERSONATION_STRONG.pattern + r"|phish\w*|phising|\bscam\w*|penipuan|modus", re.I)
+IMPERSONATION_CUE = re.compile(IMPERSONATION_STRONG.pattern + r"|phish\w*|phising|" + _NOT_ANTI + r"\bscam\w*|"
+                               + _NOT_ANTI + r"penipuan|modus", re.I)
 STRONG_ONLY = ("platform", "government")
-BRAND_WINDOW = 80
 # For platforms and government bodies the cue must sit right next to the name: "mengatasnamakan OJK", "fake PayPal
 # support", "akun WhatsApp palsu" — not "… beredar lewat WhatsApp".
 _STRONG_BEFORE = re.compile(
     r"(?:mengatasnamakan|mencatut(?: nama)?|catut(?: nama)?|\bfake|impersonat\w*|posing as|pretending to be|"
-    r"mengaku(?: sebagai)?(?: (?:petugas|pegawai|pihak|staf|dari))?|tiruan|kloning|spoofed|palsu)\s+(?:\S+\s+){0,1}$", re.I)
+    r"mengaku(?: sebagai)?(?: (?:petugas|pegawai|pihak|staf|dari))?|tiruan|kloning|spoofed|palsu|berkedok|kedok)"
+    r"\s+(?:\S+\s+){0,1}$", re.I)
 _STRONG_AFTER = re.compile(r"^\s*(?:\S+\s+){0,2}?(?:palsu|fiktif|gadungan|abal-abal|look-?alikes?|clones?|"
                            r"impersonators?)\b", re.I)
-# The brand is the one speaking: "Shopee warns customers about a new scam", "BCA mengimbau nasabah", "kata pihak
-# OJK". A warning brand is not an impersonated one, unless the text also says so right next to the name.
+# The brand is the one speaking or acting: "Shopee warns customers about a new scam", "BCA mengimbau nasabah",
+# "kata pihak OJK", "Coinbase blocks $4.7 million in transfers to scammers", "BRI Ajak Kenali Kanal Resmi",
+# "Indodax: …". A brand that speaks is not an impersonated one, unless the text says so right next to the name.
 _WARN_AFTER = re.compile(
     r"^\W{0,3}(?:\S+\s+){0,2}?(?:warn(?:s|ed|ing)?|urg(?:es|ed)|remind(?:s|ed)?|advis(?:es|ed)|caution(?:s|ed)?|"
     r"said|says|stated|told|confirm(?:s|ed)?|clarif\w*|den(?:y|ies|ied)|alert(?:s|ed)|"
-    r"mengimbau|menghimbau|imbau|mengingatkan|memperingatkan|klarifikasi|membantah|menegaskan|mengatakan|"
-    r"menyatakan|menjelaskan|mengonfirmasi|memastikan|resmi|official)\b", re.I)
+    r"block(?:s|ed)?|stop(?:s|ped)|prevent(?:s|ed)?|detect(?:s|ed)|identif(?:y|ies|ied)|disclos(?:es|ed)|"
+    r"report(?:s|ed)|announc(?:es|ed)|launch(?:es|ed)?|rolls? out|partner(?:s|ed)?|describ(?:es|ed)|"
+    r"mengimbau|menghimbau|imbau|himbau|mengingatkan|ingatkan|memperingatkan|klarifikasi|membantah|bantah|"
+    r"menegaskan|tegaskan|mengatakan|menyatakan|menjelaskan|mengonfirmasi|memastikan|pastikan|resmi|official|"
+    r"(?:meng)?ajak|minta|meminta|(?:mem)?bagikan|berbagi|(?:meng)?edukasi|sosialisasi|gelar|menggelar|"
+    r"(?:me)?luncurkan|(?:mem)?perkuat|tingkatkan|meningkatkan|(?:mem)?blokir|menutup|menggagalkan|"
+    r"(?:men)?cegah|melaporkan|menilai|nilai|menyebut|sebut|dorong|mendorong|beri|memberi|memberikan)\b", re.I)
 _WARN_BEFORE = re.compile(r"(?:kata|ujar|menurut|according to|pihak|juru bicara|spokesperson for|imbauan)\s+(?:\S+\s+)?$",
                           re.I)
+# A brand's own advisory with no case in it ("BRI Ajak Kenali Kanal Komunikasi Resmi: nasabah diimbau
+# berhati-hati saat menerima komunikasi yang mengatasnamakan BRI") talks about impersonation in general;
+# nobody was impersonated. An item that reports a case names victims, perpetrators, losses or a circulating fake.
+ADVISORY_CUE = re.compile(
+    r"imbau|himbau|berhati-hati|hati-hati|waspada|pastikan|jangan|hindari|kenali|\btips\b|edukasi|literasi|"
+    r"be careful|beware|make sure|never (?:share|click|send|give)|always verify|stay safe", re.I)
+CASE_CUE = re.compile(
+    r"korban|pelaku|tersangka|ditangkap|diringkus|dibekuk|kerugian|merugi|\brugi\b|tertipu|ditipu|melapor|laporan|"
+    r"kasus|menimpa|dialami|beredar|viral|marak|menyebar|\bvictims?\b|\blost\b|losses|arrest\w*|suspects?|"
+    r"circulat\w*|campaign|wave|spotted|observed|discovered|reported|targeted|targeting", re.I)
+_CLAUSE = re.compile(r"[,;:.!?()\[\]\n|·]")
+_SENTENCE = re.compile(r"[.!?]\s|\n")
+
+
+def _sentence_at(text: str, pos: int) -> str:
+    start = max((m.end() for m in _SENTENCE.finditer(text, 0, pos)), default=0)
+    m = _SENTENCE.search(text, pos)
+    return text[start: m.start() if m else len(text)]
+
+
+def _speaks(text: str, m: re.Match, tlen: int) -> bool:
+    before, after = text[max(0, m.start() - 40): m.start()], text[m.end(): m.end() + 40]
+    if m.start() < tlen and after.lstrip().startswith(":"):  # headline style "Indodax: …"
+        return True
+    return bool(_WARN_AFTER.search(after) or _WARN_BEFORE.search(before))
+
+
+def _plain_near(before: str, after: str) -> bool:
+    """A plain scam word right next to the name: "phishing BCA", "penipuan berkedok hadiah BRI", "Shopee scam".
+    Not "Coinbase identified 65 active scam victims" or "Coinbase's support scam guidance"."""
+    clause = _CLAUSE.split(before)[-1]
+    if IMPERSONATION_CUE.search(" ".join(clause.split()[-3:])):
+        return True
+    if re.match(r"['’]s\b", after):
+        return False
+    return bool(IMPERSONATION_CUE.search(" ".join(_CLAUSE.split(after)[0].split()[:1])))
 
 
 def brands(title: str, body: str) -> list[tuple[str, str]]:
@@ -301,24 +351,168 @@ def brands(title: str, body: str) -> list[tuple[str, str]]:
     if ROUNDUP.search(title or ""):
         body = ""
     text = f"{title}\n{body}"
+    tlen = len(title or "")
+    no_case = not CASE_CUE.search(text)
     out: dict[str, str] = {}
     for name, cat, rx in _BRANDS:
-        for m in rx.finditer(text):
-            in_title = m.start() < len(title or "")
-            near = text[max(0, m.start() - BRAND_WINDOW): m.end() + BRAND_WINDOW]
+        found = list(rx.finditer(text))
+        if not found:
+            continue
+        speaking = [_speaks(text, m, tlen) for m in found]
+        title_speaker = any(s and m.start() < tlen for m, s in zip(found, speaking, strict=True))
+        strong = weak = False
+        for m, speaks in zip(found, speaking, strict=True):
             before, after = text[max(0, m.start() - 40): m.start()], text[m.end(): m.end() + 40]
-            adjacent = bool(_STRONG_BEFORE.search(before) or _STRONG_AFTER.search(after[:30]))
-            if cat in STRONG_ONLY or adjacent:
-                hit = adjacent
-            elif _WARN_AFTER.search(after) or _WARN_BEFORE.search(before):
-                hit = False  # the brand warns about the scam; a later mention may still be the impersonated one
-            else:
-                # the title of a scam item alone is not enough ("Nasabah BCA rugi Rp 50 juta"): it needs a cue
-                hit = bool(IMPERSONATION_CUE.search(near)) or (in_title and bool(IMPERSONATION_CUE.search(title)))
-            if hit:
-                out[name] = cat
+            if _STRONG_BEFORE.search(before) or _STRONG_AFTER.search(after[:30]):
+                # the brand's own advisory about impersonation in general names no impersonated brand
+                if title_speaker and no_case and ADVISORY_CUE.search(_sentence_at(text, m.start())):
+                    continue
+                strong = True
                 break
+            if cat not in STRONG_ONLY and not speaks and _plain_near(before, after):
+                weak = True
+        # a plain scam word next to the name does not count for a brand that speaks or acts in the item: the
+        # exchange that blocked the transfers, the bank that warns its customers
+        if strong or (weak and not any(speaking)):
+            out[name] = cat
     return list(out.items())
+
+
+# --------------------------------------------------------------------------- impersonated people
+# Public figures whose name or face scams borrow: deepfake giveaways and investment ads, "mencatut nama Menteri",
+# fake accounts of officials and celebrities. (name, pattern); the pattern is case-sensitive.
+PERSONS: list[tuple[str, str]] = [
+    ("Elon Musk", r"\bElon Musk\b|\bMusk\b"),
+    ("Donald Trump", r"\bDonald Trump\b|\bTrump\b"),
+    ("Joe Biden", r"\bJoe Biden\b|\bBiden\b"),
+    ("Mark Zuckerberg", r"\bZuckerberg\b"),
+    ("Bill Gates", r"\bBill Gates\b"),
+    ("Jeff Bezos", r"\bBezos\b"),
+    ("Warren Buffett", r"\bBuffett\b"),
+    ("Vitalik Buterin", r"\bVitalik(?: Buterin)?\b"),
+    ("Changpeng Zhao", r"\bChangpeng Zhao\b"),
+    ("Michael Saylor", r"\bSaylor\b"),
+    ("Sam Altman", r"\bSam Altman\b"),
+    ("Tim Cook", r"\bTim Cook\b"),
+    ("Taylor Swift", r"\bTaylor Swift\b"),
+    ("Cristiano Ronaldo", r"\bCristiano Ronaldo\b"),
+    ("Lionel Messi", r"\bLionel Messi\b|\bMessi\b"),
+    ("MrBeast", r"\bMr ?Beast\b"),
+    ("Martin Lewis", r"\bMartin Lewis\b"),
+    ("Keanu Reeves", r"\bKeanu Reeves\b"),
+    ("Prabowo Subianto", r"\bPrabowo Subianto\b|(?<!Sigit )\bPrabowo\b(?! Subianto)"),
+    ("Joko Widodo", r"\bJoko Widodo\b|\bJokowi\b"),
+    ("Gibran Rakabuming Raka", r"\bGibran(?: Rakabuming(?: Raka)?)?\b"),
+    ("Sri Mulyani", r"\bSri Mulyani(?: Indrawati)?\b"),
+    ("Purbaya Yudhi Sadewa", r"\bPurbaya(?: Yudhi Sadewa)?\b"),
+    ("Erick Thohir", r"\bErick Thohir\b"),
+    ("Sandiaga Uno", r"\bSandiaga(?: Uno)?\b"),
+    ("Luhut Binsar Pandjaitan", r"\bLuhut(?: Binsar)?(?: Pandjaitan)?\b"),
+    ("Anies Baswedan", r"\bAnies(?: Baswedan)?\b"),
+    ("Ganjar Pranowo", r"\bGanjar(?: Pranowo)?\b"),
+    ("Ridwan Kamil", r"\bRidwan Kamil\b"),
+    ("Dedi Mulyadi", r"\bDedi Mulyadi\b"),
+    ("Listyo Sigit Prabowo", r"\bListyo Sigit(?: Prabowo)?\b"),
+    ("Mahfud MD", r"\bMahfud(?: MD)?\b"),
+    ("Susilo Bambang Yudhoyono", r"\bSusilo Bambang Yudhoyono\b|\bSBY\b"),
+    ("Agus Harimurti Yudhoyono", r"\bAgus Harimurti Yudhoyono\b|\bAHY\b"),
+    ("Megawati Soekarnoputri", r"\bMegawati(?: Soekarnoputri)?\b"),
+    ("Bahlil Lahadalia", r"\bBahlil(?: Lahadalia)?\b"),
+    ("Raffi Ahmad", r"\bRaffi Ahmad\b"),
+    ("Deddy Corbuzier", r"\bDeddy Corbuzier\b"),
+    ("Najwa Shihab", r"\bNajwa Shihab\b"),
+    ("Atta Halilintar", r"\bAtta Halilintar\b"),
+    ("Baim Wong", r"\bBaim Wong\b"),
+    ("Hotman Paris", r"\bHotman Paris(?: Hutapea)?\b"),
+    ("Abdul Somad", r"\bAbdul Somad\b"),
+    ("Gus Miftah", r"\bGus Miftah\b"),
+]
+_PERSONS = [(n, re.compile(p)) for n, p in PERSONS]
+# Offices and callings that make a name a public figure's ("mencatut nama Gubernur Jawa Barat Dedi Mulyadi",
+# "deepfake of billionaire Elon Musk"). Names without one are left alone: they may be private people.
+ROLES = (r"(?i:wakil presiden|presiden|wapres|menteri|menko|menkeu|wamen|wakil gubernur|gubernur|wakil bupati|bupati|"
+         r"wakil wali ?kota|wali ?kota|kapolri|kapolda|kapolres|kapolsek|panglima|jaksa agung|ketua|direktur utama|dirut|"
+         r"kepala desa|kades|camat|rektor|ustaz|ustadz|kiai|habib|pendeta|artis|aktor|aktris|penyanyi|selebgram|"
+         r"selebriti|influencer|komedian|presenter|youtuber|pengusaha|crazy rich|vice president|president|"
+         r"prime minister|finance minister|minister|governor|senator|mayor|ceo|founder|billionaire|actor|actress|"
+         r"singer|celebrity|tv host|footballer|pope)")
+_PERSON_CUE = (r"(?:mengatasnamakan|(?:men)?catut(?:an)?(?: nama)?|menggunakan (?:nama|foto|wajah|suara)|"
+               r"memakai (?:nama|foto|wajah|suara)|pakai nama|deepfakes?(?: (?:video|audio|voice|image|photo)s?)?(?: of)?|"
+               r"ai-generated (?:video |image |voice |deepfake )?(?:of )?|(?:video|suara|wajah|foto|gambar|audio) "
+               r"(?:palsu|tiruan|rekayasa|editan|deepfake|hasil (?:ai|rekayasa))|akun (?:palsu|tiruan|bodong)|"
+               r"\bfake|impersonat\w*|posing as|pretending to be|mengaku sebagai|menyamar (?:sebagai|jadi)|tiruan|"
+               r"kloning|clon(?:ed|ing)|likeness of|palsu)")
+_PERSON_BEFORE = re.compile(_PERSON_CUE + r"\s+(?:\S+\s+){0,3}$", re.I)
+_PERSON_AFTER = re.compile(r"^(?:['’]s)?\s*(?:\S+\s+){0,1}?(?:deepfakes?|palsu|gadungan|tiruan|abal-abal|"
+                           r"look-?alikes?|impersonators?|hasil (?:ai|rekayasa))\b", re.I)
+_DEEPFAKE = re.compile(r"deepfake|ai-generated|hasil ai|rekayasa ai|dibuat (?:dengan|menggunakan) ai|suara tiruan|"
+                       r"kloning suara|voice clon", re.I)
+_NAME_WORD = r"[A-Z][a-z][A-Za-z'’.-]*"
+_ROLE_NAME = re.compile(_PERSON_CUE.replace("(?:", "(?i:", 1) + r"\s+(?:(?i:the|a|an|sang|si|of|dari)\s+)?(?:\S+\s+){0,1}?"
+                        + ROLES + r" +((?:[A-Z][\w'’.-]* +){0,5}" + _NAME_WORD + r")")
+# Words between the office and the name: "Gubernur Jawa Barat Dedi Mulyadi", "Kapolda Metro Jaya Irjen Karyoto"
+_NOT_NAME = {"Keuangan", "Dalam", "Luar", "Negeri", "Agama", "Sosial", "Kesehatan", "Pendidikan", "Pertahanan",
+             "Perdagangan", "Perhubungan", "Pertanian", "Koordinator", "Bidang", "Umum", "Desa", "Kota", "Kabupaten",
+             "Provinsi", "Daerah", "Metro", "Jaya", "Raya", "Jawa", "Barat", "Timur", "Tengah", "Utara", "Selatan",
+             "Sumatera", "Kalimantan", "Sulawesi", "Papua", "Bali", "Nusa", "Tenggara", "Jakarta", "Banten",
+             "Yogyakarta", "Aceh", "Riau", "Jambi", "Bengkulu", "Lampung", "Maluku", "Gorontalo", "Irjen", "Brigjen",
+             "Komjen", "Jenderal", "Kombes", "Kolonel", "Letjen", "Mayjen", "Laksamana", "Marsekal", "Dr", "Dr.",
+             "Prof", "Prof.", "Ir.", "H.", "Hj.", "Kepolisian", "Republik", "Indonesia", "Bank", "The", "Of", "And",
+             "Ibu", "Bapak", "Pak", "Bu", "Kak", "Mr.", "Mrs.", "Ms.", "Sir"}
+_NOT_PERSON = re.compile(r"\b(?:Scam|Scams|Fraud|Penipuan|Video|Deepfake|Akun|Support|Team|Tim|Customer|Service|"
+                         r"Official|Resmi|Group|Grup|Bank|PT|Tbk|Inc|Ltd|Corp|Kementerian|Pemerintah)\b")
+
+
+def _place_words() -> set[str]:
+    global _PLACES
+    if _PLACES is None:
+        from ..gazetteer import ID_PLACES, ID_PLACES_STRICT, PROVINCES
+
+        names = list(ID_PLACES) + list(ID_PLACES_STRICT)
+        for name, other in PROVINCES.values():
+            names += [name, *other]
+        _PLACES = {w for n in names for w in n.split()}
+    return _PLACES
+
+
+_PLACES: set[str] | None = None
+
+
+def _role_names(text: str) -> list[str]:
+    out = []
+    skip = _NOT_NAME | _place_words()
+    for m in _ROLE_NAME.finditer(text):
+        tokens = [re.sub(r"['’]s$", "", t) for t in m.group(1).split()]
+        while tokens and (tokens[0] in skip or tokens[0].isupper()):
+            tokens.pop(0)
+        tokens = tokens[:3]
+        if not tokens or (len(tokens) == 1 and len(tokens[0]) < 4):
+            continue
+        name = " ".join(tokens)
+        if _NOT_PERSON.search(name) or any(rx.search(name) for _, _, rx in _BRANDS):
+            continue
+        out.append(name)
+    return out
+
+
+def persons(title: str, body: str) -> list[str]:
+    """Public figures impersonated in a scam item (deepfakes, "mencatut nama", fake accounts): their names."""
+    if ROUNDUP.search(title or ""):
+        body = ""
+    text = f"{title}\n{body}"
+    out: dict[str, None] = {}
+    for name, rx in _PERSONS:
+        for m in rx.finditer(text):
+            before, after = text[max(0, m.start() - 60): m.start()], text[m.end(): m.end() + 40]
+            if (_PERSON_BEFORE.search(_CLAUSE.split(before)[-1]) or _PERSON_AFTER.search(after)
+                    or _DEEPFAKE.search(_sentence_at(text, m.start()))):
+                out[name] = None
+                break
+    known = {n.split()[-1] for n in out} | {n.split()[0] for n in out}
+    for name in _role_names(text):
+        if not set(name.split()) & known and name not in out:
+            out[name] = None
+    return list(out)
 
 
 # --------------------------------------------------------------------------- identifiers
@@ -691,11 +885,13 @@ def analyse(title: str, body: str, *, topic: str = "", db=None, at: datetime | N
         reasons.append({"label": "also: " + ", ".join(n for _, n, _ in types[1:4]), "points": extra})
     res.entities += [Extracted("scam_type", k, n, "", "kb") for k, n, _ in types]
 
-    found_brands = brands(title, body)
+    # impersonated people are brands of the category "person" (0.14.1): same lists, filters, chips and graph
+    found_brands = brands(title, body) + [(n, "person") for n in persons(title, body)]
     if found_brands:
         res.entities += [Extracted("brand", n.lower(), n, c, "kb") for n, c in found_brands]
-        top = sorted(found_brands, key=lambda b: b[1] not in ("government", "bank", "ewallet"))[0]
-        pts = 10 if top[1] in ("government", "bank", "ewallet") else 6
+        rank = {"government": 0, "bank": 0, "ewallet": 0, "person": 1}
+        top = sorted(found_brands, key=lambda b: rank.get(b[1], 2))[0]
+        pts = {0: 10, 1: 8}.get(rank.get(top[1], 2), 6)
         reasons.append({"label": f"impersonates {top[0]}", "points": pts})
 
     res.loss_idr = losses_idr(text, usd_rate)

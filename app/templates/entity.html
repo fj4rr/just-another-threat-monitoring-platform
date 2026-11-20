@@ -16,7 +16,7 @@
   <div class="row">
     <button class="btn" data-post="/api/watch/{{ ent.id }}" data-watching="{{ 'true' if watching else 'false' }}" aria-pressed="{{ 'true' if watching else 'false' }}">{{ '★ Watching' if watching else '☆ Watch' }}</button>
     {% for name, url in check_links %}<a class="btn" href="{{ url }}" target="_blank" rel="noopener noreferrer" title="Look it up yourself on {{ name }}">Check on {{ name }} ↗</a>{% endfor %}
-    {% if ent.type in ('scam_type', 'brand') %}<a class="btn" href="/fraud/items?{{ 'scam' if ent.type == 'scam_type' else 'brand' }}={{ ent.id }}&days=0">Scam reports →</a>{% endif %}
+    {% if ent.type in ('scam_type', 'brand') %}<a class="btn" href="/feed/scams?{{ 'scam' if ent.type == 'scam_type' else 'brand' }}={{ ent.id }}&days=0">Scam reports →</a>{% endif %}
     {% if user.role in ('admin','analyst') and ((is_ioc and not is_ident) or ent.type == 'malware') %}
     <button class="btn" data-post="/api/entities/{{ ent.id }}/enrich" data-busy="Enriching…" data-reload>⇄ Enrich now</button>{% endif %}
     {% if context_ok and user.role in ('admin','analyst') %}

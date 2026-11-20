@@ -195,8 +195,13 @@ def test_watched_identifier_emits_no_webhook(installed, scam_item):
 def test_fraud_pages(client, scam_item):
     page = client.get("/fraud").text
     assert "Scams &amp; fraud" in page and "Malicious APK lure" in page and "BRI" in page
-    assert "Zzscam" in client.get("/fraud/items?days=0").text
-    assert "Zzscam" in client.get("/fraud/items?days=0&min_score=1&sort=loss").text
+    assert "Zzscam" in client.get("/feed/scams?days=0").text
+    assert "Zzscam" in client.get("/feed/scams?days=0&min_score=1&sort=loss").text
+    # 0.14.1: the scam reports are the second feed; the old address keeps its filters
+    old = client.get("/fraud/items?days=0&min_score=1", follow_redirects=False)
+    assert old.status_code == 301 and old.headers["location"] == "/feed/scams?days=0&min_score=1"
+    assert 'href="/feed/scams" class="active"' in client.get("/feed/scams?days=0").text
+    assert 'href="/feed" class="active"' in client.get("/feed").text
     assert "Malicious APK lure" in client.get("/fraud/scams?days=0").text
     assert "BRI" in client.get("/fraud/brands?days=0&category=bank").text
     ids = client.get("/fraud/identifiers").text
@@ -204,7 +209,7 @@ def test_fraud_pages(client, scam_item):
     assert "+6281211112222" in client.get("/fraud/identifiers?q=0812-1111-2222").text
     assert client.get("/fraud/identifiers?type=nope&days=-5").status_code == 200
     # National view: the item names Jawa Barat, so it stays
-    assert "Zzscam" in client.get("/fraud/items?days=0&region=id").text
+    assert "Zzscam" in client.get("/feed/scams?days=0&region=id").text
     # item page, preview and the identifier's own page
     item = client.get(f"/items/{scam_item['id']}").text
     assert "Fraud score" in item

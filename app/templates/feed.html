@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import sev, th, pager, period_select %}
+{% from "_macros.html" import sev, th, pager, period_select, feed_tabs %}
 {% block title %}Feed{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -11,6 +11,7 @@
     {%- if region == 'id' %} · <span class="region-note">National view: Indonesia</span>{% endif %}
     {%- if hidden_copies %} · <span title="Articles another outlet published first (syndicated or reposted). Each story is listed once; the item page lists its copies.">{{ hidden_copies }} cop{{ 'y' if hidden_copies == 1 else 'ies' }} hidden</span>{% endif %} · click a title to preview, a column header to sort</p></div>
 </div>
+{{ feed_tabs('threats') }}
 <form class="filters" method="get">
   <input type="search" name="q" value="{{ f.q }}" placeholder="Search title & content" aria-label="Search" maxlength="200">
   <select name="cat" aria-label="Source type"><option value="">All source types</option>
@@ -61,10 +62,10 @@
         {% set ents = i.entity_links|selectattr('entity.type', 'in', ['malware','actor','cve','technique','scam_type','brand','sector'])|list %}
         {% set iocs = i.entity_links|selectattr('entity.type', 'in', ['md5','sha1','sha256','ip','domain','url'])|list %}
         {% if ents or iocs or i.llm_summary or i.fraud_score %}<div class="ent-row">
-          {% for l in ents[:8] %}<a class="chip" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview"><span class="t">{{ l.entity.type }}</span>{{ l.entity.display|truncate(36, True) }}</a>{% endfor %}
+          {% for l in ents[:8] %}<a class="chip" href="/entities/{{ l.entity.id }}" data-preview="/entities/{{ l.entity.id }}/preview"><span class="t">{{ 'person' if l.entity.category == 'person' else l.entity.type }}</span>{{ l.entity.display|truncate(36, True) }}</a>{% endfor %}
           {% if ents|length > 8 %}<span class="chip muted">+{{ ents|length - 8 }}</span>{% endif %}
           {% if iocs %}<a class="chip" href="/items/{{ i.id }}" title="{{ iocs|length }} indicator(s) extracted"><span class="t">ioc</span>{{ iocs|length }}</a>{% endif %}
-          {% if i.fraud_score %}<a class="chip" href="/fraud/items?days=0" title="Scam report · fraud score {{ i.fraud_score }} / 100"><span class="t">fraud</span>{{ i.fraud_score }}</a>{% endif %}
+          {% if i.fraud_score %}<a class="chip" href="/feed/scams?days=0" title="Scam report · fraud score {{ i.fraud_score }} / 100"><span class="t">fraud</span>{{ i.fraud_score }}</a>{% endif %}
           {% if i.llm_summary %}<span class="badge new">AI</span>{% endif %}
         </div>{% endif %}
         {% set tg = targets.get(i.id) %}{% if tg %}<div class="target-line" title="Target countries">→ {% for t in tg %}<a href="/feed?country={{ t.code }}">{{ country_name(t.code) }}</a>{% if t.provinces %} ({% for p in t.provinces %}<a href="/feed?province={{ p }}">{{ province_name(p) }}</a>{{ ', ' if not loop.last }}{% endfor %}){% endif %}{{ ' · ' if not loop.last }}{% endfor %}</div>{% endif %}

@@ -22,6 +22,10 @@ One new column and a clean-up command. No manual migration.
   It only removes `regex` links of IP and SHA-1 indicators that the current extractor rejects, and only where the
   item's text is still stored. Prefer it to `reextract`, which rebuilds everything from the stored text and so
   cannot find again what retention has trimmed.
+- **Scam reports are re-analysed once** (fraud rules version 7) in the background after start-up: brands that
+  only speak or act lose their *impersonated* link, items about anti-scam tools leave the scam section, and
+  impersonated people (brand type *person*) are added. Brands and scam types removed by an analyst stay removed.
+  Bookmarks of `/fraud/items` keep working; the page is now `/feed/scams`.
 - **Optional:** to force a source to count as a newsletter (or never to), set `"digest": true` or `false` in its
   stored config and run `python manage.py digesttag`.
 

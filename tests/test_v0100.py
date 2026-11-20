@@ -100,7 +100,7 @@ def test_fraud_dashboard_and_nav(client):
     r = client.get("/fraud?days=30")
     assert r.status_code == 200
     assert "Scam &amp; fraud landscape" in r.text and 'id="c-scam-tl"' in r.text and 'data-kpi="reports"' in r.text
-    # sidebar: two dashboards, scam pages under Intelligence, no tabs any more
+    # sidebar: two dashboards, scam pages under Intelligence, no tabs on the dashboard
     assert 'href="/fraud/identifiers"' in r.text and "Cyber threats" in r.text and 'class="tabs"' not in r.text
     for url in ("/api/stats/fraud/overview?days=30", "/api/stats/fraud/kpi_series?days=30",
                 "/api/stats/fraud/timeline?days=30", "/api/stats/categories?type=scam_type&days=30",
@@ -111,8 +111,8 @@ def test_fraud_dashboard_and_nav(client):
     assert client.get("/api/stats/fraud/overview?days=30").json()["reports"] >= 1
     with session_scope() as db:
         sid = db.execute(select(Entity.id).where(Entity.type == "sector", Entity.value == "finance")).scalar_one()
-    r = client.get(f"/fraud/items?sector={sid}&country=ID&days=30")
-    assert r.status_code == 200 and "<h1>Scam reports</h1>" in r.text
+    r = client.get(f"/feed/scams?sector={sid}&country=ID&days=30")
+    assert r.status_code == 200 and "<h1>Feed</h1>" in r.text and "Scams &amp; fraud</a>" in r.text
 
 
 # --------------------------------------------------------------------------- backfill page

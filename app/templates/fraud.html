@@ -39,7 +39,7 @@
     <div class="card-head"><h2>{{ 'Most targeted provinces' if national else 'Most targeted countries' }}</h2>
       <a class="small" href="/geo">geography →</a></div>
     <div class="globe {{ 'warm' if national }}" data-globe="{{ 'indonesia' if national else 'world' }}" data-values="v-fraud-geo" data-top="v-fraud-top"
-         data-link="{{ '/fraud/items?province={code}&days=' ~ days if national else '/fraud/items?country={code}&days=' ~ days }}"
+         data-link="{{ '/feed/scams?province={code}&days=' ~ days if national else '/feed/scams?country={code}&days=' ~ days }}"
          aria-label="{{ 'Globe of Indonesian provinces' if national else 'Globe of target countries' }} by number of scam reports in the last {{ plabel }}">
       <div class="geo-loading muted small">Loading globe…</div></div>
     <script type="application/json" id="v-fraud-geo">{{ (geo.id_values if national else geo.world_values)|tojson }}</script>
@@ -50,14 +50,14 @@
 {% set d = k.reports - k.prev %}
 <div class="grid tiles-row" style="margin-top:16px" data-reveal="5">
   <div class="card lift tile">
-    {{ icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>', '/fraud/items?days=' ~ days, 'Open the scam reports') }}
+    {{ icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>', '/feed/scams?days=' ~ days, 'Open the scam reports') }}
     <div class="label">Scam reports</div>
     <div class="value count-up" data-count="{{ k.reports }}" data-kpi="reports">0</div>
     <div class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}">{{ d|abs }} vs previous {{ plabel }}</div>
     <svg class="spark" data-series="reports" data-color="--series-5"></svg>
   </div>
   <div class="card lift tile">
-    {{ icon('<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', '/fraud/items?sort=loss&days=' ~ days, 'Reports by reported loss') }}
+    {{ icon('<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', '/feed/scams?sort=loss&days=' ~ days, 'Reports by reported loss') }}
     <div class="label">Largest reported loss</div>
     <div class="value long">{{ k.loss|idr if k.loss else '–' }}</div>
     <div class="delta">{{ k.with_loss }} report(s) with a loss figure{% if k.victims %} · up to {{ '{:,}'.format(k.victims) }} victims{% endif %}</div>
@@ -96,7 +96,7 @@
       <thead><tr><th>Scam type</th><th class="num" title="Scam reports in the last {{ plabel }}">{{ days }}d</th><th class="num" title="The {{ plabel }} before">prev</th></tr></thead>
       <tbody>
       {% for r in types %}
-      <tr><td><a href="/fraud/items?scam={{ r.entity.id }}&days={{ days }}" data-preview="/entities/{{ r.entity.id }}/preview">{{ r.entity.display }}</a>
+      <tr><td><a href="/feed/scams?scam={{ r.entity.id }}&days={{ days }}" data-preview="/entities/{{ r.entity.id }}/preview">{{ r.entity.display }}</a>
           {% if r.spreading %}<span class="badge crit" title="{{ r.week }} reports this week, {{ r.week_prev }} the week before">spreading</span>{% endif %}
           {% if r.related %}<div class="ent-row">{% for c in r.related %}{{ dchip(c) }}{% endfor %}</div>{% endif %}
           <div class="meter"><span class="{{ 'new' if r.spreading }}" data-w="{{ (100 * r.count / topn)|round(1) }}"></span></div></td>
@@ -110,7 +110,7 @@
     <div class="trend-scroll">
     {% set maxb = (brands|map(attribute='count')|max) if brands else 1 %}
     {% for b in brands %}
-    <div class="brand-bar"><a href="/fraud/items?brand={{ b.entity.id }}&days={{ days }}" data-preview="/entities/{{ b.entity.id }}/preview">{{ b.entity.display }}</a>
+    <div class="brand-bar"><a href="/feed/scams?brand={{ b.entity.id }}&days={{ days }}" data-preview="/entities/{{ b.entity.id }}/preview">{{ b.entity.display }}</a>
       <span class="muted small">{{ b.entity.category }}</span><span class="num">{{ b.count }}</span>
       <div class="bar-inline" style="width:{{ (100 * b.count / maxb)|round(0) }}%"></div></div>
     {% else %}<div class="empty">No impersonated brands in this period.</div>{% endfor %}
@@ -143,7 +143,7 @@
 
 <div class="grid g-21" style="margin-top:16px;align-items:start" data-reveal="11">
   <div class="card">
-    <div class="card-head"><h2>Recent scam reports</h2><a class="small" href="/fraud/items?days={{ days }}">all →</a></div>
+    <div class="card-head"><h2>Recent scam reports</h2><a class="small" href="/feed/scams?days={{ days }}">all →</a></div>
     {% for i in recent %}{% include "_fraud_row.html" %}{% else %}<div class="empty">Nothing in the last {{ plabel }}.</div>{% endfor %}
   </div>
   <div class="grid" style="align-content:start">
@@ -179,14 +179,14 @@ document.addEventListener("DOMContentLoaded", () => {
   J.scamTimeline(document.getElementById("c-scam-tl"), days);
   J.hbar(document.getElementById("c-scam-type"), `/api/stats/categories?type=scam_type&days=${days}`,
          { labelKey: "label", color: 5, label: "Reports", empty: "No scam reports in this period.",
-           link: (r) => `/fraud/items?scam=${r.id}&days=${days}` });
+           link: (r) => `/feed/scams?scam=${r.id}&days=${days}` });
   J.hbar(document.getElementById("c-brand-cat"), `/api/stats/categories?type=brand_category&days=${days}`,
          { labelKey: "label", color: 4, label: "Reports", empty: "No impersonated brands in this period.",
            link: (r) => `/fraud/brands?category=${r.category}&days=${days}` });
   J.hbar(document.getElementById("c-fraud-sector"), `/api/stats/categories?type=sector&scope=fraud&days=${days}`,
          { labelKey: "label", color: 6, label: "Reports", empty: "No sector named in this period.",
            keep: (r) => r.count > 0, note: (rest) => "None in this period: " + rest.map((r) => r.label).join(", ") + ".",
-           link: (r) => `/fraud/items?sector=${r.id}&days=${days}` });
+           link: (r) => `/feed/scams?sector=${r.id}&days=${days}` });
   J.sources(document.getElementById("c-fraud-src"), days, 10, "fraud");
 });
 </script>

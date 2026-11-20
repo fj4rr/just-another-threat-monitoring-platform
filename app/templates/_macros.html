@@ -17,7 +17,15 @@
 {%- endmacro %}
 
 {% macro chip(e) -%}
-<a class="chip" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview"><span class="t">{{ e.type }}</span>{{ e.display|truncate(48, True) }}</a>
+<a class="chip" href="/entities/{{ e.id }}" data-preview="/entities/{{ e.id }}/preview"><span class="t">{{ 'person' if e.type == 'brand' and e.category == 'person' else e.type }}</span>{{ e.display|truncate(48, True) }}</a>
+{%- endmacro %}
+
+{# The two feeds (0.14.1), like the two dashboards #}
+{% macro feed_tabs(active) -%}
+<nav class="tabs" aria-label="Feeds">
+  <a href="/feed" class="{{ 'active' if active == 'threats' }}" {% if active == 'threats' %}aria-current="page"{% endif %} title="Every collected item, ranked by severity">Cyber threats</a>
+  <a href="/feed/scams" class="{{ 'active' if active == 'scams' }}" {% if active == 'scams' %}aria-current="page"{% endif %} title="Scam reports, ranked by fraud score">Scams &amp; fraud</a>
+</nav>
 {%- endmacro %}
 
 {# Chip from a plain dict (id, type, name[, count]) as returned by trends.* #}
