@@ -22,6 +22,18 @@
     crypto_wallet: { color: "--series-3", r: 6, label: "Scammer identifier" },
   };
   const VERDICT = { malicious: "--critical", suspicious: "--warning", clean: "--good" };
+  // What a line means and how far to trust it. "claim" says whose statement it is; warn = co-occurrence only, an
+  // analyst should validate it before acting on it (see app/processing/graph.py for how each kind is built).
+  const EDGE = {
+    mention: { label: "Mentions", claim: "automatic", warn: false,
+      tip: "The item names it: extracted from its text by the platform's rules, or listed by the source's own indicator feed." },
+    enrichment: { label: "Provider link", claim: "provider's claim", warn: false,
+      tip: "A threat-intel provider (OTX, urlscan, MalwareBazaar…) states this relation. It is that provider's claim, not verified here." },
+    shared: { label: "Also mentions", claim: "needs validation", warn: true,
+      tip: "Another item names the same entity. That is not proof that the two items describe the same activity." },
+    comention: { label: "Mentioned together", claim: "needs validation", warn: true,
+      tip: "Named in the same items. That is not attribution: an article can name several families next to an indicator." },
+  };
 
   const el = (name, attrs = {}, parent) => {
     const n = document.createElementNS(NS, name);
@@ -124,7 +136,7 @@
       const gNodes = el("g", { class: "nodes" }, vp);
       for (const e of edges) {
         e.line = el("line", { class: `gedge k-${e.kind}` }, gEdges);
-        el("title", {}, e.line).textContent = e.label;
+        el("title", {}, e.line).textContent = e.label + (EDGE[e.kind] ? ` · ${EDGE[e.kind].claim}` : "");
       }
       for (const n of nodes) {
         const g = el("g", { class: "gnode" + (n.center ? " center" : ""), tabindex: "0", role: "button",
@@ -268,6 +280,24 @@
       }
       for (const [v, c] of Object.entries(VERDICT)) if (kinds.has("ioc:" + v)) add(c, `IOC (${v})`, "dia");
       if (kinds.has("ioc:other")) add("--neutral-mark", "IOC (unknown / pending)", "dia");
+      // the lines: one sample in the style of the edge itself, what it means, and whose claim it is
+      const lineKinds = Object.keys(EDGE).filter((k) => edges.some((e) => e.kind === k));
+      if (lineKinds.length) {
+        const row = document.createElement("div");
+        row.className = "lg-lines";
+        for (const k of lineKinds) {
+          const d = EDGE[k], s = document.createElement("span");
+          s.className = "lg"; s.title = d.tip;
+          const sample = el("svg", { width: 24, height: 8, "aria-hidden": "true" });
+          el("line", { x1: 1, y1: 4, x2: 23, y2: 4, class: `gedge k-${k}` }, sample);
+          const tag = document.createElement("span");
+          tag.className = "badge" + (d.warn ? " warn" : "");
+          tag.textContent = d.claim;
+          s.append(sample, document.createTextNode(d.label + " "), tag);
+          row.appendChild(s);
+        }
+        legend.appendChild(row);
+      }
     }
 
     card.addEventListener("click", (ev) => {

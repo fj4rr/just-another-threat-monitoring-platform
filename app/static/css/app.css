@@ -560,6 +560,9 @@ a.notif-row:hover { background: var(--surface-2); text-decoration: none; }
 .graph-legend .sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .graph-legend .sw.sq { border-radius: 2px; }
 .graph-legend .sw.dia { border-radius: 1px; transform: rotate(45deg) scale(.85); }
+.graph-legend .lg-lines { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px 16px; padding-top: 6px; border-top: 1px solid var(--border); }
+.graph-legend .lg-lines .lg { cursor: help; }
+.graph-legend .lg-lines .badge { font-size: 11px; }
 .graph-tools .btn { min-width: 30px; justify-content: center; }
 @media (max-width: 760px) { .graph-wrap { height: 360px; } }
 

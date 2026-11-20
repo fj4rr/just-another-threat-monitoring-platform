@@ -188,6 +188,20 @@ On an entity's page, the graph shows the entity, its enrichment links, the famil
 mentioned with it, and the 10 highest-severity items that mention it. The graph starts with up to **60 nodes**;
 *Show more* raises the limit to 150. When something had to be left out, the graph says so.
 
+**Reading the lines.** Under the graph, a second legend row shows each kind of line that appears in it, what it
+means and *whose claim it is*. Hover an entry for the explanation; hovering a line in the graph shows its label and
+the same claim.
+
+| Line | Means | Claim |
+|---|---|---|
+| Solid, grey (*Mentions*) | The item names the entity: extracted from its text by the platform's rules, or listed by the source's own indicator feed | automatic |
+| Dashed, green (*Provider link*) | A threat-intel provider (OTX, urlscan, MalwareBazaar…) states the relation, such as an indicator attributed to a family | provider's claim |
+| Solid, blue (*Also mentions*) | Another item names the same entity: not proof that the two items describe the same activity | needs validation |
+| Dotted (*Mentioned together*) | Two entities named in the same items: not attribution | needs validation |
+
+*Needs validation* marks relations that come from co-occurrence only. An analyst can remove a wrong link with
+**Correct** ([Analyst corrections](corrections.md)). Newsletters and round-ups are left out of both kinds.
+
 ## Other figures
 
 | Widget | What it shows |

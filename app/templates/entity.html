@@ -69,7 +69,7 @@
           <button type="button" class="btn sm" data-graph-zoom="fit" aria-label="Fit graph">Fit</button></div></div>
       <div class="graph-wrap" data-graph="/api/entities/{{ ent.id }}/graph" aria-label="Relationship graph of this entity. Nodes are focusable: Enter previews, O opens."></div>
       <div class="graph-legend small muted"></div>
-      <p class="muted small" style="margin:6px 0 0">Click a node to preview it, double-click to open its page; drag nodes or the canvas, scroll to zoom. Dashed lines come from enrichment.</p>
+      <p class="muted small" style="margin:6px 0 0">Click a node to preview it, double-click to open its page; drag nodes or the canvas, scroll to zoom. Hover a line style in the legend for what it means; lines marked “needs validation” are co-occurrence, not a confirmed relation.</p>
     </div>
     {% if not is_ioc %}
     <div class="card" id="indicators">

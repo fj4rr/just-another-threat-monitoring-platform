@@ -19,6 +19,10 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
   *Mentioned together with*, the indicators of a family and the chips on the lists skip them. On an indicator's page
   the card is called *Seen in the same items as*, says that appearing in the same report is not attribution, and
   *Linked by enrichment* is shown first.
+- The relationship graph explains its lines. A second legend row shows each kind of line in the graph in its own
+  style, with what it means and whose claim it is: *Mentions* (automatic), *Provider link* (the provider's claim),
+  and *Also mentions* and *Mentioned together* (needs validation: co-occurrence, not a confirmed relation). Hovering a
+  line shows the same.
 - Version numbers in advisories are no longer read as IP addresses. *IBM API Connect 12.1.0.0 through 12.1.1.2*,
   *fixed builds include 17.0.21.1, 21.0.13.1*, *up to 1.5.1.6* and *versions prior to 6.14.105.0* produced IP
   indicators that linked unrelated CVE posts (one "IP" sat in 69 items). A git commit in a page title
