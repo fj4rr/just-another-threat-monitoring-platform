@@ -2,7 +2,7 @@
 from sqlalchemy import select
 
 from app.db import session_scope
-from app.models import Item, Source, utcnow
+from app.models import Entity, Item, Source, utcnow
 from app.processing import trends
 from app.processing.digest import is_digest
 from app.processing.extractor import Extracted
@@ -156,7 +156,7 @@ def test_digests_do_not_correlate_through_recurring_hashes(installed):
         issues = []
         for n in range(3):  # weekly issues repeating the same "most prevalent files"
             it = Item(source_id=talos.id, external_id=f"zzdig-{n}", title=f"Issue {n}", tags=["Threat Source newsletter"],
-                      published_at=utcnow())
+                      published_at=utcnow(), is_digest=True)
             db.add(it)
             db.flush()
             link_entities(db, it, shared)
@@ -174,3 +174,67 @@ def test_digests_do_not_correlate_through_recurring_hashes(installed):
         rows = {r["item"].id: r for r in trends.correlated_items(db, story)}
         assert real.id in rows and not rows[real.id]["digest"] and rows[real.id]["strong"]  # real reports still link
         assert all(r["digest"] and not r["strong"] for iid, r in rows.items() if iid != real.id)
+
+
+def _volta_case(db, tag):
+    """A hash listed in a newsletter's "prevalent files" next to the family of another story, and the same family
+    in a real report with another hash. Returns (digest hash id, real hash id, family id)."""
+    news, other = _src(db, f"zz-co-news-{tag}"), _src(db, f"zz-co-other-{tag}")
+    fam = Extracted("malware", f"zzfam{tag}", f"ZzFam{tag}", "stealer", "kb")
+    h_news = Extracted("sha256", (f"a{tag}" * 32)[:64], (f"a{tag}" * 32)[:64], "", "regex")
+    h_real = Extracted("sha256", (f"b{tag}" * 32)[:64], (f"b{tag}" * 32)[:64], "", "regex")
+    digest = Item(source_id=news.id, external_id=f"co-d-{tag}", title="Threat Source", tags=["Threat Source newsletter"],
+                  published_at=utcnow(), is_digest=True)
+    real = Item(source_id=other.id, external_id=f"co-r-{tag}", title="Stealer analysis", published_at=utcnow())
+    db.add_all([digest, real])
+    db.flush()
+    link_entities(db, digest, [fam, h_news])
+    link_entities(db, real, [fam, h_real])
+    db.flush()
+    ent = {(e.type, e.value): e.id for e in db.execute(select(Entity)).scalars()}
+    return ent[("sha256", h_news.value)], ent[("sha256", h_real.value)], ent[("malware", fam.value)]
+
+
+def test_co_mentions_skip_digests(installed):
+    from app.routers.pages import related_chips
+
+    with session_scope() as db:
+        h_news, h_real, fam = _volta_case(db, "1")
+        assert trends.co_occurring(db, h_news, ("malware",)) == []  # the newsletter's hash is not tied to the family
+        assert [c["id"] for c in trends.co_occurring(db, h_real, ("malware",))] == [fam]
+        assert h_news not in related_chips(db, [h_news, h_real], ("malware",))
+        assert [c["id"] for c in related_chips(db, [h_real], ("malware",))[h_real]] == [fam]
+        # from the family's side only the real report's indicator is listed
+        assert [c["id"] for c in trends.co_occurring(db, fam, ("sha256",))] == [h_real]
+
+
+def test_ingest_flags_digests_and_retag_keeps_trimmed_ones(installed):
+    from app.processing import digest as dg
+    from app.processing.pipeline import RawItem, ingest
+
+    with session_scope() as db:
+        s = _src(db, "zz-ingest-dig")
+        ids = ingest(db, s, [
+            RawItem(external_id="zzi-1", title="Never be afraid to ask questions", url="https://x.example/1", kind="article",
+                    content="Welcome to this week's edition of the Threat Source newsletter. Upcoming events where you can find Talos",
+                    tags=[]),
+            RawItem(external_id="zzi-2", title="Loader drops a stealer", url="https://x.example/2", kind="article",
+                    content="A research post about a loader.", tags=[])])
+        db.flush()
+        a, b = (db.get(Item, i) for i in ids)
+        assert a.is_digest is True and b.is_digest is False
+        # retention trims the body: the flag it already had stays, nothing is flagged by the rerun that was not before
+        a.content, a.slimmed_at = "Welcome", utcnow()
+        db.flush()
+        dg.retag_all(db)
+        assert db.get(Item, a.id).is_digest is True and db.get(Item, b.id).is_digest is False
+
+
+def test_ioc_page_separates_providers_from_co_mentions(client):
+    with session_scope() as db:
+        h_news, h_real, fam = _volta_case(db, "2")
+    page = client.get(f"/entities/{h_real}").text
+    assert "Seen in the same items as" in page and "not attribution" in page
+    assert client.get(f"/entities/{h_news}").status_code == 200
+    fam_page = client.get(f"/entities/{fam}").text  # the family lists its real report's hash, not the newsletter's
+    assert ("b2" * 32) in fam_page and ("a2" * 32) not in fam_page

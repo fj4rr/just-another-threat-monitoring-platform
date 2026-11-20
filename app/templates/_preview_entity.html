@@ -53,7 +53,7 @@
   {% endif %}
 
   {% if co %}
-  <div class="pv-sec"><h3>Mentioned together with</h3>{% for c in co %}{{ dchip(c, True, True) }}{% endfor %}</div>
+  <div class="pv-sec"><h3 title="{{ 'Appearing in the same report is not attribution.' if is_ioc else '' }}">{{ 'Seen in the same items as' if is_ioc else 'Mentioned together with' }}</h3>{% for c in co %}{{ dchip(c, True, True) }}{% endfor %}</div>
   {% endif %}
 
   <div class="pv-sec"><h3>Recent coverage</h3>

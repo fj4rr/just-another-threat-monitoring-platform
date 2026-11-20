@@ -20,6 +20,8 @@
                                                MAXMIND_LICENSE_KEY) into data/geoip/ and locate IP indicators
     python manage.py fraudtag                  re-run the scam & fraud analysis (scam types, brands, identifiers, score)
     python manage.py sectortag                 re-detect the critical infrastructure sectors (government, finance, health...) of every item
+    python manage.py digesttag                 flag the newsletters / round-ups among the items again (after changing a
+                                               source's "digest" setting)
     python manage.py telegram-login            sign in to Telegram once (MTProto, optional) and store the session
     python manage.py quality [options]         precision / recall of the detection rules on the labelled cases in
                                                tests/quality/ (--corrections FILE adds an export of the analysts'
@@ -60,6 +62,8 @@ def main(argv: list[str]) -> int:
         print(jobs.run_fraudtag(force=True))
     elif cmd == "sectortag":
         print(jobs.run_sectortag(force=True))
+    elif cmd == "digesttag":
+        print(jobs.run_digesttag(force=True))
     elif cmd == "telegram-login":
         return telegram_login()
     elif cmd == "geoip-update":

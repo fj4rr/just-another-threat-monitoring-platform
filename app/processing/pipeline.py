@@ -15,6 +15,7 @@ from .. import geoip
 from ..models import Enrichment, Entity, Item, ItemEntity, Source, utcnow
 from ..sharing import norm_tlp
 from . import fraud, sectors
+from .digest import is_digest
 from .extractor import Extracted, extract_all
 from .geo import tag_item
 from .severity import IOC_TYPES, carry_over, reasons_to_json, score_item
@@ -391,6 +392,7 @@ def ingest(db: Session, source: Source, raws: list[RawItem], progress=None, orig
         )
         if r.kind == "article":
             item.fingerprint = fingerprint(item.title, content)
+        item.is_digest = is_digest(item, source)
         db.add(item)
         db.flush()
         if item.fingerprint:

@@ -111,6 +111,9 @@ class Item(Base):
     # shares a fingerprint; copies point at the first item with ``dup_of`` and statistics count the story once
     fingerprint: Mapped[str] = mapped_column(String(40), default="", index=True)
     dup_of: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    # newsletter / round-up that wraps several unrelated stories (app/processing/digest.py): what it mentions
+    # together is not evidence that those things belong together, so co-mentions and correlation skip or discount it
+    is_digest: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
     source: Mapped[Source] = relationship(lazy="joined")
     entity_links: Mapped[list[ItemEntity]] = relationship(

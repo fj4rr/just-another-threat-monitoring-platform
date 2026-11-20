@@ -53,6 +53,7 @@ One collected article, post, pulse, scan or analysis. Unique on `(source_id, ext
 | `slimmed_at` | Set when the retention tier trimmed the text. |
 | `lang`, `src_country` | Detected language (`en`, `id`, `""`) and the outlet's country. |
 | `fraud_score`, `fraud_detail`, `fraud_loss_idr`, `fraud_victims` | Scam analysis. **`fraud_score > 0` is the definition of a scam report** everywhere (pages, statistics, API). |
+| `is_digest` | `true` for a newsletter or round-up that wraps several unrelated stories (Talos *Threat Source*, weekly recaps, podcasts). Set when the item is collected and re-set by `manage.py digesttag`. Co-mentions (*Mentioned together with*, the indicators listed for a family) skip these items, and correlation discounts them: see [Trends and correlation](how-it-works/trends.md#correlation). |
 | `fingerprint`, `dup_of` | Cross-source dedup for articles. `dup_of` points at the original item (always an original, never another copy); every count of stories (dashboards, trends, reports) counts `coalesce(dup_of, id)` once; only per-outlet figures count items (see [Counting rules](how-it-works/trends.md#counting-rules)). The feed hides copies unless *Show copies* is ticked. |
 | `llm_summary`, `llm_at` | AI summary in Markdown. |
 
@@ -145,7 +146,7 @@ AI output that is not attached to an item or entity: `kind` `digest` (executive 
 - Values of kind `secret` are stored as `enc:v1:<Fernet token>`. The key is derived from `secret_key` in
   `data/config.json`, so a database without its `config.json` cannot decrypt them (they then read as empty).
 - Keys that are not in `SCHEMA` are internal state: rules versions (`fraud_version`, `geo_version`,
-  `sector_version`, `content_version`, `dedup_version`), `netguard_seeded`, provider daily budgets, the builtin
+  `sector_version`, `content_version`, `dedup_version`, `digest_version`), `netguard_seeded`, provider daily budgets, the builtin
   sources already offered.
 
 `data/config.json` (not in the database) holds what must exist before the database does: `installed`, `mode`

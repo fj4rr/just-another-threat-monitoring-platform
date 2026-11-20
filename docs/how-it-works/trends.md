@@ -160,7 +160,16 @@ body carries newsletter boilerplate (*Welcome to this week's edition…*, *Upcom
 Talos issue titles say nothing, so the title alone is not enough), or when its source has `"digest": true` in its config (`false` opts a
 source out). Links through a digest are scored ×0.4, ×0.1 when both items are digests, never made between two
 issues of the same source, and dropped when the score ends below 1. They carry a *digest* badge and are never
-flagged *strong*.
+flagged *strong*. The flag is stored on the item (`items.is_digest`), set when it is collected and re-set after an
+upgrade or `manage.py digesttag`.
+
+**Co-mentions.** *Mentioned together with*, the indicators listed on a family's page and the chips on the lists count
+the entities that appear in the same items, and they leave out digests entirely: a hash from a newsletter's weekly
+*most prevalent files* list sits next to the family of another story, and that is no evidence the two belong
+together. Even outside digests, being in the same article is not attribution (on this deployment's data, an
+indicator and a family from the same article agreed with the provider's family only about a third of the time), so on
+an indicator's page the card is called *Seen in the same items as*, and *Linked by enrichment* (what a provider
+attributes) comes first.
 
 To keep this fast, entities mentioned in more than 400 items aren't used to *find* candidates (although they
 still add weight to candidates found through rarer entities), and at most the 4,000 most recent links are read.

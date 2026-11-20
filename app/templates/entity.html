@@ -133,11 +133,7 @@
     <div class="card"><h2>Seen in</h2>
       <table><tbody>{% for cat, name, sid, n in by_source %}<tr><td><a href="/feed?entity={{ ent.id }}&source={{ sid }}&days=0" title="Items from {{ name }} mentioning {{ ent.display }}"><span class="badge cat-{{ cat }}">{{ name }}</span></a></td><td class="num">{{ n }}</td></tr>{% endfor %}</tbody></table>
     </div>{% endif %}
-    {% if co %}
-    <div class="card"><h2>Mentioned together with</h2>
-      {% for c in co %}<a class="chip" href="/entities/{{ c.id }}" data-preview="/entities/{{ c.id }}/preview"><span class="t">{{ c.type }}</span>{{ c.name }} <span class="t">{{ c.count }}</span></a>{% endfor %}
-    </div>{% endif %}
-    {% if linked %}
+    {% macro linked_card() %}{% if linked %}
     <div class="card"><h2>Linked by enrichment</h2>
       <div style="max-height:420px;overflow:auto">
       {% for d in linked %}
@@ -147,7 +143,14 @@
           <span class="muted small" title="{{ d.relations|join(', ') }}">{{ d.providers|join(', ') }}</span>
         </div>
       {% endfor %}</div>
+    </div>{% endif %}{% endmacro %}
+    {% if is_ioc %}{{ linked_card() }}{% endif %}
+    {% if co %}
+    <div class="card"><h2>{{ 'Seen in the same items as' if is_ioc else 'Mentioned together with' }}</h2>
+      {% if is_ioc %}<p class="muted small" style="margin:0 0 8px">Appearing in the same report is not attribution: an article can name several families next to an indicator. Provider-confirmed links are under “Linked by enrichment”. Newsletters and round-ups are left out.</p>{% endif %}
+      {% for c in co %}<a class="chip" href="/entities/{{ c.id }}" data-preview="/entities/{{ c.id }}/preview"><span class="t">{{ c.type }}</span>{{ c.name }} <span class="t">{{ c.count }}</span></a>{% endfor %}
     </div>{% endif %}
+    {% if not is_ioc %}{{ linked_card() }}{% endif %}
     {% if ent.type == 'cve' %}{% set m = ent.meta or {} %}
     <div class="card"><div class="card-head"><h2>Vulnerability intel</h2>
       {% if user.role in ('admin','analyst') %}<button class="btn sm" data-post="/api/cves/refresh" data-busy="Queuing…" data-job-button="cve_intel" title="Refresh KEV / EPSS / CVSS for recently mentioned CVEs">⟳</button>{% endif %}</div>

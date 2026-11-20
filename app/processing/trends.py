@@ -342,7 +342,11 @@ def _trending(db: Session, etype: str, limit: int, window: int, baseline: int | 
 
 
 def co_occurring(db: Session, entity_id: int, etypes: tuple[str, ...], limit: int = 15) -> list[dict]:
-    sub = select(ItemEntity.item_id).where(ItemEntity.entity_id == entity_id)
+    """Entities mentioned in the same items. Newsletters and round-ups are left out: they name unrelated things
+    side by side (a hash from the weekly "most prevalent files" list next to the family of another story), so being
+    in one says nothing about whether two entities belong together."""
+    sub = (select(ItemEntity.item_id).join(Item, Item.id == ItemEntity.item_id)
+           .where(ItemEntity.entity_id == entity_id, Item.is_digest.is_(False)))
     rows = db.execute(
         select(Entity.id, Entity.type, Entity.display, Entity.category, Entity.verdict, func.count(ItemEntity.item_id))
         .join(ItemEntity, ItemEntity.entity_id == Entity.id)
@@ -442,19 +446,17 @@ def correlated_items(db: Session, item: Item, limit: int = 15) -> list[dict]:
                            .where(ItemEntity.item_id.in_(cand_ids[:500]), ItemEntity.entity_id.in_(list(weights)))).all()
         for iid, eid in extra:
             shared[iid].add(eid)
-    from .digest import is_digest
-
     # a wider cut than the final limit: digest candidates are discounted below, after their items are loaded
     scored = sorted(((sum(weights[e] for e in ents), iid) for iid, ents in shared.items()), reverse=True)[:max(limit * 4, 150)]
     items = {i.id: i for i in db.execute(select(Item).where(Item.id.in_([iid for _, iid in scored]))).unique().scalars()}
-    item_digest = is_digest(item)
+    item_digest = bool(item.is_digest)
     out = []
     for base, iid in scored:
         other = items.get(iid)
         if not other:
             continue
         score = base
-        other_digest = is_digest(other)
+        other_digest = bool(other.is_digest)
         digest = item_digest or other_digest
         if item_digest and other_digest and other.source_id == item.source_id:
             continue  # two issues of the same series: what they share is the recurring boilerplate

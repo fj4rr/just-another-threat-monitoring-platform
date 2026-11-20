@@ -40,8 +40,12 @@ _BODY = re.compile(
     re.I)
 
 
-def is_digest(item) -> bool:
-    forced = (getattr(item.source, "config", None) or {}).get("digest")
+RULES_VERSION = 1  # bump when the detection above changes: the start-up job re-tags stored items once
+
+
+def is_digest(item, source=None) -> bool:
+    """``source`` avoids loading ``item.source`` for an item that is not flushed yet."""
+    forced = (getattr(source or item.source, "config", None) or {}).get("digest")
     if forced is not None:
         return bool(forced)
     head = " ".join([item.title or "", *[str(t) for t in (item.tags or [])]])
@@ -49,3 +53,24 @@ def is_digest(item) -> bool:
             or _SERIES.search(head) or _TITLE.search(item.title or ""):
         return True
     return bool(_BODY.search(item.content or ""))
+
+
+def retag_all(db, progress=None, batch: int = 500) -> int:
+    """Set ``Item.is_digest`` on every stored item; only rows that change are written. An item whose text retention
+    has trimmed keeps a digest flag it already had (the body phrases that proved it are gone). Returns the number
+    of items flagged afterwards."""
+    from sqlalchemy import func, select
+
+    from ..models import Item
+
+    ids = [i for (i,) in db.execute(select(Item.id).order_by(Item.id))]
+    for n in range(0, len(ids), batch):
+        for item in db.execute(select(Item).where(Item.id.in_(ids[n:n + batch]))).unique().scalars():
+            want = is_digest(item) or (bool(item.is_digest) and item.slimmed_at is not None)
+            if bool(item.is_digest) != want:
+                item.is_digest = want
+        db.commit()
+        db.expunge_all()
+        if progress:
+            progress(min(n + batch, len(ids)), len(ids))
+    return db.scalar(select(func.count(Item.id)).where(Item.is_digest.is_(True))) or 0

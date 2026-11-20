@@ -699,6 +699,36 @@ def run_sectortag(force: bool = False) -> str:
         db.close()
 
 
+def run_digesttag(force: bool = False) -> str:
+    """Flag the newsletters and round-ups among the stored items (``Item.is_digest``). Runs once after an upgrade or a
+    rules change (``digest.RULES_VERSION``), or on demand (``manage.py digesttag``, also after a source's
+    ``"digest"`` setting changed)."""
+    from .processing import digest, trends
+
+    if not force and int(settings.get("digest_version") or 0) >= digest.RULES_VERSION:
+        return "digest flags are up to date"
+    db = SessionLocal()
+    run = _start_run(db, "digesttag")
+    try:
+        def progress(done: int, total: int) -> None:
+            run.progress_done, run.progress_total, run.phase = done, total, f"{done}/{total} items"
+            db.commit()
+
+        n = digest.retag_all(db, progress)
+        settings.set("digest_version", digest.RULES_VERSION)
+        trends.invalidate_cache()
+        msg = f"{n} item(s) flagged as newsletters / round-ups"
+        _finish(db, run, "ok", msg)
+        return msg
+    except Exception as e:
+        db.rollback()
+        _finish(db, run, "error", str(e))
+        log.warning("digesttag failed: %s", e)
+        return f"error: {e}"
+    finally:
+        db.close()
+
+
 def prune_identifiers(db) -> int:
     """UU PDP data minimisation: scammer phone numbers, bank accounts and e-wallets that no item has mentioned for
     ``fraud_identifier_days`` are deleted (crypto wallets are not personal data and stay)."""
@@ -1108,6 +1138,9 @@ def start() -> None:
     scheduler.add_job(run_dedup, "date", run_date=_now() + timedelta(seconds=30), id="dedup", replace_existing=True)
     # and for the critical infrastructure sectors (0.10)
     scheduler.add_job(run_sectortag, "date", run_date=_now() + timedelta(seconds=60), id="sectortag",
+                      replace_existing=True)
+    # newsletters / round-ups, so co-mentions and correlation can skip them (0.14.1)
+    scheduler.add_job(run_digesttag, "date", run_date=_now() + timedelta(seconds=75), id="digesttag",
                       replace_existing=True)
     # and the severity scores, after the analyses above have settled the entities they read (0.12)
     scheduler.add_job(run_rescore_if_outdated, "date", run_date=_now() + timedelta(seconds=90), id="rescore_rules",

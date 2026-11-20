@@ -12,6 +12,13 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
   are marked *digest*. A source can force or opt out with `"digest": true/false` in its config. Issues are
   recognised by tag, by title wording (bulletins, *in other news*, weekly threat reports, *mingguan*…) and by
   newsletter boilerplate in the body, since Talos titles like "Never be afraid to ask questions" say nothing.
+- Newsletters no longer tie unrelated things together on entity pages either. A hash from the weekly "most
+  prevalent files" list of a Talos *Threat Source* issue showed up as *mentioned together with* VOLTA, because the same
+  issue also covered VOLTA elsewhere (once only in a promo for another post). Digests are now flagged on the item
+  (`items.is_digest`, set at collection, back-filled once after the upgrade, `manage.py digesttag` by hand) and
+  *Mentioned together with*, the indicators of a family and the chips on the lists skip them. On an indicator's page
+  the card is called *Seen in the same items as*, says that appearing in the same report is not attribution, and
+  *Linked by enrichment* is shown first.
 - Version numbers in advisories are no longer read as IP addresses. *IBM API Connect 12.1.0.0 through 12.1.1.2*,
   *fixed builds include 17.0.21.1, 21.0.13.1*, *up to 1.5.1.6* and *versions prior to 6.14.105.0* produced IP
   indicators that linked unrelated CVE posts (one "IP" sat in 69 items). A git commit in a page title

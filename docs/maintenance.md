@@ -20,6 +20,7 @@ python manage.py geotag           # re-run the geography (targets, provinces, la
 python manage.py geoip-update     # download the offline GeoIP database and locate IP indicators
 python manage.py fraudtag         # re-run the scam & fraud analysis on every item (also a button on the fraud pages)
 python manage.py sectortag        # detect the critical infrastructure sectors of every item again
+python manage.py digesttag        # flag the newsletters and round-ups again (after changing a source's "digest" setting)
 python manage.py quality          # precision and recall of the detection rules on the cases in tests/quality/
 python manage.py telegram-login   # sign in to Telegram once for MTProto (optional; needs requirements-telegram.txt)
 python manage.py vacuum           # give freed disk space back after deleting a lot of data

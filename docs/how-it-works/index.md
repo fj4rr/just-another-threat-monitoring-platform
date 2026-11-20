@@ -150,6 +150,7 @@ time zone you choose under Settings → General; the defaults are UTC.
 | 30 s after start-up | `run_dedup` | Fingerprints stored articles if the dedup rules changed |
 | 40 s after start-up | `run_fraudtag` | Re-runs the scam analysis if the rules changed |
 | 60 s after start-up | `run_sectortag` | Re-tags sectors if the rules changed |
+| 75 s after start-up | `run_digesttag` | Flags newsletters and round-ups if the rules changed |
 | 90 s after start-up | `run_rescore_if_outdated` | Re-scores stored items if the severity rules changed |
 | 2 min after start-up, then every 10 min | `run_enrichment` | Looks up 8 indicators, plus re-checks, aged verdicts and 2 trending families when enabled; each provider works at its own pace |
 | 3 min after start-up, then every 6 h | `run_cve_intel` | Fetches KEV, EPSS and CVSS for up to 60 recently mentioned CVEs |

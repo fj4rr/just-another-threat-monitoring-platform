@@ -280,7 +280,8 @@ def related_chips(db: Session, ids: list[int], types: tuple[str, ...] = RELATED_
     rows = db.execute(
         select(a.entity_id, Entity.id, Entity.type, Entity.display, func.count(distinct(a.item_id)))
         .join(b, b.item_id == a.item_id).join(Entity, Entity.id == b.entity_id)
-        .where(a.entity_id.in_(ids), Entity.id != a.entity_id, Entity.type.in_(types))
+        .join(Item, Item.id == a.item_id)  # newsletters / round-ups co-mention unrelated things (digest.py)
+        .where(a.entity_id.in_(ids), Entity.id != a.entity_id, Entity.type.in_(types), Item.is_digest.is_(False))
         .group_by(a.entity_id, Entity.id)
     ).all()
     out: dict[int, list[dict]] = {}

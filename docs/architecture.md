@@ -208,6 +208,7 @@ date; it runs a few seconds after start and can be forced from the UI or `manage
 | `run_dedup` | `jobs.DEDUP_VERSION` | `dedup_version` | Cross-source fingerprints |
 | `run_fraudtag` | `fraud.RULES_VERSION` | `fraud_version` | Scam types, brands, identifiers, fraud score |
 | `run_sectortag` | `sectors.RULES_VERSION` | `sector_version` | Critical infrastructure sectors |
+| `run_digesttag` | `digest.RULES_VERSION` | `digest_version` | Newsletters and round-ups (`Item.is_digest`) |
 | `run_rescore_if_outdated` | `severity.RULES_VERSION` | `severity_version` | Severity from text and linked entities, keeping the enrichment bonus and AI assessment (`severity.carry_over`); runs last, at 90 s |
 
 Entity extraction has no automatic job: changing it only affects new items until an admin runs

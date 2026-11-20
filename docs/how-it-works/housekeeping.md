@@ -80,6 +80,7 @@ analysis has a **rules version**:
 | `run_dedup` | 30 s | `dedup_version` | The fingerprints of every article, oldest first, so the first outlet to publish a story stays the original. On every start it also repairs any article marked as a copy of itself, so it reappears in the feed as an original |
 | `run_fraudtag` | 40 s | `fraud_version` | Scam types, brands, identifiers, losses, victims and the fraud score of every item, oldest first (so the *spreading* check sees the earlier reports) |
 | `run_sectortag` | 60 s | `sector_version` | The critical infrastructure sectors of every item |
+| `run_digesttag` | 75 s | `digest_version` | `Item.is_digest` of every item (newsletters and round-ups). Also `manage.py digesttag`, after changing a source's `"digest"` setting |
 | `run_rescore_if_outdated` | 90 s | `severity_version` | The severity of every item, from its text and linked entities, keeping the enrichment bonus and the last AI assessment (the same as *Re-score all items*). It runs last, so it sees the entities the jobs above have settled |
 
 These jobs work through the items in chunks of 500 (200 for the content clean-up), save after each chunk, and
