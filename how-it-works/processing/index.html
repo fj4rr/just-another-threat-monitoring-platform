@@ -1,0 +1,2233 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Just Another Threat Monitoring Platform – self-hosted cyber threat and online fraud monitoring">
+      
+      
+      
+        <link rel="canonical" href="https://fj4rr.github.io/just-another-threat-monitoring-platform/how-it-works/processing/">
+      
+      
+        <link rel="prev" href="../collection/">
+      
+      
+        <link rel="next" href="../scoring/">
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>Ingest and analysis - JATMP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ingest-and-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="JATMP" class="md-header__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JATMP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Ingest and analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="JATMP" class="md-nav__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    JATMP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Setting up
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Setting up
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upgrading
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Maintenance commands
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Using JATMP
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Using JATMP
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sources
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-jatmp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using JATMP
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../geography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Geography and Indonesia
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fraud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Scams and fraud
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sharing and integrations
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reporting-and-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Reporting and AI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../history-and-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    History and storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../screenshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Screenshots
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    How it works
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How it works
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Collection
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Ingest and analysis
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Ingest and analysis
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#the-ten-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      The ten steps
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-new-or-already-stored" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. New or already stored?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-cleaning-and-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Cleaning and limits
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-cross-source-duplicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Cross-source duplicates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-entity-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Entity extraction
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Entity extraction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#indicators-cves-and-techniques-origin-regex" class="md-nav__link">
+    <span class="md-ellipsis">
+      Indicators, CVEs and techniques (origin regex)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-families-and-actors-origin-kb" class="md-nav__link">
+    <span class="md-ellipsis">
+      Known families and actors (origin kb)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new-family-names-origin-heuristic" class="md-nav__link">
+    <span class="md-ellipsis">
+      New family names (origin heuristic)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-feed-delivers-origin-feed" class="md-nav__link">
+    <span class="md-ellipsis">
+      What the feed delivers (origin feed)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-severity" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Severity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-scam-and-fraud-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Scam and fraud analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-critical-infrastructure-sectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Critical infrastructure sectors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-linking-entities" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Linking entities
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-blocklist-verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Blocklist verdicts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-geography" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. Geography
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Geography">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#language-and-source-country" class="md-nav__link">
+    <span class="md-ellipsis">
+      Language and source country
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-countries-and-provinces" class="md-nav__link">
+    <span class="md-ellipsis">
+      Target countries and provinces
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-national-indonesia-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      The National (Indonesia) view
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Severity scoring
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enrichment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Enrichment and verdicts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Trends and correlation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI processing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sharing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sharing and delivery
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../housekeeping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Housekeeping and re-analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Corrections and quality
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Developer guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Developer guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Development
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Data model
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extending JATMP
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#the-ten-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      The ten steps
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-new-or-already-stored" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. New or already stored?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-cleaning-and-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Cleaning and limits
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-cross-source-duplicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Cross-source duplicates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-entity-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Entity extraction
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Entity extraction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#indicators-cves-and-techniques-origin-regex" class="md-nav__link">
+    <span class="md-ellipsis">
+      Indicators, CVEs and techniques (origin regex)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-families-and-actors-origin-kb" class="md-nav__link">
+    <span class="md-ellipsis">
+      Known families and actors (origin kb)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new-family-names-origin-heuristic" class="md-nav__link">
+    <span class="md-ellipsis">
+      New family names (origin heuristic)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-feed-delivers-origin-feed" class="md-nav__link">
+    <span class="md-ellipsis">
+      What the feed delivers (origin feed)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-severity" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Severity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-scam-and-fraud-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Scam and fraud analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-critical-infrastructure-sectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Critical infrastructure sectors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-linking-entities" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Linking entities
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-blocklist-verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Blocklist verdicts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-geography" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. Geography
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Geography">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#language-and-source-country" class="md-nav__link">
+    <span class="md-ellipsis">
+      Language and source country
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-countries-and-provinces" class="md-nav__link">
+    <span class="md-ellipsis">
+      Target countries and provinces
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-national-indonesia-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      The National (Indonesia) view
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform/edit/main/docs/how-it-works/processing.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"></path></svg>
+    </a>
+  
+  
+
+
+<h1 id="ingest-and-analysis">Ingest and analysis<a class="headerlink" href="#ingest-and-analysis" title="Permanent link">¶</a></h1>
+<p>This page follows each entry a collector returns, from the question "have we seen this before?" to a stored item
+that is scored, linked to its entities and tagged with its geography. All of it happens inside the collection run,
+in one database transaction per batch (<code>pipeline.ingest_committed</code>), so you never see an item that is only half
+analysed.</p>
+<p>The entries arrive here already filtered: if the source has a topic filter, the entries it dropped never reach the
+pipeline (see <a href="../collection/#topic-filters">Topic filters</a>). Analysts' corrections are respected throughout, so a
+link an analyst removed or an item marked <em>not a scam report</em> stays that way (see
+<a href="../corrections/#why-a-correction-sticks">Corrections and quality</a>).</p>
+<h2 id="the-ten-steps">The ten steps<a class="headerlink" href="#the-ten-steps" title="Permanent link">¶</a></h2>
+<p>For every entry in a batch, <code>pipeline.ingest()</code> runs these steps in order:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Step</th>
+<th>What it stores on the item</th>
+<th>Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><a href="#1-new-or-already-stored">Skip entries already stored</a></td>
+<td>—</td>
+<td><code>ingest</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="#2-cleaning-and-limits">Clean the text and apply limits</a></td>
+<td>Title, text, link, tags, provider data, TLP, publication date</td>
+<td><code>strip_html</code>, <code>safe_url</code>, <code>_slim_raw</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="#3-cross-source-duplicates">Spot copies from other outlets</a>, and newsletters</td>
+<td>Fingerprint, which item it copies, whether it is a newsletter or round-up</td>
+<td><code>fingerprint</code>, <code>find_original</code>, <code>digest.is_digest</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="#4-entity-extraction">Extract entities</a></td>
+<td>(the entities, linked in step 8)</td>
+<td><code>extractor.extract_all</code>, <code>tag_families</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="#5-severity">Score severity</a></td>
+<td>Severity and its reasons</td>
+<td><code>severity.score_item</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="#6-scam-and-fraud-analysis">Analyse for scams and fraud</a></td>
+<td>Fraud score, reasons, losses, victims</td>
+<td><code>fraud.apply</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="#7-critical-infrastructure-sectors">Tag critical infrastructure sectors</a></td>
+<td>(sector entities)</td>
+<td><code>sectors.apply</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="#8-linking-entities">Link the entities</a></td>
+<td>One link per entity; entity counters</td>
+<td><code>link_entities</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="#9-blocklist-verdicts">Record blocklist verdicts</a></td>
+<td>Enrichment records and verdicts</td>
+<td><code>mark_listed</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="#10-geography">Work out the geography</a></td>
+<td>Language, source country, target countries and provinces</td>
+<td><code>geo.tag_item</code></td>
+</tr>
+</tbody>
+</table>
+<p>The order matters in two places:</p>
+<ul>
+<li><strong>Severity (step 5) is scored before the fraud and sector entities exist (steps 6 and 7).</strong> Scam types,
+  brands, scammer identifiers and sectors therefore never add severity points. A scam report gets its own fraud
+  score instead, and the two scores stay independent on purpose.</li>
+<li><strong>Sectors (step 7) come after fraud (step 6),</strong> because a scam that mentions a bank is usually not an attack on
+  the finance sector (see the rule below).</li>
+</ul>
+<p>Once the whole batch is processed, the transaction is committed and the trend cache is cleared. Occasionally
+another run stores one of the same entries at the same moment (a scheduled run and a backfill of the same
+source, for example). The database's uniqueness check then fails, so JATMP rolls the batch back and tries again,
+up to three times, skipping whatever the other run already stored.</p>
+<h2 id="1-new-or-already-stored">1. New or already stored?<a class="headerlink" href="#1-new-or-already-stored" title="Permanent link">¶</a></h2>
+<p>An entry is identified by its <strong>source and external id</strong>. The external id is the provider's own id for the entry
+(an RSS GUID, a post URI, a pulse id), or failing that its URL, or failing that its title. Ids longer than 500
+characters (URLs with tracking parameters, typically) keep their first 434 characters followed by
+<code>#sha256:&lt;hash of the whole id&gt;</code>, so two long ids that only differ at the end never get mixed up.</p>
+<p>The ids of a whole batch are checked with one database query per 500 ids. If the same id appears twice in one
+batch, it is stored once.</p>
+<p><strong>Entries that grow.</strong> ThreatFox is a special case: it delivers one entry per malware family and day, and new
+IOCs for that day keep arriving. When such an entry is already stored, its new indicators are added to the
+existing item, its title is updated with the new count, and it is scored again (keeping any enrichment bonus and
+AI assessment). Every other kind of known entry is simply skipped.</p>
+<p>The same story published by <strong>another</strong> source is not a duplicate at this step. It is stored, and step 3 decides
+whether it is a copy.</p>
+<h2 id="2-cleaning-and-limits">2. Cleaning and limits<a class="headerlink" href="#2-cleaning-and-limits" title="Permanent link">¶</a></h2>
+<p>Feed content comes from outside, so it is treated as untrusted. Before anything else reads it:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Text</td>
+<td>For articles, <code>&lt;script&gt;</code> and <code>&lt;style&gt;</code> blocks and all HTML tags are removed, HTML entities are decoded, stylesheet rules that some blog plugins print into the text are removed, and whitespace is tidied up. Posts, pulses and scans are already plain text. The text is cut at <strong>50,000</strong> characters</td>
+</tr>
+<tr>
+<td>Link</td>
+<td>Only kept if it starts with <code>http://</code> or <code>https://</code> and contains no line breaks, so a <code>javascript:</code> link can never reach a page. Up to 2,000 characters</td>
+</tr>
+<tr>
+<td>Title, author</td>
+<td>Cut at 1,000 and 250 characters</td>
+</tr>
+<tr>
+<td>Tags</td>
+<td>At most 50, each up to 80 characters</td>
+</tr>
+<tr>
+<td>Publication date</td>
+<td>Taken from the provider. If it is missing, JATMP uses the current time. If it is <strong>in the future</strong>, JATMP also uses the current time (clocks drift, and some feeds post-date entries)</td>
+</tr>
+<tr>
+<td>Provider data</td>
+<td>Kept small: text values over 2,000 characters, or identical to the item's text, are dropped</td>
+</tr>
+<tr>
+<td>TLP</td>
+<td>The entry's own TLP if the feed gives one (OTX, MISP), normalised to CLEAR, GREEN, AMBER or RED</td>
+</tr>
+<tr>
+<td>Origin</td>
+<td><code>live</code> for scheduled and manual collection, <code>backfill</code> for history</td>
+</tr>
+</tbody>
+</table>
+<p>The cleaning patterns are written to run in linear time, even on hostile input. Every article passes through
+them, and a pattern that got stuck backtracking would tie up a scheduler thread that can't be stopped.</p>
+<h2 id="3-cross-source-duplicates">3. Cross-source duplicates<a class="headerlink" href="#3-cross-source-duplicates" title="Permanent link">¶</a></h2>
+<p>News gets syndicated: the same wire story can appear on five Indonesian news sites within a few hours. If each
+copy counted separately, everything in that story would look as if it were trending. So JATMP gives every
+<strong>article</strong> a fingerprint:</p>
+<ol>
+<li>Take the title and remove an outlet suffix such as " - ANTARA News" or " | Republika Online".</li>
+<li>Lower-case it and keep only the words.</li>
+<li>If the title has fewer than 5 words (for example "Weekly update"), add up to 30 words from the first 400
+   characters of the text.</li>
+<li>If there are still fewer than 6 words, give up: there is too little to compare.</li>
+<li>Otherwise, hash the words.</li>
+</ol>
+<p>JATMP then looks for an article from <strong>another source</strong> with the same fingerprint, published within <strong>4 days</strong>
+before or after this one. If it finds one, the new item becomes a <strong>copy</strong> that points to the <strong>original</strong>: the
+earliest item, never another copy, and never the item itself. Items in the same batch are compared with each other
+as well.</p>
+<p>Copies are stored like any other item, and you can see them in the interface:</p>
+<ul>
+<li>The feed lists each story once and says how many copies it hid; tick <em>Show copies</em> to list them, marked with a
+  <em>copy</em> badge.</li>
+<li>The item page and the preview say "Copy of <em>original</em>" on a copy, and "Also carried by <em>N</em> other outlets" on
+  the original.</li>
+</ul>
+<p>Every count of stories (the dashboards, trend scores, the scam <em>spreading</em> check, the executive summary and the
+reports) counts a story and its copies <strong>once</strong>. Only per-outlet figures, such as <em>Items per source</em>, count each
+copy for the outlet that published it. See <a href="../trends/#counting-rules">Counting rules</a>. Posts, pulses and scans
+are not fingerprinted.</p>
+<p><strong>Newsletters and round-ups.</strong> In the same step, every item (not only articles) is checked for being a digest: a
+newsletter, weekly round-up or podcast that wraps several unrelated stories in one post, such as Cisco Talos'
+<em>Threat Source</em>. The answer is stored as <code>items.is_digest</code>. A digest is still a normal item everywhere (feed,
+counts, severity), but what it mentions side by side is not evidence that those things belong together, so
+co-mentions skip it and correlation discounts it. How it is recognised is described under
+<a href="../trends/#correlation">Correlation</a>.</p>
+<h2 id="4-entity-extraction">4. Entity extraction<a class="headerlink" href="#4-entity-extraction" title="Permanent link">¶</a></h2>
+<p>JATMP scans the title, the text and the tags together. Extraction has four parts.</p>
+<h3 id="indicators-cves-and-techniques-origin-regex">Indicators, CVEs and techniques (origin <code>regex</code>)<a class="headerlink" href="#indicators-cves-and-techniques-origin-regex" title="Permanent link">¶</a></h3>
+<p>First, the text is <strong>refanged</strong>: the usual ways of writing indicators safely are turned back into the real
+thing. <code>hxxp(s)</code> becomes <code>http(s)</code>, <code>fxp</code> becomes <code>ftp</code>, <code>[.]</code> <code>(.)</code> <code>{.}</code> <code>[dot]</code> <code>(dot)</code> and <code>\.</code> become <code>.</code>,
+<code>[:]</code> becomes <code>:</code>, <code>[://]</code> becomes <code>://</code>, <code>[/]</code> becomes <code>/</code>, and <code>[at]</code> becomes <code>@</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Pattern</th>
+<th>Rejected when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cve</code></td>
+<td><code>CVE-YYYY-NNNN…</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>technique</code></td>
+<td><code>T1xxx</code> or <code>T1xxx.yyy</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>sha256</code>, <code>sha1</code>, <code>md5</code></td>
+<td>64, 40 or 32 hex characters</td>
+<td>It is part of a longer hash that was already found; it has fewer than 6 different characters (<code>000000…</code>); it sits inside a URL (right after <code>/ = # - _</code> or right before <code>/ - _</code>); or an MD5 / SHA-1 sits in a token containing <code>utm_</code>, <code>token=</code>, <code>session</code>, <code>/commit/</code>, <code>/blob/</code> and the like; or a SHA-1 follows <em>at</em>, <em>commit</em>, <em>rev</em>, <em>revision</em> or <em>sha</em> (a git commit, as in "file.py at 4fbffbc6…")</td>
+</tr>
+<tr>
+<td><code>ip</code></td>
+<td>IPv4 address</td>
+<td>It isn't public (private, loopback, reserved, multicast, link-local); it is a well-known public DNS resolver (<code>8.8.8.8</code>, <code>1.1.1.1</code>, <code>9.9.9.9</code>…); it follows the word <em>version, build, release, firmware, v, Chrome, Windows, kernel</em> and the like (so it is really a version number; "server 91.92.243.10" is not); it is part of an advisory's version list (<em>versions prior to 6.14.105.0</em>, <em>up to 1.5.1.6</em>, <em>12.1.0.0 through 12.1.1.2</em>, <em>builds include 17.0.21.1, 21.0.13.1</em>), and then it is dropped everywhere in that text; it is followed by <code>.digit</code> (as in <code>1.2.3.4.5</code>); or it comes right after a <code>.</code></td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td><code>http(s)://…</code></td>
+<td>Its host is a benign domain; it is just the front page of a paste or file-sharing service; or, in strict mode, it wasn't written defanged</td>
+</tr>
+<tr>
+<td><code>domain</code></td>
+<td>Host names with a 2–24 letter top-level domain</td>
+<td>It, or a domain above it, is benign; its "top-level domain" is really a file extension (<code>.exe</code>, <code>.zip</code>, <code>.php</code>, <code>.json</code>…); it is an IP; or, in strict mode, it was neither defanged nor the host of a URL that was kept</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Strict mode.</strong> News and social sources (every category except <code>intel</code>) are read in strict mode, where a domain
+or URL only counts if the author <strong>defanged</strong> it (or it is the host of a defanged URL). Ordinary links in an
+article, such as the vendor's blog or a reference, are almost never indicators. When a researcher writes
+<code>evil[.]com</code>, on the other hand, they mean it. Intel sources are read without strict mode, because everything
+they publish is meant as an indicator. IPs and hashes are picked up in both modes.</p>
+<p><strong>Benign domains.</strong> About 200 domains are never treated as indicators: platforms, search engines, social
+networks, link shorteners, security media and vendors, standards bodies, and Indonesian media, banks and
+government sites (for example <code>bleepingcomputer.com</code>, <code>cisa.gov</code>, <code>t.me</code>, <code>detik.com</code>, <code>bssn.go.id</code>). Their
+subdomains are benign too.</p>
+<p><strong>Abused hosting services.</strong> Paste, file-sharing and code-hosting services (Pastebin, GitHub and its raw content,
+Google Drive, Dropbox, MEGA, Discord's CDN, transfer.sh and about 20 more) are legitimate, so their domain is never
+an indicator. A URL on them that points somewhere (a paste, a release asset, a shared file) is one: in an item that
+quotes <code>hxxps://pastebin[.]com/raw/abcd1234</code>, the URL is kept and <code>pastebin.com</code> is not.</p>
+<h3 id="known-families-and-actors-origin-kb">Known families and actors (origin <code>kb</code>)<a class="headerlink" href="#known-families-and-actors-origin-kb" title="Permanent link">¶</a></h3>
+<p>The knowledge base (<code>app/knowledge.py</code>, plus any additions you make in <code>data/knowledge_extra.json</code>) holds about
+150 malware families and 45 threat actors, with their aliases. Every match becomes an entity with the official
+name and the family's category (ransomware, stealer, loader and so on).</p>
+<p>Some names are also everyday words, or are four letters or shorter ("Play", "Fog", "Hook", "Conti"). These only
+count next to a qualifier: "Play ransomware", "the Fog group", "malware called Hook". The exception is a name
+written in its own distinctive spelling, with a capital in the middle or a digit inside the word ("RedLine",
+"Cl0p", "SafePay"): that spelling is no everyday word, so it counts on its own, while "redline" or "Safepay
+checkout" still don't. Ambiguous actor names likewise need a word such as <em>APT</em>, <em>group</em> or <em>threat actor</em> within
+two words of the name ("Bitter APT").</p>
+<h3 id="new-family-names-origin-heuristic">New family names (origin <code>heuristic</code>)<a class="headerlink" href="#new-family-names-origin-heuristic" title="Permanent link">¶</a></h3>
+<p>Families that aren't in the knowledge base yet are exactly the ones that matter for spotting new campaigns. So
+the extractor also looks for <strong>a name right next to a malware noun</strong>:</p>
+<ul>
+<li>In English: "<em>Zorblax</em> ransomware", "the <em>PipeMagic</em> backdoor". The nouns are ransomware, infostealer,
+  stealer, loader, botnet, backdoor, trojan, wiper, rootkit, malware, spyware, dropper, keylogger and RAT.</li>
+<li>In Indonesian, where the noun comes first: "ransomware <em>Brain Cipher</em>", "malware bernama <em>Lumma</em>", "trojan
+  perbankan <em>Mamont</em>". These patterns run when the text is in Indonesian or its language is unclear.</li>
+</ul>
+<p>To keep false positives down, a candidate must pass every one of these checks:</p>
+<ol>
+<li>It is a single word, without a hyphen. (Multi-word family names belong in the knowledge base.)</li>
+<li>In a headline written in title case ("WhiteArmor Ransomware Demands…"), the name must be CamelCase or mix
+   letters and digits. In ordinary sentences, a capitalised word is enough, unless it starts the sentence.</li>
+<li>It isn't a generic word (<em>new, Android, Russian, sophisticated, AI…</em>), a legitimate tool that attackers misuse
+   (<em>AnyDesk, ConnectWise, PsExec, Mimikatz…</em>), a platform (<em>Facebook, Telegram, Shopee…</em>), a country or
+   nationality, or a short all-capitals acronym.</li>
+<li>It wasn't already found in the same text.</li>
+</ol>
+<p>If the name turns out to be a known alias, it is mapped to the knowledge-base family instead. A heuristic
+family <strong>scores less</strong> than a known one (6 severity points instead of 10), and it only <strong>trends once two sources
+name it</strong>.</p>
+<h3 id="what-the-feed-delivers-origin-feed">What the feed delivers (origin <code>feed</code>)<a class="headerlink" href="#what-the-feed-delivers-origin-feed" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Structured indicators</strong> that a collector attaches (OTX pulse indicators, urlscan scan URLs, ThreatFox IOCs,
+  MISP attributes, ScamSniffer domains) are added exactly as delivered.</li>
+<li><strong>Tags on intel sources</strong> that name a known family (OTX's malware families, ThreatFox family names) become
+  family entities. Tags on news and social sources are free-form and are ignored here. A tag of three
+  characters or fewer, or an everyday word, is never treated as a family.</li>
+</ul>
+<p>Finally, all findings are de-duplicated by type and value.</p>
+<h2 id="5-severity">5. Severity<a class="headerlink" href="#5-severity" title="Permanent link">¶</a></h2>
+<p>The text and the entities from step 4 give the item its severity from 0 to 100, along with the list of reasons
+shown on the item page. The rules, weights and dampeners have their own page: <a href="../scoring/">Severity scoring</a>.</p>
+<h2 id="6-scam-and-fraud-analysis">6. Scam and fraud analysis<a class="headerlink" href="#6-scam-and-fraud-analysis" title="Permanent link">¶</a></h2>
+<p>The same text is then read a second time, as a possible scam report. JATMP looks for scam types, impersonated
+brands, reported losses and victims, and scammer identifiers. Identifiers are only taken from items that are
+about a scam, and only where the sentence makes clear they belong to the scammer. The result is the fraud score.
+<strong>A fraud score above 0 is what makes an item a scam report</strong>, everywhere in JATMP. To keep this fast, the
+"spreading" counts for each scam type are worked out once per scam type and day for the whole batch.
+If an analyst has marked the item <em>not a scam report</em>, the analysis is skipped and the fraud score stays 0, also
+when the scam rules change and stored items are re-analysed. The rules and points are on
+<a href="../../fraud/">Scams and fraud</a>.</p>
+<h2 id="7-critical-infrastructure-sectors">7. Critical infrastructure sectors<a class="headerlink" href="#7-critical-infrastructure-sectors" title="Permanent link">¶</a></h2>
+<p>Each sector defined by Perpres 82/2022 (government administration, energy &amp; mineral resources, transportation,
+finance, health, ICT, food, defence) has an English and Indonesian vocabulary describing the organisations and
+services in it. Each sector collects points:</p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Points</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Each match in the title</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Each match in the body (first 20,000 characters)</td>
+<td>1, up to 4 per sector</td>
+</tr>
+<tr>
+<td>The feed states the sector (ransomware.live victim sector, OTX industries)</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p>A sector is tagged when it reaches <strong>2 points</strong>, with three exceptions:</p>
+<ul>
+<li><strong>One word in the title, and nothing else.</strong> If there is no match in the body and the feed doesn't state the
+  sector, a title word needs 3 points, unless the title names exactly one sector and describes an attack on it
+  ("Serangan ransomware lumpuhkan layanan rumah sakit"). "Hospital food vendor hit by phishing" is therefore not
+  a health-sector item.</li>
+<li><strong>Scams and finance.</strong> For a scam report, <em>finance</em> only counts if the feed says so or the text describes an
+  attack (a breach, a hack, <em>dibobol</em>, a leak and so on). Most scams only mention a bank as the way money was
+  paid.</li>
+<li><strong>Round-ups and newsletters</strong> are judged on their title alone.</li>
+</ul>
+<p>An item gets at most <strong>3</strong> sectors, strongest first. Sectors are stored as entities of type <code>sector</code>.</p>
+<h2 id="8-linking-entities">8. Linking entities<a class="headerlink" href="#8-linking-entities" title="Permanent link">¶</a></h2>
+<p>Everything found in steps 4, 6 and 7 is now linked to the item:</p>
+<ol>
+<li>Existing entities are looked up with <strong>one query per entity type</strong> (per 500 values), and the missing ones are
+   created together. A blocklist item with 500 domains therefore costs two queries, not 500.</li>
+<li>A new IP gets its <strong>hosting country</strong> from the offline GeoIP database straight away, if one is installed.</li>
+<li>Each entity gets one link to the item, recording how it was found (<code>regex</code>, <code>kb</code>, <code>heuristic</code>, <code>feed</code>).
+   Links that an analyst removed are skipped: the entity on this item for <em>wrong entity here</em>, and on every item
+   for <em>wrong entity everywhere</em> or <em>not a threat</em>. The same check applies when entities are re-extracted, added
+   by the AI or merged into a ThreatFox item.</li>
+<li>The entity's mention count goes up by one. Its first-seen and last-seen dates move to the item's
+   <strong>publication</strong> date if that is earlier or later (so a backfill can move first-seen back in time). If the
+   entity had no category yet, it gets one.</li>
+</ol>
+<h2 id="9-blocklist-verdicts">9. Blocklist verdicts<a class="headerlink" href="#9-blocklist-verdicts" title="Permanent link">¶</a></h2>
+<p>Some sources are curated blocklists, where everything listed is malicious by definition (ScamSniffer's
+wallet-drainer domains, for example). Their items carry a "listed by" marker. Every structured indicator on such
+an item gets an enrichment record from that list with the verdict <code>malicious</code>, and indicators that were never
+looked up get the verdict <code>malicious</code> straight away. They skip the enrichment queue and use no provider quota.
+When the list names an indicator again on a later day, its verdict date is refreshed, so the verdict doesn't
+age (see <a href="../enrichment/#verdicts-that-age">Verdicts that age</a>).</p>
+<h2 id="10-geography">10. Geography<a class="headerlink" href="#10-geography" title="Permanent link">¶</a></h2>
+<h3 id="language-and-source-country">Language and source country<a class="headerlink" href="#language-and-source-country" title="Permanent link">¶</a></h3>
+<p>The language is decided by counting common words in the first 4,000 characters. With at least 6 words, the text
+is <code>id</code> (Indonesian) if it has at least 3 Indonesian common words and 20% more of them than English ones, and
+<code>en</code> if it has at least 3 English common words and no fewer than Indonesian ones. Otherwise the language is left
+empty and the source's configured language is used instead.</p>
+<p>The <strong>source country</strong> is the country configured for the source, or Indonesia for an item written in Indonesian.</p>
+<h3 id="target-countries-and-provinces">Target countries and provinces<a class="headerlink" href="#target-countries-and-provinces" title="Permanent link">¶</a></h3>
+<p>Target countries are where the victims are or where the activity takes place. Each country collects points:</p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Points</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The country's name in the title</td>
+<td>2</td>
+</tr>
+<tr>
+<td>The country's name in the body</td>
+<td>1 for the first mention, 0.5 for the 2nd to 5th, then nothing</td>
+</tr>
+<tr>
+<td>… when it is a nationality ("Indonesian", "Russian")</td>
+<td>× 0.75</td>
+</tr>
+<tr>
+<td>… when a target word comes right before it ("against", "in", "targeting", "di", "menyerang"…)</td>
+<td>× 1.5</td>
+</tr>
+<tr>
+<td>An Indonesian province, city, regency or institution (BSSN, OJK, Pertamina…)</td>
+<td>Indonesia gets +3 in the title or +2 in the body; the province gets +2 or +1</td>
+</tr>
+<tr>
+<td>An ambiguous Indonesian place name after <em>Kota</em>, <em>Kabupaten</em>, <em>Pemkot</em> and the like ("Kota Malang")</td>
+<td>As above</td>
+</tr>
+<tr>
+<td>Weak Indonesian acronyms (BCA, KPU…)</td>
+<td>Only count in Indonesian text, or when Indonesia already has 1.5 points</td>
+</tr>
+<tr>
+<td><code>.go.id</code>, <code>.co.id</code> and <code>.ac.id</code> domains in the text</td>
+<td>Indonesia gets +2 for each, up to +4</td>
+</tr>
+<tr>
+<td>Leak-site postings in the form <code>victim.com (GB)</code></td>
+<td>That country gets +3</td>
+</tr>
+<tr>
+<td>Countries stated by the feed (ransomware.live victim country, OTX targeted countries)</td>
+<td>+10 each</td>
+</tr>
+</tbody>
+</table>
+<p>A country becomes a target with <strong>1.5 points or more</strong> (countries stated by the feed always qualify), up to <strong>4</strong>
+per item. Provinces need 1 point, up to 4, and only count when Indonesia is a target.</p>
+<p><strong>Attackers are not targets.</strong> When a country is named as the origin of the attacker, it is set aside: "Russian
+hackers", "China-nexus", "Iran-linked", "attributed to North Korea", "peretas asal Rusia". Neither are the places
+where criminals trade or servers sit (0.13.1): "sold on Russian forums", "Chinese-language marketplaces", "hosted in
+the Netherlands", "a Dutch hosting provider", "server di Singapura". Likewise, "Latin America" doesn't mean the US. Names that only make sense in Indonesian text are ignored elsewhere, and a headline
+written in capitals is converted to title case first so that names can be recognised.</p>
+<p>Each target is stored with its country, its province if any, its score, and whether it came from the text or the
+feed. The <em>hosting</em> country of an IP is a different thing. It is stored on the indicator itself (from GeoIP when
+the indicator is created, and from the providers during enrichment) and never counts as a target.</p>
+<h3 id="the-national-indonesia-view">The National (Indonesia) view<a class="headerlink" href="#the-national-indonesia-view" title="Permanent link">¶</a></h3>
+<p>The <em>National (ID)</em> switch keeps the items that <strong>target Indonesia</strong>, plus items from <strong>Indonesian outlets that
+name no other target country</strong>. Everything else counts as international. Every list, chart, statistic, report
+and the IOC table apply the same condition.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer">
+        
+          
+          <a href="../collection/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Collection">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Collection
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../scoring/" class="md-footer__link md-footer__link--next" aria-label="Next: Severity scoring">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Severity scoring
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      JATMP by fj4rr
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

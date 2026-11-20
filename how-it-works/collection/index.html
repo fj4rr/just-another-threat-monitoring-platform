@@ -1,0 +1,1971 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Just Another Threat Monitoring Platform – self-hosted cyber threat and online fraud monitoring">
+      
+      
+      
+        <link rel="canonical" href="https://fj4rr.github.io/just-another-threat-monitoring-platform/how-it-works/collection/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../processing/">
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>Collection - JATMP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#collection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="JATMP" class="md-header__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JATMP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Collection
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="JATMP" class="md-nav__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    JATMP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Setting up
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Setting up
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upgrading
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Maintenance commands
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Using JATMP
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Using JATMP
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sources
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-jatmp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Using JATMP
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../geography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Geography and Indonesia
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fraud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Scams and fraud
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sharing and integrations
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reporting-and-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Reporting and AI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../history-and-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    History and storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../screenshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Screenshots
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    How it works
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            How it works
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Collection
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Collection
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scheduling
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-run-step-by-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      One run, step by step
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-outcomes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run outcomes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-health" class="md-nav__link">
+    <span class="md-ellipsis">
+      Source health
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-one-run-fetches" class="md-nav__link">
+    <span class="md-ellipsis">
+      What one run fetches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#topic-filters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Topic filters
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runs-batches-and-progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runs, batches and progress
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backfill" class="md-nav__link">
+    <span class="md-ellipsis">
+      Backfill
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Ingest and analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Severity scoring
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enrichment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Enrichment and verdicts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Trends and correlation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AI processing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sharing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sharing and delivery
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../housekeeping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Housekeeping and re-analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Corrections and quality
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Developer guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Developer guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Development
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Data model
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extending JATMP
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scheduling
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-run-step-by-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      One run, step by step
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-outcomes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run outcomes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-health" class="md-nav__link">
+    <span class="md-ellipsis">
+      Source health
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-one-run-fetches" class="md-nav__link">
+    <span class="md-ellipsis">
+      What one run fetches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#topic-filters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Topic filters
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runs-batches-and-progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runs, batches and progress
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backfill" class="md-nav__link">
+    <span class="md-ellipsis">
+      Backfill
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform/edit/main/docs/how-it-works/collection.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"></path></svg>
+    </a>
+  
+  
+
+
+<h1 id="collection">Collection<a class="headerlink" href="#collection" title="Permanent link">¶</a></h1>
+<p>This page explains how sources are scheduled, what each collector fetches on a run, how runs are tracked and
+reported, how JATMP notices a source that has stopped working, and how a manual collection or a historical
+backfill differs from the normal schedule. For the list of built-in sources, see <a href="../../sources/">Sources</a>.</p>
+<h2 id="scheduling">Scheduling<a class="headerlink" href="#scheduling" title="Permanent link">¶</a></h2>
+<p>Every <strong>enabled</strong> source gets its own scheduled job (<code>source:&lt;id&gt;</code>), which runs <code>jobs.run_source</code>. These rules
+apply:</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Value</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interval</td>
+<td>The source's <code>interval_minutes</code>, at least <strong>5</strong></td>
+<td>The built-in defaults are 30 minutes for Bluesky and Mastodon, 60 for most RSS feeds, and 180 for fraud feeds, X and ThreatFox</td>
+</tr>
+<tr>
+<td>First run after start-up</td>
+<td>5 s + 3 s × source id</td>
+<td>Spreads the first wave out, so dozens of sources don't start in the same second</td>
+</tr>
+<tr>
+<td>Overlap</td>
+<td>A source never runs twice at the same time</td>
+<td>A slow feed can't pile up runs</td>
+</tr>
+<tr>
+<td>Missed runs</td>
+<td>Merged into one, as long as it is no more than 10 minutes late</td>
+<td>After a pause the source catches up once, not once for every missed turn</td>
+</tr>
+<tr>
+<td>Threads</td>
+<td>All jobs share one pool of 10 threads</td>
+<td>A provider that hangs blocks one thread, not the whole platform</td>
+</tr>
+</tbody>
+</table>
+<p>When you edit, enable or disable a source under Settings, its job is rescheduled (or removed) straight away.
+Deleting a source removes its job and its items.</p>
+<p>Collectors never decide <em>when</em> they run; they only know how to fetch. Every request they make goes through
+JATMP's outbound guard (<code>app/netguard.py</code>), which only allows public addresses unless you allow-list a host,
+checks every redirect, stops reading a response after 20 MB (after decompression), and gives up after 30 seconds.
+See <a href="../../security/">Security</a>.</p>
+<h2 id="one-run-step-by-step">One run, step by step<a class="headerlink" href="#one-run-step-by-step" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>run_source(source_id)
+ │
+ ├─ 1. create or claim the run record ............ status "running"
+ ├─ 2. collector.fetch() .......................... phase "fetching"
+ ├─ 3. pipeline.ingest_committed(raw items) ....... phase "storing"  (see Ingest and analysis)
+ ├─ 4. update the source's status
+ ├─ 5. side effects of the new items .............. webhook events, MISP auto-push
+ ├─ 6. close the run .............................. status "ok", "fetched N, new M"
+ └─ 7. queue AI auto-summaries .................... only when enabled
+</code></pre></div>
+<ol>
+<li><strong>Run record.</strong> A run record (<code>CollectorRun</code>) is created and set to <code>running</code>. For a manual batch, the record
+   that was already queued for this source is used instead.</li>
+<li><strong>Fetch.</strong> The collector for the source's type asks the provider for its current list of entries.
+   See <a href="#what-one-run-fetches">What one run fetches</a>.</li>
+<li><strong>Ingest.</strong> All entries go through the pipeline in a single transaction, and only new ones are stored.
+   Progress ("storing 40/100") is updated every five entries.</li>
+<li><strong>Source status.</strong> The source's last status, last error and last run time are updated. You can see them on
+   the Sources tab.</li>
+<li><strong>Side effects.</strong> For the newly stored items, JATMP queues webhook events (<code>item.high_severity</code>,
+   <code>entity.watched</code>) and, if <code>misp_autopush_min_severity</code> is above 0, starts a MISP auto-push. If anything goes
+   wrong here it is logged, but the run itself still succeeds.</li>
+<li><strong>Close.</strong> The run is closed with its status, a short message and the number of new items.</li>
+<li><strong>AI.</strong> If auto-summaries are on and an AI model is configured, the new items join the summary queue, which
+   has its own job (see <a href="../ai/#auto-summaries">AI processing</a>).</li>
+</ol>
+<p>Some collectors remember a little between runs so they only ask for what is new: Mastodon keeps the account id,
+X keeps the user id and the last post id it saw, and the OTX, MISP and ransomware.live collectors ask for what
+changed since their last run.</p>
+<h2 id="run-outcomes">Run outcomes<a class="headerlink" href="#run-outcomes" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>What it means</th>
+<th>Source status</th>
+<th>Notification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ok</code></td>
+<td>The run fetched and stored entries. Zero new items still counts as <code>ok</code></td>
+<td><code>ok</code></td>
+<td>None for scheduled runs</td>
+</tr>
+<tr>
+<td><code>skipped</code></td>
+<td>The collector can't run for a known reason: a missing API key, no handle or URL, Telegram not signed in</td>
+<td><code>skipped</code></td>
+<td>None. A manual batch says how many were skipped</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>Anything else: an HTTP error, a feed that can't be parsed, a timeout, a rate limit (<code>429</code>)</td>
+<td><code>error</code>, with the message</td>
+<td>Once, when a scheduled run goes from working to failing (<em>Source failing: …</em>). After 24 hours of failures, a daily reminder follows until it recovers (see <a href="#source-health">Source health</a>)</td>
+</tr>
+<tr>
+<td><code>aborted</code></td>
+<td>The process stopped while the run was queued or running, or someone stopped a backfill</td>
+<td>unchanged</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>queued</code> / <code>running</code></td>
+<td>Still in progress. Status views treat a record that has been in these states for over 3 hours as dead</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>If a run fails while fetching or storing, everything it stored is rolled back. A source therefore adds either a
+complete batch or nothing at all, and the next scheduled run simply tries again.</p>
+<h2 id="source-health">Source health<a class="headerlink" href="#source-health" title="Permanent link">¶</a></h2>
+<p>A source can stop working without ever reporting an error. A feed that has moved may return an empty page, or a
+site that blocks JATMP may return a normal-looking response with nothing in it. Every run is then <code>ok</code> with zero
+new items, and nobody notices.</p>
+<p>To catch this, JATMP looks at each source's live items and its last 30 days of run history
+(<code>app/sourcehealth.py</code>), and shows the result next to the source on the Sources tab:</p>
+<table>
+<thead>
+<tr>
+<th>Figure</th>
+<th>How it is worked out</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Last new item</td>
+<td>When the source last brought in a live item (backfills don't count)</td>
+</tr>
+<tr>
+<td>This week · usual</td>
+<td>Live items from the last 7 days, compared with the weekly average of the 4 weeks before. It is marked <em>below usual</em> when it drops under 30% of that average (for sources that usually bring at least 5 a week)</td>
+</tr>
+<tr>
+<td>Usual gap</td>
+<td>The median time between runs that brought something new. It needs at least 3 such gaps before it shows a value</td>
+</tr>
+<tr>
+<td>Failing for</td>
+<td>How long ago the current run of failures started</td>
+</tr>
+<tr>
+<td>Summary only</td>
+<td>The source's news items average fewer than <strong>400</strong> characters of text. The feed only carries summaries, so extraction and severity scoring have little to work with</td>
+</tr>
+</tbody>
+</table>
+<p>Every hour, <code>jobs.run_source_health</code> checks two conditions and sends a notification (at most once per source,
+condition and day):</p>
+<ul>
+<li>A source is <strong>quiet</strong> when it has brought no new item for <strong>3</strong> times its usual gap, and at least 12 hours.</li>
+<li>A source has been <strong>failing for 24 hours</strong> or more.</li>
+</ul>
+<p>The Sources tab also lists the sources that need attention above the table.</p>
+<h2 id="what-one-run-fetches">What one run fetches<a class="headerlink" href="#what-one-run-fetches" title="Permanent link">¶</a></h2>
+<p>Each scheduled run asks the provider for its <em>current</em> list. Entries that are already stored are skipped during
+ingest, so overlap between runs only costs a little bandwidth.</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>One scheduled run fetches</th>
+<th>Item kind</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rss</code></td>
+<td>The feed (up to 10 MB). The first 500 entries are read, the topic filter is applied, and the newest <strong>100</strong> are kept</td>
+<td><code>article</code> (<code>post</code> for social sources)</td>
+<td>The text is the entry's full content if the feed has it, otherwise its summary. The article page itself is never opened</td>
+</tr>
+<tr>
+<td><code>bluesky</code></td>
+<td>The account's last <strong>50</strong> posts, without replies</td>
+<td><code>post</code></td>
+<td>Public API, no key needed</td>
+</tr>
+<tr>
+<td><code>mastodon</code></td>
+<td>The account's last <strong>40</strong> posts, without replies</td>
+<td><code>post</code></td>
+<td>The account id is remembered after the first run</td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td>The last <strong>50</strong> posts through API v2 (only ones newer than the last post seen), or the configured RSS bridge</td>
+<td><code>post</code></td>
+<td>Skipped without a bearer token or bridge. A <code>429</code> rate limit counts as an error</td>
+</tr>
+<tr>
+<td><code>telegram</code></td>
+<td>The latest page of the channel's public web preview (20 posts), or the last <strong>50</strong> messages over MTProto</td>
+<td><code>post</code></td>
+<td>Posts without text are skipped</td>
+</tr>
+<tr>
+<td><code>otx</code></td>
+<td>Subscribed pulses changed since the last run (3 days on the first run), up to 50; or one pulse search (30 results)</td>
+<td><code>pulse</code></td>
+<td>Up to 300 indicators per pulse come in as structured indicators. The pulse's TLP, targeted countries and industries are kept</td>
+</tr>
+<tr>
+<td><code>urlscan</code></td>
+<td>One search, <strong>100</strong> results. The default query is <code>task.tags:malicious AND date:&gt;now-1d</code>: scans tagged malicious in the last day</td>
+<td><code>scan</code></td>
+<td>The URL, domain and IP of each scan come in as indicators. The old default, <code>verdicts.malicious:true</code>, can't be searched on free accounts and failed with 403 Forbidden; sources created with it keep their saved query until you edit it</td>
+</tr>
+<tr>
+<td><code>anyrun</code></td>
+<td>One TI Lookup query over the configured period (7 days by default), <strong>100</strong> tasks</td>
+<td><code>analysis</code></td>
+<td>Never shared outside JATMP (provider terms)</td>
+</tr>
+<tr>
+<td><code>threatfox</code></td>
+<td>IOCs from the last day, grouped into <strong>one item per family per day</strong> (up to 300 IOCs per run)</td>
+<td><code>pulse</code></td>
+<td>The day is the day ThreatFox first saw the IOCs. If a later run finds new IOCs for a family and day that are already stored, it adds them to that item, updates the count in its title and scores it again. No new item is created, so no new webhook event is sent</td>
+</tr>
+<tr>
+<td><code>ransomwarelive</code></td>
+<td>The 100 most recent victims, or the full list for one country or group (keeping posts newer than the last run minus 2 days)</td>
+<td><code>post</code></td>
+<td>The victim's website is deliberately left out of the text: it belongs to the victim and is not an indicator</td>
+</tr>
+<tr>
+<td><code>misp</code></td>
+<td>Events changed since the last run minus 1 hour (the last <code>days</code> days on the first run, 7 by default), 50 per page, up to 5 pages</td>
+<td><code>pulse</code></td>
+<td>The event's TLP is kept; attributes become indicators</td>
+</tr>
+<tr>
+<td><code>scamsniffer</code></td>
+<td>The daily list files of the last 4 days (the public list is published a week late)</td>
+<td><code>article</code></td>
+<td>One item per day. Its domains are marked malicious as soon as they arrive</td>
+</tr>
+</tbody>
+</table>
+<p>Intel sources (category <code>intel</code>) are handled a little differently during ingest: indicators are taken from plain
+text, not just defanged text, and their tags may name malware families. See
+<a href="../processing/#4-entity-extraction">Ingest and analysis</a>.</p>
+<h2 id="topic-filters">Topic filters<a class="headerlink" href="#topic-filters" title="Permanent link">¶</a></h2>
+<p>Any news or social source can have a topic filter (<code>filter</code> in its configuration): RSS feeds, Telegram channels,
+X, Mastodon and Bluesky accounts (since 0.13; it used to exist for RSS only, so a general Telegram channel brought
+in everything). Intel feeds don't offer it. The filter runs on what a collector fetched <strong>before anything is
+stored</strong> (<code>processing/topics.py</code>, for scheduled runs and backfills alike), so entries it drops leave no trace; the
+run message says how many were off topic ("fetched 40, 31 off topic, new 9").</p>
+<table>
+<thead>
+<tr>
+<th>Filter</th>
+<th>Keeps an entry when</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>security</code></td>
+<td>A security term (English or Indonesian) appears in the title, the first 3,000 characters of the text, or the tags</td>
+<td>General technology sections</td>
+</tr>
+<tr>
+<td><code>cyber</code></td>
+<td>An unambiguous cyber or digital-fraud term appears, <strong>or</strong> the <a href="../../fraud/">scam analysis</a> recognises a scam</td>
+<td>General news sections and general Telegram or X channels, where words like "bocor" or "modus" usually mean something else</td>
+</tr>
+<tr>
+<td><code>fraud</code></td>
+<td>The scam analysis recognises a scam</td>
+<td>Fact-checkers, whose feeds are mostly about political hoaxes</td>
+</tr>
+</tbody>
+</table>
+<p>The source <strong>topic</strong> <em>scam &amp; fraud</em> is a separate setting. It doesn't filter anything. Instead it tells the scam
+analysis to treat the source's items as likely scam reports (a single scam word is enough for <em>Other scam</em>), and
+it lists the source on the fraud overview.</p>
+<h2 id="runs-batches-and-progress">Runs, batches and progress<a class="headerlink" href="#runs-batches-and-progress" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>Scheduled runs</strong> create their record when they start and close it when they finish.</li>
+<li><strong>Manual collection</strong> (<em>Collect now</em>, <em>Run now</em>, <code>manage.py collect</code>) first creates one <code>queued</code> record per
+  source, all sharing one batch id, and then starts the runs. The status bar shows the whole batch, for example
+  "Collecting… 12/40 sources · 85 new". Clicking again while it runs finds the active batch rather than starting
+  a new one, and <em>Run now</em> on a source that is already running is ignored.</li>
+<li><strong>Progress</strong> (fetching, storing N of M, the phase of an enrichment run) is kept in memory and served to the
+  page, which polls it. It isn't written to the database during the run, so it never competes with the run's
+  own writes.</li>
+<li><strong>Batch summary.</strong> When the last run of a batch finishes, <strong>one</strong> notification sums it up, for example
+  "Collected 85 new items from 40 sources, 2 errors", with the names of the sources that failed and how many were
+  skipped. Inside a batch, the per-source <em>Source failing</em> notification isn't sent.</li>
+<li><strong>Restarts.</strong> At start-up, every run that was still <code>queued</code> or <code>running</code> is marked <code>aborted</code> ("interrupted by
+  a restart"). Nothing resumes half-way.</li>
+</ul>
+<h2 id="backfill">Backfill<a class="headerlink" href="#backfill" title="Permanent link">¶</a></h2>
+<p>A backfill (Manage → Backfill) fetches history instead of the current list. It works like this:</p>
+<ol>
+<li>One <code>queued</code> run is created for each selected source, all in one backfill batch.</li>
+<li>A <strong>single worker</strong> goes through them one at a time. Backfills are long, and SQLite only allows one writer at
+   a time, so sources are never backfilled in parallel.</li>
+<li>For each source, the collector says what it can do: whether it supports backfill, how, and how far back.
+   Sources that can't be backfilled are <code>skipped</code>, and the start date is limited to how far the source can reach
+   (7 days for ThreatFox, for example).</li>
+<li>The collector returns entries <strong>page by page</strong>. Each page is stored and committed on its own, marked as
+   <code>backfill</code>, so a backfill that is stopped or fails keeps everything it already stored.</li>
+<li><em>Stop</em> cancels the queued sources straight away and lets the current source finish the page it is on.</li>
+<li>One notification sums up the batch.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Collector</th>
+<th>How far back it can go</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RSS on a WordPress site</td>
+<td>The site's REST API returns every post in the range (100 per page), so the estimate is exact</td>
+</tr>
+<tr>
+<td>Other RSS</td>
+<td>Internet Archive snapshots of the feed (one a day), filtered to the range. You only get what the feed listed when it was archived</td>
+</tr>
+<tr>
+<td>Bluesky / Mastodon</td>
+<td>The account's history, paged back with the API's cursor (up to 6,000 posts / 4,000 statuses per account per run)</td>
+</tr>
+<tr>
+<td>Telegram</td>
+<td>Older pages of the web preview (up to 3,000 posts), or MTProto (up to 5,000)</td>
+</tr>
+<tr>
+<td>OTX / MISP</td>
+<td>Subscribed pulses or events changed within the range</td>
+</tr>
+<tr>
+<td>ThreatFox</td>
+<td>The API's limit of 7 days</td>
+</tr>
+<tr>
+<td>ransomware.live (country or group source)</td>
+<td>The full victim list, back to 2021 for most groups</td>
+</tr>
+<tr>
+<td>ScamSniffer</td>
+<td>One archive file per day, back to 31 May 2022</td>
+</tr>
+<tr>
+<td>X, urlscan, ANY.RUN, ransomware.live recent</td>
+<td>Not supported (quota-limited or recent-only)</td>
+</tr>
+</tbody>
+</table>
+<p>Backfilled items keep their original publication dates and are marked as <code>backfill</code>. Their indicators are only
+sent to the enrichment providers if the item is from the last 14 days or <code>enrich_backfill</code> is on (see
+<a href="../enrichment/#which-indicators-a-run-picks">Enrichment</a>). They don't trigger webhooks, MISP pushes or AI
+summaries, and they don't count towards source health. They do count in statistics and trends, by their
+original dates, so last year's history fills the longer dashboard periods without making anything trend today.
+See <a href="../../history-and-storage/#backfill">History and storage</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer">
+        
+          
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: How JATMP works">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                How JATMP works
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../processing/" class="md-footer__link md-footer__link--next" aria-label="Next: Ingest and analysis">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Ingest and analysis
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      JATMP by fj4rr
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
