@@ -404,6 +404,12 @@ CORRELATION_WEIGHT = {
 # Entities mentioned in more items than this are too generic to generate candidates
 # (they still weigh in for candidates found through rarer entities).
 CORRELATION_MAX_MENTIONS = 400
+# Digests (newsletters, round-ups: app/processing/digest.py) list entities in passing, so what they share with
+# another item is weak evidence: x0.4 when one of the two is a digest, x0.1 when both are, and two digests of the
+# same source (issues of one series repeating a weekly "most prevalent files" list) never link. Digest links that
+# end up below the floor are dropped.
+DIGEST_FACTOR = (0.4, 0.1)
+DIGEST_MIN_SCORE = 1.0
 
 
 def correlated_items(db: Session, item: Item, limit: int = 15) -> list[dict]:
@@ -436,20 +442,33 @@ def correlated_items(db: Session, item: Item, limit: int = 15) -> list[dict]:
                            .where(ItemEntity.item_id.in_(cand_ids[:500]), ItemEntity.entity_id.in_(list(weights)))).all()
         for iid, eid in extra:
             shared[iid].add(eid)
-    scored = sorted(((sum(weights[e] for e in ents), iid) for iid, ents in shared.items()), reverse=True)[:limit * 4]
+    from .digest import is_digest
+
+    # a wider cut than the final limit: digest candidates are discounted below, after their items are loaded
+    scored = sorted(((sum(weights[e] for e in ents), iid) for iid, ents in shared.items()), reverse=True)[:max(limit * 4, 150)]
     items = {i.id: i for i in db.execute(select(Item).where(Item.id.in_([iid for _, iid in scored]))).unique().scalars()}
+    item_digest = is_digest(item)
     out = []
     for base, iid in scored:
         other = items.get(iid)
         if not other:
             continue
         score = base
+        other_digest = is_digest(other)
+        digest = item_digest or other_digest
+        if item_digest and other_digest and other.source_id == item.source_id:
+            continue  # two issues of the same series: what they share is the recurring boilerplate
+        if digest:
+            score *= DIGEST_FACTOR[1 if item_digest and other_digest else 0]
+            if score < DIGEST_MIN_SCORE:
+                continue
         if other.source_id != item.source_id:
             score *= 1.3 if other.source.category != item.source.category else 1.15
         ents = sorted(shared[iid], key=lambda e: -weights[e])
         out.append({"item": other, "score": round(score, 2), "shared": len(ents),
                     "entities": [names[e] for e in ents[:6]],
-                    "strong": any(names[e][0] in ("sha256", "sha1", "md5", "url", "domain", "ip") for e in ents)})
+                    "digest": digest,
+                    "strong": not digest and any(names[e][0] in ("sha256", "sha1", "md5", "url", "domain", "ip") for e in ents)})
     out.sort(key=lambda d: (-d["score"], -d["item"].published_at.timestamp()))
     return out[:limit]
 

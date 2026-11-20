@@ -123,6 +123,26 @@ def _public_ip(ip: str) -> bool:
                 or addr.is_link_local or addr.is_unspecified)
 
 
+# Advisories list affected and fixed versions in four-part form ("IBM API Connect 12.1.0.0 through 12.1.1.2", "fixed
+# builds include 17.0.21.1, 21.0.13.1", "DrayTek Vigor2960 up to 1.5.1.6"), which look exactly like IPv4 addresses.
+# A bare four-part number is a version when it follows a version word (possibly with a few filler words in between),
+# a range word, or another number already judged a version; or when "through" follows it.
+_VER_WORD = (r"(?:versions?|builds?|releases?|updates?|patch(?:es|ed)?|firmware|fix(?:es|ed)?|affected|supported|upgrad(?:e|ed|es)|"
+             r"downgrad(?:e|ed)|ver\.?|v)")
+_VER_FILL = r"(?:\s+(?:that|which|is|are|was|were|of|the|a|an|and|or|to|in|be|affected|supported|fixed|vulnerable|include|includes|included|including|prior|up|from))*"
+_VER_PRE = re.compile(r"\b(?:" + _VER_WORD + _VER_FILL + r"|prior to|up to|through|thru|earlier than|older than|before|since)\s*$")
+_VER_POST = re.compile(r"^\s*(?:through|thru)\s+\d+\.\d+\.\d+\.\d+")
+_VER_CHAIN = re.compile(r"\d+\.\d+\.\d+\.\d+[A-Za-z ,;]{0,8}$")  # the number right before this one (list of versions)
+# a git commit shown on a code-hosting page title or in a changelog: "file.py at 4fbffbc6c2…", "commit 4fbf…"
+_COMMIT_PRE = re.compile(r"\b(?:at|commit|rev|revision|sha)\s*:?\s*$", re.I)
+
+
+def _chained(before: str, versions: set[str]) -> bool:
+    """The four-part number right before this one was itself judged a version: "include 17.0.21.1, 21.0.13.1"."""
+    m = _VER_CHAIN.search(before)
+    return bool(m) and re.match(r"\d+\.\d+\.\d+\.\d+", m.group(0)).group(0) in versions
+
+
 def _in_set(d: str, names: set[str]) -> bool:
     # every parent of the name ("a.b.example.com" -> "b.example.com", "example.com", "com") is one set lookup,
     # instead of an endswith() against every entry per domain (audit 2026-11 E-7)
@@ -171,12 +191,20 @@ def extract_iocs(text: str, *, strict: bool = True) -> list[Extracted]:
             token_head = t[max(0, m.start() - 120): m.start()].rsplit(None, 1)[-1] if m.start() and not t[m.start() - 1].isspace() else ""
             if typ in ("md5", "sha1") and re.search(r"(?:utm_|fbclid|gclid|token=|session|/commit/|/blob/|/tree/)", token_head, re.I):
                 continue
+            if typ == "sha1" and _COMMIT_PRE.search(t[max(0, m.start() - 12): m.start()]):
+                continue
             hashes.add(h)
             out[(typ, h)] = Extracted(typ, h, h)
 
+    versions: set[str] = set()  # four-part numbers judged to be versions: dropped everywhere in the text
     for m in RE_IPV4.finditer(t):
         ip = m.group(0)
         if _public_ip(ip):
+            before = t[max(0, m.start() - 70): m.start()].lower()
+            if _VER_PRE.search(before) or _VER_CHAIN.search(before) and _chained(before, versions) \
+                    or _VER_POST.match(t[m.end(): m.end() + 40].lower()):
+                versions.add(ip)
+                continue
             # skip version-number-ish matches: "version 1.2.3.4", "v1.2.3.4", "Chrome 131.0.6778.85", "1.2.3.4.5"
             pre = t[max(0, m.start() - 24): m.start()].lower()
             post = t[m.end(): m.end() + 2]
@@ -190,6 +218,8 @@ def extract_iocs(text: str, *, strict: bool = True) -> list[Extracted]:
             if m.start() > 0 and t[m.start() - 1] == ".":
                 continue
             out[("ip", ip)] = Extracted("ip", ip, ip)
+    for ip in versions:  # "1.5.1.6" named once as "up to 1.5.1.6" and again bare is still a version
+        out.pop(("ip", ip), None)
 
     url_domains = set()
     for m in RE_URL.finditer(t):

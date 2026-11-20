@@ -62,7 +62,8 @@
       <div class="feed-item"><div><span class="sev {{ 's-med' if r.strong }}" title="correlation score {{ r.score }} · {{ r.shared }} shared entit{{ 'y' if r.shared == 1 else 'ies' }}">{{ r.shared }}</span></div>
         <div style="min-width:0"><a class="title" href="/items/{{ r.item.id }}" data-preview="/items/{{ r.item.id }}/preview" data-preview-nav>{{ r.item.title }}</a>
           <div class="meta"><span class="badge cat-{{ r.item.source.category }}">{{ r.item.source.name }}</span><span>{{ r.item.published_at|timeago }}</span>
-            {% if r.item.source_id != item.source_id %}<span class="badge new">other source</span>{% endif %}</div>
+            {% if r.item.source_id != item.source_id %}<span class="badge new">other source</span>{% endif %}
+            {% if r.digest %}<span class="badge" title="A newsletter or round-up is involved: it names many unrelated things, so what it shares counts for less.">digest</span>{% endif %}</div>
           <div class="muted small" style="margin-top:2px">shares: {% for t, n in r.entities %}<span class="{{ 'mono' if t not in ('malware','actor','cve','technique','scam_type','brand','sector') }}">{{ n|truncate(40, True) }}</span>{{ ', ' if not loop.last }}{% endfor %}</div></div></div>
       {% else %}<div class="empty">No correlated items yet.</div>{% endfor %}
     </div>

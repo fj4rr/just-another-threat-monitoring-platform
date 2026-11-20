@@ -4,6 +4,20 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 ## Unreleased
 
+**Fixes**
+
+- Newsletters and round-ups no longer flood *Related items*. A Cisco Talos *Threat Source* issue lists a CVE, a
+  ransomware story and the same weekly "most prevalent files" hashes as every other issue, which tied it to a dozen
+  unrelated posts. Links through such a digest now weigh far less, never join two issues of the same source, and
+  are marked *digest*. A source can force or opt out with `"digest": true/false` in its config. Issues are
+  recognised by tag, by title wording (bulletins, *in other news*, weekly threat reports, *mingguan*…) and by
+  newsletter boilerplate in the body, since Talos titles like "Never be afraid to ask questions" say nothing.
+- Version numbers in advisories are no longer read as IP addresses. *IBM API Connect 12.1.0.0 through 12.1.1.2*,
+  *fixed builds include 17.0.21.1, 21.0.13.1*, *up to 1.5.1.6* and *versions prior to 6.14.105.0* produced IP
+  indicators that linked unrelated CVE posts (one "IP" sat in 69 items). A git commit in a page title
+  ("file.py at 4fbffbc6…") is no longer taken for a SHA-1 sample hash either. Existing items are fixed by
+  `python manage.py reextract`, which now also removes IOC entities left with no mentions.
+
 **Documentation**
 
 - Reviewed against 0.14.0 and its new screenshots: the settings tab is called *Sharing & API* everywhere the docs

@@ -111,7 +111,8 @@ def main(argv: list[str]) -> int:
             ent.mention_count = counts.get(ent.id, 0)
         linked = select(EntityLink.src_id).union(select(EntityLink.dst_id))
         res = db.execute(delete(Entity).where(Entity.mention_count == 0, Entity.id.not_in(linked),
-                                              Entity.type.in_(["malware", "actor"])))
+                                              Entity.type.in_(["malware", "actor", "md5", "sha1", "sha256", "ip",
+                                                               "domain", "url"])))
         db.commit()
         print(f"re-extracted {n} items, removed {res.rowcount} orphaned entities")
     elif cmd == "rescore":

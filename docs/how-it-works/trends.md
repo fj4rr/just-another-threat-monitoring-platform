@@ -152,6 +152,16 @@ An item's score is the sum over all the entities it shares. It is then multiplie
 from a different source **type** (a news article and a Bluesky post, say), or by **1.15** if it comes from a
 different source of the same type. Matches through an indicator are flagged as *strong*. The top 15 are shown.
 
+**Newsletters and round-ups.** A digest (Cisco Talos' *Threat Source*, weekly round-ups, podcasts) covers several
+unrelated stories and repeats a "most prevalent files" list every issue, so what it shares with another item is
+weak evidence. An item counts as a digest when its title or tags match the round-up pattern (*newsletter*, *threat
+source*, *week in review*, *roundup*, *bulletin*, *in other news*, *weekly threat report*, *mingguan*…), when its
+body carries newsletter boilerplate (*Welcome to this week's edition…*, *Upcoming events where you can find*;
+Talos issue titles say nothing, so the title alone is not enough), or when its source has `"digest": true` in its config (`false` opts a
+source out). Links through a digest are scored ×0.4, ×0.1 when both items are digests, never made between two
+issues of the same source, and dropped when the score ends below 1. They carry a *digest* badge and are never
+flagged *strong*.
+
 To keep this fast, entities mentioned in more than 400 items aren't used to *find* candidates (although they
 still add weight to candidates found through rarer entities), and at most the 4,000 most recent links are read.
 
