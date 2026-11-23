@@ -34,6 +34,11 @@ class LLMNotConfigured(LLMError):
     pass
 
 
+class LLMBusy(LLMError):
+    """The provider is temporarily unavailable (high demand, rate limit, a dropped connection), so the same
+    request may well work in a few minutes. Callers that can wait retry later instead of giving up for the day."""
+
+
 def _retrying(call, what: str):
     """Run an HTTP call again while the server says it is busy or the connection drops."""
     wait = RETRY_WAIT
@@ -100,8 +105,9 @@ def _server_error(e: httpx.HTTPStatusError, name: str) -> LLMError:
         pass
     msg = " ".join(str(msg or e.response.text or "").split())[:300]
     code = e.response.status_code
-    tried = f" after {RETRY_ATTEMPTS} attempts" if code in RETRY_STATUS else ""
-    return LLMError(f"{name} answered HTTP {code}{tried}: {msg}")
+    busy = code in RETRY_STATUS
+    tried = f" after {RETRY_ATTEMPTS} attempts" if busy else ""
+    return (LLMBusy if busy else LLMError)(f"{name} answered HTTP {code}{tried}: {msg}")
 
 
 def _answer(out: str, cut_off: bool, max_tokens: int) -> str:
@@ -135,7 +141,7 @@ def _ollama(system: str, prompt: str, max_tokens: int) -> str:
     except httpx.HTTPStatusError as e:
         raise _server_error(e, "Ollama") from e
     except httpx.HTTPError as e:
-        raise LLMError(f"Ollama request failed: {e}") from e
+        raise LLMBusy(f"Ollama request failed: {e}") from e
     except ValueError as e:
         raise LLMError("Ollama returned a non-JSON response") from e
     out = (data.get("message") or {}).get("content", "").strip()
@@ -163,7 +169,7 @@ def _openai_compatible(system: str, prompt: str, max_tokens: int) -> str:
     except httpx.HTTPStatusError as e:
         raise _server_error(e, "the LLM server") from e
     except httpx.HTTPError as e:
-        raise LLMError(f"LLM request failed: {e}") from e
+        raise LLMBusy(f"LLM request failed: {e}") from e
     except ValueError as e:
         raise LLMError("LLM server returned a non-JSON response") from e
     choices = data.get("choices") or []
@@ -205,11 +211,12 @@ def _anthropic(system: str, prompt: str, max_tokens: int) -> str:
     except anthropic.NotFoundError as e:
         raise LLMError(f"Anthropic model '{model}' not found") from e
     except anthropic.RateLimitError as e:
-        raise LLMError("Anthropic rate limit reached, try again later") from e
+        raise LLMBusy("Anthropic rate limit reached, try again later") from e
     except anthropic.APIStatusError as e:
-        raise LLMError(f"Anthropic API error {e.status_code}: {e.message}") from e
+        kind = LLMBusy if e.status_code in RETRY_STATUS else LLMError
+        raise kind(f"Anthropic API error {e.status_code}: {e.message}") from e
     except anthropic.APIConnectionError as e:
-        raise LLMError(f"Could not reach Anthropic API: {e}") from e
+        raise LLMBusy(f"Could not reach Anthropic API: {e}") from e
     if resp.stop_reason == "refusal":
         raise LLMError("The model declined this request")
     out = "".join(b.text for b in resp.content if b.type == "text").strip()

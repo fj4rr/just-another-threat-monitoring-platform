@@ -9,7 +9,7 @@ from .. import jobs, notify, throttle
 from ..auth import audit, current_user, require, verify_csrf
 from ..db import get_db
 from ..llm import client as llm
-from ..llm.client import LLMError
+from ..llm.client import LLMBusy, LLMError
 from ..models import Entity, Item, Source, User, Watch
 from ..processing import trends
 from ..processing.enrichment import IOC_TYPES, enrich_entity, enrich_family
@@ -302,6 +302,8 @@ def item_summarize(item_id: int, user: User = Depends(require("analyst")), db: S
     try:
         with throttle.exclusive(f"summarize:{item.id}", "a summary of this item is already being written"):
             out = summarize_item(db, item)
+    except LLMBusy as e:  # the provider, not the request, is the problem: 503 says "try again"
+        raise HTTPException(503, str(e)) from e
     except LLMError as e:
         raise HTTPException(400, str(e)) from e
     db.commit()
@@ -317,6 +319,8 @@ def entity_brief(entity_id: int, user: User = Depends(require("analyst")), db: S
         raise HTTPException(404, "entity not found")
     try:
         out = brief(db, ent)
+    except LLMBusy as e:  # the provider, not the request, is the problem: 503 says "try again"
+        raise HTTPException(503, str(e)) from e
     except LLMError as e:
         raise HTTPException(400, str(e)) from e
     db.commit()
@@ -329,6 +333,8 @@ def make_digest(user: User = Depends(require("analyst")), db: Session = Depends(
 
     try:
         ins = daily_digest(db, user.id)
+    except LLMBusy as e:  # the provider, not the request, is the problem: 503 says "try again"
+        raise HTTPException(503, str(e)) from e
     except LLMError as e:
         raise HTTPException(400, str(e)) from e
     db.commit()
@@ -347,6 +353,8 @@ def ask(payload: dict = Body(...), user: User = Depends(require("analyst")), db:
         raise HTTPException(400, "question is empty")
     try:
         ins = do_ask(db, q, user.id)
+    except LLMBusy as e:  # the provider, not the request, is the problem: 503 says "try again"
+        raise HTTPException(503, str(e)) from e
     except LLMError as e:
         raise HTTPException(400, str(e)) from e
     db.commit()

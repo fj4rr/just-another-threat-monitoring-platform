@@ -475,7 +475,12 @@ def run_cve_intel(batch_id: str = "", force: bool = False) -> str:
         db.close()
 
 
-def run_digest(force: bool = False) -> str:
+# A model that is busy at 06:00 is usually free again later, so the day's summary is not given up after the
+# client's own few seconds of retrying: the run is repeated 20 and then 60 minutes later (0.14.2).
+DIGEST_RETRY_MINUTES = (20, 60)
+
+
+def run_digest(force: bool = False, attempt: int = 0) -> str:
     from .llm import client
     from .llm.insights import daily_digest
 
@@ -495,12 +500,32 @@ def run_digest(force: bool = False) -> str:
     except Exception as e:
         db.rollback()
         _finish(db, run, "error", str(e))
-        notify.notify(db, "error", "AI executive summary failed", str(e)[:300], "/insights",
-                      key=f"digestfail:{date.today().isoformat()}")
+        later = _retry_digest_later(e, force, attempt)
+        notify.notify(db, "error", "AI executive summary failed",
+                      (str(e)[:300] + (f" Trying again in {later} minutes." if later else "")), "/insights",
+                      key=f"digestfail:{date.today().isoformat()}:{attempt}")
         db.commit()
-        return f"error: {e}"
+        return f"error: {e}" + (f" (retry in {later} min)" if later else "")
     finally:
         db.close()
+
+
+def _retry_digest_later(err: Exception, force: bool, attempt: int) -> int:
+    """Queue one more digest run when the model was only busy. Returns the delay in minutes, 0 when the run is
+    not repeated (another kind of error, the attempts are used up, or there is no scheduler, as in the CLI)."""
+    from .llm.client import LLMBusy
+
+    if not isinstance(err, LLMBusy) or attempt >= len(DIGEST_RETRY_MINUTES) or not scheduler.running:
+        return 0
+    minutes = DIGEST_RETRY_MINUTES[attempt]
+    try:
+        scheduler.add_job(run_digest, "date", run_date=_now() + timedelta(minutes=minutes), id="digest_retry",
+                          kwargs={"force": force, "attempt": attempt + 1}, replace_existing=True)
+    except Exception as e:  # pragma: no cover - a scheduler that refuses the job must not hide the real error
+        log.warning("could not queue the digest retry: %s", e)
+        return 0
+    log.info("the model was busy: the executive summary is queued again in %d minutes", minutes)
+    return minutes
 
 
 def run_geotag(force: bool = False) -> str:

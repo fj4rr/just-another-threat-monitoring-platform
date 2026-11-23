@@ -59,8 +59,10 @@ the same components as the rest of the interface. An answer that was cut off hal
 spend most of its token budget before it starts writing – is closed up and shown without its unfinished
 sentence. If the model answered in prose, that text is shown as it came.
 
-If your provider is busy (*"this model is currently experiencing high demand"*), JATMP tries again twice before
-it gives up, and the error notification then quotes what the provider said.
+If your provider is busy (*"this model is currently experiencing high demand"*), JATMP tries again twice within a
+few seconds. If the model is still busy, the scheduled summary is written later instead: the run is repeated 20
+and then 60 minutes afterwards, and the error notification quotes the provider and says when the next attempt is.
+Pressing *AI summary* yourself reports the provider's sentence straight away.
 
 The summary runs every day at 06:00 UTC by default. You can change the time and the time zone under Settings →
 General; see [Daily schedule](configuration.md#daily-schedule).

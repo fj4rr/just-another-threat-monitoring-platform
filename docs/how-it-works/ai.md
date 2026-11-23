@@ -26,7 +26,9 @@ works exactly the same without it.
    with placeholders before a prompt goes to a cloud model (see [What leaves your network](#what-leaves-your-network)).
 6. **A busy provider is not a failed day.** A model that answers "high demand" (HTTP 429, 503 and the like) or
    drops the connection is asked again, up to three times, waiting 4 then 8 seconds. Only then does the feature
-   report an error, with the provider's own words in it.
+   report an error, with the provider's own words in it, and as HTTP 503 rather than 400, because the request was
+   fine. The daily executive summary goes further: a run that failed because the model was busy is queued again
+   20 and then 60 minutes later (`jobs.DIGEST_RETRY_MINUTES`), so an outage at 06:00 does not cost the day.
 
 ## Item summaries
 

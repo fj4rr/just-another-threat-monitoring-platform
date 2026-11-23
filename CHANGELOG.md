@@ -2,6 +2,16 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
+## Unreleased
+
+**Fixes**
+
+- A model that stays busy no longer costs the day's executive summary. The client retries a provider's "high
+  demand" for a few seconds; when that is not enough, the scheduled run is now queued again 20 and then 60
+  minutes later, and the failure notification says when. A provider that is only busy is also told apart from a
+  request it rejected: *Summarise*, *Write brief*, *AI summary* and *Ask* answer **503** with the provider's
+  sentence, where they used to answer 400 as if the request were wrong.
+
 ## 0.14.1
 
 Scam reports get their own feed and name the people scammers impersonate; newsletters and version numbers stop
