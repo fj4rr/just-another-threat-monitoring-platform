@@ -2,7 +2,11 @@
 
 All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.md](docs/upgrading.md).
 
-## Unreleased
+## 0.14.1
+
+Scam reports get their own feed and name the people scammers impersonate; newsletters and version numbers stop
+creating false correlations; the AI executive summary survives a cut-off answer and a busy provider. Upgrade
+notes: [docs/upgrading.md](docs/upgrading.md).
 
 **Changes**
 
@@ -74,9 +78,11 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 - Synced with the newsletter and false-indicator fixes: *Trends and correlation* lists how a digest is recognised,
   how its links are discounted and which views leave it out (including the REST `related` list), and that an *Also
   mentions* line in the graph can still lead to one; *Ingest and analysis* covers the digest flag and the git-commit
-  rule for SHA-1; *Analysis* explains the graph's line legend; *Upgrading* has the steps for the next release
+  rule for SHA-1; *Analysis* explains the graph's line legend; *Upgrading* has the steps for 0.14.1
   (`digesttag` runs once, then `ioc-clean` as a dry run and with `--apply`). The item page's card is called
   *Correlated items*, as in the interface.
+- *Reporting and AI* and *AI processing* describe what happens to an answer that was cut off or wrapped in a code
+  fence, and the new principle that a busy provider is retried before a feature reports an error.
 
 ## 0.14.0
 

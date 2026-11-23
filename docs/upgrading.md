@@ -4,7 +4,7 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
-## Upgrading to the next release (unreleased)
+## Upgrading to 0.14.1
 
 One new column and a clean-up command. No manual migration.
 
