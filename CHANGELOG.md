@@ -17,6 +17,16 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 **Fixes**
 
+- The executive summary is no longer a wall of JSON. When a model's answer was cut off by its token limit – a
+  reasoning model such as Gemini Flash spends part of the budget on thinking first – the whole summary was
+  thrown away and the raw `json { "headline": ...` text ended up on the dashboard card. The answer is now closed
+  up, the half-written sentence dropped, and a ``` code fence around it no longer hides it either. The summary
+  also gets a larger budget (3000 tokens), and if nothing can be salvaged the run reports an error instead of
+  saving the braces.
+- A busy AI provider no longer costs the day's summary. "This model is currently experiencing high demand"
+  (HTTP 503), 429 and the other temporary answers are tried again up to three times, 4 then 8 seconds apart;
+  the Anthropic SDK is allowed the same number of retries. The error message is now the provider's own sentence
+  instead of a wall of JSON, and an answer that ran out of tokens before it began says so.
 - Brands that speak or act are no longer taken for impersonated. Coinbase, which blocked $4.7 million in transfers
   to an Elon Musk deepfake scam, was listed as impersonated in five reports. A brand that blocks, stops, detects,
   reports, launches, *mengajak*, *menilai*… or opens a headline ("Indodax: …") is the actor, and a plain scam word

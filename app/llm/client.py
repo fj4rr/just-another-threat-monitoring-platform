@@ -3,6 +3,7 @@ llama.cpp, OpenRouter, OpenAI...), or Anthropic Claude via the official SDK."""
 from __future__ import annotations
 
 import logging
+import time
 
 import httpx
 
@@ -17,12 +18,39 @@ LLM_TIMEOUT = httpx.Timeout(300, connect=10)
 _FALLBACK_MODELS = {"claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"}
 
 
+# A cloud model under load answers 429 or 503 ("this model is currently experiencing high demand"), and a
+# connection is sometimes dropped mid-request. Both are usually over in seconds, so the call is repeated instead
+# of failing the digest or the analysis for the day.
+RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 529}
+RETRY_ATTEMPTS = 3
+RETRY_WAIT = 4.0  # seconds before the second attempt, doubled before each further one
+
+
 class LLMError(Exception):
     pass
 
 
 class LLMNotConfigured(LLMError):
     pass
+
+
+def _retrying(call, what: str):
+    """Run an HTTP call again while the server says it is busy or the connection drops."""
+    wait = RETRY_WAIT
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            return call()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code not in RETRY_STATUS or attempt == RETRY_ATTEMPTS:
+                raise
+            why = f"HTTP {e.response.status_code}"
+        except (httpx.ConnectTimeout, httpx.PoolTimeout, httpx.ReadError, httpx.RemoteProtocolError) as e:
+            if attempt == RETRY_ATTEMPTS:
+                raise
+            why = f"{type(e).__name__}"
+        log.warning("%s: %s, retrying in %.0fs (attempt %d of %d)", what, why, wait, attempt + 1, RETRY_ATTEMPTS)
+        time.sleep(wait)
+        wait *= 2
 
 
 def provider() -> str:
@@ -61,6 +89,32 @@ def complete(system: str, prompt: str, max_tokens: int = 4000) -> str:
     raise LLMError(f"unknown provider {p}")
 
 
+def _server_error(e: httpx.HTTPStatusError, name: str) -> LLMError:
+    """A readable message out of a provider's error body: "high demand" rather than a wall of JSON."""
+    msg = None
+    try:
+        body = e.response.json()
+        err = body.get("error") if isinstance(body, dict) else None
+        msg = err.get("message") if isinstance(err, dict) else err if isinstance(err, str) else None
+    except ValueError:
+        pass
+    msg = " ".join(str(msg or e.response.text or "").split())[:300]
+    code = e.response.status_code
+    tried = f" after {RETRY_ATTEMPTS} attempts" if code in RETRY_STATUS else ""
+    return LLMError(f"{name} answered HTTP {code}{tried}: {msg}")
+
+
+def _answer(out: str, cut_off: bool, max_tokens: int) -> str:
+    """An answer that ran into the token limit. A reasoning model can spend the whole budget on thinking and
+    return nothing at all; a partial answer is kept, because the callers repair what they can (insights)."""
+    if cut_off:
+        log.warning("the model stopped at the %d-token limit with %d characters of answer", max_tokens, len(out))
+    if not out:
+        raise LLMError(f"the model answered nothing, after stopping at the {max_tokens}-token limit"
+                       if cut_off else "the model returned an empty answer")
+    return out
+
+
 def _ollama(system: str, prompt: str, max_tokens: int) -> str:
     base = (settings.get("llm_base_url") or "http://localhost:11434").rstrip("/")
     body = {
@@ -69,16 +123,23 @@ def _ollama(system: str, prompt: str, max_tokens: int) -> str:
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
         "options": {"num_predict": max_tokens, "num_ctx": 16384},
     }
-    try:
+
+    def call():
         with netguard.client(timeout=LLM_TIMEOUT) as c:
             r = c.post(f"{base}/api/chat", json=body)
         r.raise_for_status()
-        data = r.json()
+        return r.json()
+
+    try:
+        data = _retrying(call, "Ollama")
+    except httpx.HTTPStatusError as e:
+        raise _server_error(e, "Ollama") from e
     except httpx.HTTPError as e:
         raise LLMError(f"Ollama request failed: {e}") from e
     except ValueError as e:
         raise LLMError("Ollama returned a non-JSON response") from e
-    return (data.get("message") or {}).get("content", "").strip()
+    out = (data.get("message") or {}).get("content", "").strip()
+    return _answer(out, data.get("done_reason") == "length", max_tokens)
 
 
 def _openai_compatible(system: str, prompt: str, max_tokens: int) -> str:
@@ -90,20 +151,26 @@ def _openai_compatible(system: str, prompt: str, max_tokens: int) -> str:
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
         "max_tokens": max_tokens,
     }
-    try:
+
+    def call():
         with netguard.client(timeout=LLM_TIMEOUT, headers=headers) as c:
             r = c.post(f"{base}/chat/completions", json=body)
         r.raise_for_status()
-        data = r.json()
+        return r.json()
+
+    try:
+        data = _retrying(call, "LLM request")
+    except httpx.HTTPStatusError as e:
+        raise _server_error(e, "the LLM server") from e
     except httpx.HTTPError as e:
-        detail = getattr(e, "response", None)
-        raise LLMError(f"LLM request failed: {e} {detail.text[:300] if detail is not None else ''}") from e
+        raise LLMError(f"LLM request failed: {e}") from e
     except ValueError as e:
         raise LLMError("LLM server returned a non-JSON response") from e
     choices = data.get("choices") or []
     if not choices:
         raise LLMError("LLM returned no choices")
-    return (choices[0].get("message") or {}).get("content", "").strip()
+    out = ((choices[0].get("message") or {}).get("content") or "").strip()
+    return _answer(out, choices[0].get("finish_reason") == "length", max_tokens)
 
 
 def _anthropic(system: str, prompt: str, max_tokens: int) -> str:
@@ -112,7 +179,8 @@ def _anthropic(system: str, prompt: str, max_tokens: int) -> str:
     except ImportError as e:  # pragma: no cover
         raise LLMError("pip install anthropic") from e
     key = settings.get("llm_api_key") or None
-    client = anthropic.Anthropic(api_key=key) if key else anthropic.Anthropic()
+    kw = {"max_retries": RETRY_ATTEMPTS}  # the SDK repeats 429, 5xx and 529 (overloaded) by itself
+    client = anthropic.Anthropic(api_key=key, **kw) if key else anthropic.Anthropic(**kw)
     model = model_name()
     kwargs = dict(
         model=model,
@@ -144,7 +212,8 @@ def _anthropic(system: str, prompt: str, max_tokens: int) -> str:
         raise LLMError(f"Could not reach Anthropic API: {e}") from e
     if resp.stop_reason == "refusal":
         raise LLMError("The model declined this request")
-    return "".join(b.text for b in resp.content if b.type == "text").strip()
+    out = "".join(b.text for b in resp.content if b.type == "text").strip()
+    return _answer(out, resp.stop_reason == "max_tokens", max(max_tokens, 8000))
 
 
 def test_connection() -> str:

@@ -55,7 +55,12 @@ high or critical), three or four key points, and up to three actions for today. 
 of items plus the week's trending malware, actors, CVEs, scam types and sectors.
 
 The model answers in JSON. JATMP checks the answer, removes any Markdown or maths notation, and displays it with
-the same components as the rest of the interface. If the answer can't be used, the text is shown as it came.
+the same components as the rest of the interface. An answer that was cut off halfway – a reasoning model can
+spend most of its token budget before it starts writing – is closed up and shown without its unfinished
+sentence. If the model answered in prose, that text is shown as it came.
+
+If your provider is busy (*"this model is currently experiencing high demand"*), JATMP tries again twice before
+it gives up, and the error notification then quotes what the provider said.
 
 The summary runs every day at 06:00 UTC by default. You can change the time and the time zone under Settings →
 General; see [Daily schedule](configuration.md#daily-schedule).

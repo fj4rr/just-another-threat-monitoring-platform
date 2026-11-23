@@ -36,14 +36,80 @@ def _clip(s: str, n: int) -> str:
     return s if len(s) <= n else s[:n] + "…"
 
 
+_FENCE = re.compile(r"^[ \t]*```[\w-]*[ \t]*$", re.M)
+_DANGLING_KEY = re.compile(r'"[^"]*"\s*:\s*$')
+
+
+def _scan(body: str) -> tuple[int, int, list[str]]:
+    """Walk a JSON text: where the first complete object ends (-1 when it never does), where the string it
+    stops inside began (-1 when it ends outside one), and the brackets still open at the end."""
+    stack: list[str] = []
+    start = -1
+    esc = False
+    for i, ch in enumerate(body):
+        if start >= 0:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                start = -1
+            continue
+        if ch == '"':
+            start = i
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            if not stack:
+                return i + 1, -1, []
+    return -1, start, stack
+
+
+_TRAILING_COMMA = re.compile(r",\s*([}\]])")
+
+
+def _loads(chunk: str) -> dict | None:
+    """Parse, forgiving the trailing comma before a bracket that models slip in."""
+    for text in (chunk, _TRAILING_COMMA.sub(r"\1", chunk)):
+        try:
+            out = json.loads(text)
+        except json.JSONDecodeError:
+            continue
+        return out if isinstance(out, dict) else None
+    return None
+
+
+def _trim(body: str) -> str:
+    """Drop a trailing comma and a key whose value never arrived."""
+    body = body.rstrip().rstrip(",").rstrip()
+    return _DANGLING_KEY.sub("", body).rstrip().rstrip(",").rstrip()
+
+
 def _json_from(text: str) -> dict:
-    m = re.search(r"\{.*\}", text, re.S)
-    if not m:
+    """The first JSON object in a model's answer. It may be wrapped in a ``` fence, introduced by chatter, or
+    cut off in the middle when the model ran into its token limit: an answer that stops halfway is closed and
+    the half-written element dropped, so what the model did say still reaches the reader (0.14.1)."""
+    text = _FENCE.sub("", text or "")
+    start = text.find("{")
+    if start < 0:
         return {}
-    try:
-        return json.loads(m.group(0))
-    except json.JSONDecodeError:
-        return {}
+    body = text[start:]
+    end, str_start, stack = _scan(body)
+    if end > 0:
+        return _loads(body[:end]) or {}
+    for _ in range(10):  # cut off: close it, dropping one unfinished element per round
+        body = _trim(body[:str_start] if str_start >= 0 else body)  # a half-written sentence helps nobody
+        out = _loads(body + "".join(reversed(stack)))
+        if out is not None:
+            return out
+        cut = max(body.rfind(","), body.rfind("["), body.rfind("{"))
+        if cut <= 0:
+            return {}
+        body = body[:cut] if body[cut] == "," else body[: cut + 1]
+        _, str_start, stack = _scan(body)
+    return {}
 
 
 def summarize_item(db: Session, item: Item) -> str:
@@ -274,8 +340,12 @@ Answer with ONE JSON object and nothing else:
 Rules: 3 or 4 points, at most 3 actions, ordered by importance. Plain text only inside the strings: no markdown,
 no LaTeX or math notation (write "2.9.3 or earlier", not symbols), no lists inside strings. Name sources only
 when it matters. Skip routine noise."""
-    out = client.complete(DIGEST_SYSTEM, prompt, max_tokens=1500)
+    # a reasoning model spends part of this budget on thinking before it writes the summary
+    out = client.complete(DIGEST_SYSTEM, prompt, max_tokens=3000)
     data = digest_data(out)
+    if not data and "{" in out:
+        # JSON we could not salvage: a raw dump of braces and keys is no summary (0.14.1)
+        raise client.LLMError("the model did not return a usable JSON summary")
     content = digest_markdown(data) if data else _plain(out)
     ins = Insight(kind="digest", title=f"Executive summary {utcnow():%Y-%m-%d}", content=content, data=data,
                   model=f"{client.provider()}:{client.model_name()}", user_id=user_id)

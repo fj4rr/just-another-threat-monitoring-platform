@@ -24,6 +24,9 @@ works exactly the same without it.
    information is missing, and never to invent indicators or scammer identifiers.
 5. **Personal data stays out of cloud prompts.** Phone numbers, bank accounts and similar details are replaced
    with placeholders before a prompt goes to a cloud model (see [What leaves your network](#what-leaves-your-network)).
+6. **A busy provider is not a failed day.** A model that answers "high demand" (HTTP 429, 503 and the like) or
+   drops the connection is asked again, up to three times, waiting 4 then 8 seconds. Only then does the feature
+   report an error, with the provider's own words in it.
 
 ## Item summaries
 
@@ -113,12 +116,18 @@ and `schedule_timezone`). The default is UTC, which is 13:00 in Jakarta, so a te
 (*low*, *elevated*, *high* or *critical*), 3 or 4 key points (each a title and one sentence), and no more than 3
 actions for today.
 
-**Before it is shown,** JATMP checks the answer. It extracts the JSON, removes Markdown formatting, bullets and
-maths notation from every text, limits the lengths (headline 400 characters, point titles 120, details 400,
-actions 300), keeps at most 4 points and 3 actions, and drops a threat level it doesn't recognise. If there is no
-usable headline, the model's text is shown as it came. The result is saved under *AI insights*, shown on the
-dashboard card, and announced with a notification. If the run fails, an error notification is sent (at most once
-a day).
+**Before it is shown,** JATMP checks the answer. It extracts the JSON – also out of a ``` code fence or a
+sentence of chatter around it – removes Markdown formatting, bullets and maths notation from every text, limits
+the lengths (headline 400 characters, point titles 120, details 400, actions 300), keeps at most 4 points and 3
+actions, and drops a threat level it doesn't recognise.
+
+An answer that stops in the middle, because a reasoning model spent its token budget on thinking, is repaired:
+the open brackets are closed and the half-written sentence is dropped, so the headline and the complete points
+still reach the reader. If the model answered in prose instead of JSON, that text is shown as it came; if it
+tried JSON and nothing could be salvaged, the run fails rather than saving a wall of braces.
+
+The result is saved under *AI insights*, shown on the dashboard card, and announced with a notification. If the
+run fails, an error notification is sent (at most once a day).
 
 ## Questions
 
