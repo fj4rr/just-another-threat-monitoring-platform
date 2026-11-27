@@ -4,6 +4,12 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 ## Unreleased
 
+**Changes**
+
+- Higher minimum versions: `sqlalchemy` 2.1.9, `uvicorn` 0.54.0 and `maxminddb` 3.3.0 (development: `ruff`
+  0.17.6; docs site: `mkdocs-material` 9.8.2). Run `pip install -r requirements.txt -c requirements.lock` again
+  when upgrading from source; the Docker image installs from the lock file as before.
+
 **Documentation**
 
 - Private vulnerability reporting is switched on for the repository. *Security* has a new section, *Reporting a
