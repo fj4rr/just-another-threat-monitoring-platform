@@ -1,0 +1,2285 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Just Another Threat Monitoring Platform – self-hosted cyber threat and online fraud monitoring">
+      
+      
+      
+        <link rel="canonical" href="https://fj4rr.github.io/just-another-threat-monitoring-platform/how-it-works/trends/">
+      
+      
+        <link rel="prev" href="../enrichment/">
+      
+      
+        <link rel="next" href="../ai/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Trends and correlation - JATMP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trends-and-correlation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="JATMP" class="md-header__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JATMP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trends and correlation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="JATMP" class="md-nav__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    JATMP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setting up
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using JATMP
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Using JATMP
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-jatmp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using JATMP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../geography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geography and Indonesia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fraud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scams and fraud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing and integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reporting-and-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporting and AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../history-and-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History and storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../screenshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Screenshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How it works
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How it works
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ingest and analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Severity scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enrichment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrichment and verdicts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trends and correlation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trends and correlation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#counting-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counting rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#periods-and-baselines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Periods and baselines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trend-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend score
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cve-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CVE priority
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CVE priority">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cves-by-exploitation-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CVEs by exploitation risk
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Correlation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#relationship-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationship graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#other-figures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other figures
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sharing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing and delivery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../housekeeping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Housekeeping and re-analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corrections and quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending JATMP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#counting-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counting rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#periods-and-baselines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Periods and baselines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trend-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend score
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cve-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CVE priority
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CVE priority">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cves-by-exploitation-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CVEs by exploitation risk
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Correlation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#relationship-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationship graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#other-figures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other figures
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform/edit/main/docs/how-it-works/trends.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"></path></svg>
+    </a>
+  
+  
+
+
+<h1 id="trends-and-correlation">Trends and correlation<a class="headerlink" href="#trends-and-correlation" title="Permanent link">¶</a></h1>
+<p>This page explains how the dashboards turn stored items into trend scores, CVE priorities, breakdowns and lists of
+related items. None of these figures are stored: they are calculated from the items whenever a page is opened
+(trend lists are cached for 45 seconds). The code is in <code>app/processing/trends.py</code>, <code>app/processing/graph.py</code> and
+<code>app/intel/cve.py</code>.</p>
+<h2 id="counting-rules">Counting rules<a class="headerlink" href="#counting-rules" title="Permanent link">¶</a></h2>
+<p>Three rules decide what a number on the dashboards actually counts.</p>
+<p><strong>Stories, not copies.</strong> When several outlets publish the same article, the original and its copies count as one
+story (see <a href="../processing/#3-cross-source-duplicates">Cross-source duplicates</a>). This rule applies everywhere JATMP
+counts how much was reported:</p>
+<ul>
+<li>the KPI tiles and their sparklines, and the timelines;</li>
+<li>the breakdown charts (malware and actor types, sectors, scam types, brands);</li>
+<li>target countries and provinces;</li>
+<li>mention counts in the entity lists;</li>
+<li>trend scores and the scam <em>spreading</em> check;</li>
+<li>the AI executive summary and the PDF / Word reports.</li>
+</ul>
+<p>The <em>Stories collected</em> tile also shows the number of items, copies included, when the two differ.</p>
+<p><strong>Per-outlet figures count items.</strong> <em>Items per source</em>, source countries and languages describe what each outlet
+published, so there a copy counts for the outlet that carried it.</p>
+<p><strong>Dates and regions.</strong> Periods are measured by publication date, so backfilled history lands in the period it was
+published in, not the day it was collected. In the <em>National (ID)</em> view, every figure only includes items that
+target Indonesia, or that come from an Indonesian outlet without naming another target (see
+<a href="../processing/#the-national-indonesia-view">The National view</a>).</p>
+<h2 id="periods-and-baselines">Periods and baselines<a class="headerlink" href="#periods-and-baselines" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Chart bars</th>
+<th>Trend baseline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7, 15 or 30 days</td>
+<td>One per day</td>
+<td>The 30 days before the period</td>
+</tr>
+<tr>
+<td>3 months (90 days)</td>
+<td>One per day</td>
+<td>The 90 days before the period</td>
+</tr>
+<tr>
+<td>6 months, 1 year</td>
+<td>One per week (the first day of each 7-day block)</td>
+<td>As long as the period itself</td>
+</tr>
+</tbody>
+</table>
+<p>In other words, the baseline is always the <code>max(30, period)</code> days immediately before the period. The live
+collectors only cover the recent past, so the longer periods (and their baselines) only become meaningful after
+a <a href="../collection/#backfill">backfill</a>. The dashboards tell you when some sources have gaps.</p>
+<h2 id="trend-score">Trend score<a class="headerlink" href="#trend-score" title="Permanent link">¶</a></h2>
+<p>Malware families, threat actors and CVEs on the threat radar, in the <em>Trending</em> tables and in the AI summary are
+ranked by a <strong>trend score</strong>. For one entity, with a period of <code>W</code> days and a baseline of <code>B</code> days, JATMP uses:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>r</code></td>
+<td>Stories that mention it in the period</td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td>Stories that mention it in the baseline</td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td>How many different sources reported it in the period (originals only; at least 1)</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>How many different source <strong>types</strong> (news, social, intel) reported it in the period (at least 1)</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code>growth = (r / W + 0.1) / (b / B + 0.1)
+score  = r × √min(growth, 10) × (1 + 0.25 × (s − 1)) × (1 + 0.2 × (c − 1))
+</code></pre></div>
+<p>Each part has a job:</p>
+<ul>
+<li><strong>Volume</strong> (<code>r</code>) is the starting point. Something mentioned only once doesn't trend, however new it is.</li>
+<li><strong>Growth</strong> compares the daily rate now with the daily rate before. The <code>+ 0.1</code> stops a first mention from
+  producing infinite growth, and the square root and the cap at 10 stop a sudden spike from drowning out threats
+  that are steady but widely covered.</li>
+<li><strong>Spread</strong> rewards independent confirmation: each extra source adds 25%, and each extra source type adds 20%.
+  Syndicated copies don't count as extra sources.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Example (7-day period, 30-day baseline)</th>
+<th>r</th>
+<th>b</th>
+<th>s</th>
+<th>c</th>
+<th>growth</th>
+<th>score</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A family that suddenly shows up in the news and on Bluesky</td>
+<td>6</td>
+<td>3</td>
+<td>4</td>
+<td>2</td>
+<td>4.79</td>
+<td><strong>27.56</strong></td>
+</tr>
+<tr>
+<td>A family that is always in the news at this rate</td>
+<td>6</td>
+<td>26</td>
+<td>4</td>
+<td>2</td>
+<td>0.99</td>
+<td><strong>12.54</strong></td>
+</tr>
+<tr>
+<td>A single blog that mentions a new name twice</td>
+<td>2</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>3.86</td>
+<td><strong>3.93</strong></td>
+</tr>
+<tr>
+<td>An outbreak that everyone covers</td>
+<td>20</td>
+<td>0</td>
+<td>8</td>
+<td>3</td>
+<td>29.57 (capped at 10)</td>
+<td><strong>243.5</strong></td>
+</tr>
+</tbody>
+</table>
+<p>A few more rules:</p>
+<ul>
+<li>An entity with no story in the period isn't listed at all.</li>
+<li>A malware name that was <strong>only ever found by the "<em>Name</em> ransomware" pattern</strong> only appears once <strong>two
+  sources</strong> name it in the period, so a single misread headline can't make something trend.</li>
+<li>An entity first seen during the period gets the <strong>new</strong> badge. To list only such entities, use the
+  <em>✦ New threats</em> button on the Intelligence lists (Malware, Threat actors, CVEs, IOCs, Scam types, Impersonated
+  brands), which keeps the entries whose first-seen date falls in the chosen period; see
+  <a href="../../using-jatmp/#tables-and-preview">Using JATMP</a>.</li>
+<li>Actors are grouped by type (nation-state, ransomware, extortion, cybercrime or unclassified), using the
+  knowledge base or a <code>category</code> you set in <code>data/knowledge_extra.json</code>.</li>
+</ul>
+<p>Trend lists are cached in memory for <strong>45 seconds</strong> for each combination of type, period, region and list
+length. The cache is cleared whenever a collection run stores new items.</p>
+<h2 id="cve-priority">CVE priority<a class="headerlink" href="#cve-priority" title="Permanent link">¶</a></h2>
+<p>Lots of chatter about a vulnerability doesn't necessarily mean it should be patched first. So trending CVEs are
+re-ranked by how likely they are to be exploited:</p>
+<div class="highlight"><pre><span></span><code>priority = trend score × (2 if in CISA KEV) × (1 + EPSS) × (0.5 + CVSS / 10)
+</code></pre></div>
+<p>A CVE without a CVSS score is multiplied by 1 for that part. The dashboard takes the 60 CVEs with the highest
+trend scores, sorts them by priority, shows the top 8, and lists the families and actors mentioned alongside
+each one.</p>
+<p>For example, take two CVEs that both have a trend score of 10. The first is in KEV, with an EPSS of 0.6 and a
+CVSS of 9.8: 10 × 2 × 1.6 × 1.48 = <strong>47.4</strong>. The second isn't in KEV, with an EPSS of 0.01 and a CVSS of 5.3:
+10 × 1 × 1.01 × 1.03 = <strong>10.4</strong>.</p>
+<h3 id="cves-by-exploitation-risk">CVEs by exploitation risk<a class="headerlink" href="#cves-by-exploitation-risk" title="Permanent link">¶</a></h3>
+<p>This chart puts each CVE mentioned in the period into the <strong>first</strong> bucket it qualifies for:</p>
+<table>
+<thead>
+<tr>
+<th>Bucket</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>In CISA KEV</td>
+<td>It is in the catalogue</td>
+</tr>
+<tr>
+<td>EPSS 10%+</td>
+<td>Its EPSS score is 0.10 or more</td>
+</tr>
+<tr>
+<td>CVSS critical</td>
+<td>CVSS 9 or more</td>
+</tr>
+<tr>
+<td>CVSS high</td>
+<td>CVSS 7 to 8.9</td>
+</tr>
+<tr>
+<td>CVSS medium / low</td>
+<td>Any other CVSS score</td>
+</tr>
+<tr>
+<td>Low EPSS, no CVSS</td>
+<td>Looked up, but none of the above (counted below the chart)</td>
+</tr>
+<tr>
+<td>Not looked up yet</td>
+<td>No CVE intel yet (counted below the chart)</td>
+</tr>
+</tbody>
+</table>
+<p>The data comes from the <a href="../enrichment/#cve-intel">CVE intel refresh</a>.</p>
+<h2 id="correlation">Correlation<a class="headerlink" href="#correlation" title="Permanent link">¶</a></h2>
+<p>The <em>Correlated items</em> card on an item's page (and in its preview) ranks other items by <strong>how strong the evidence
+they share is</strong>, not just by how many entities they have in common.</p>
+<p>Each shared entity contributes:</p>
+<div class="highlight"><pre><span></span><code>weight(type) / log2(2 + mention_count)
+</code></pre></div>
+<p>so a rare entity counts for more than one that is mentioned everywhere.</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Weight</th>
+<th></th>
+<th>Type</th>
+<th>Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sha256, sha1, md5</td>
+<td>6.0</td>
+<td></td>
+<td>crypto wallet</td>
+<td>6.0</td>
+</tr>
+<tr>
+<td>url</td>
+<td>5.0</td>
+<td></td>
+<td>bank account, e-wallet</td>
+<td>5.0</td>
+</tr>
+<tr>
+<td>domain</td>
+<td>4.0</td>
+<td></td>
+<td>phone</td>
+<td>4.0</td>
+</tr>
+<tr>
+<td>ip</td>
+<td>3.0</td>
+<td></td>
+<td>brand</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>malware, actor</td>
+<td>2.5</td>
+<td></td>
+<td>scam type</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>cve</td>
+<td>1.5</td>
+<td></td>
+<td>sector</td>
+<td>0.2</td>
+</tr>
+<tr>
+<td>technique</td>
+<td>0.5</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>An item's score is the sum over all the entities it shares. It is then multiplied by <strong>1.3</strong> if the item comes
+from a different source <strong>type</strong> (a news article and a Bluesky post, say), or by <strong>1.15</strong> if it comes from a
+different source of the same type. Matches through an indicator are flagged as <em>strong</em>. The top 15 are shown.</p>
+<p><strong>Newsletters and round-ups.</strong> A digest (Cisco Talos' <em>Threat Source</em>, weekly round-ups, podcasts) covers several
+unrelated stories and repeats a "most prevalent files" list every issue, so what it shares with another item is
+weak evidence. JATMP treats an item as a digest when:</p>
+<ul>
+<li>its source's config has <code>"digest": true</code> (<code>false</code> opts a source out, and then nothing else is checked). The
+  source form in Settings has no field for it yet; it is kept in the source's stored <code>config</code>, and saving the form
+  leaves it in place;</li>
+<li>its title or tags use round-up wording (<em>newsletter</em>, <em>threat source</em>, <em>week in review</em>, <em>roundup</em>, <em>bulletin</em>,
+  <em>in other news</em>, <em>weekly threat report</em>, <em>daily briefing</em>, <em>mingguan</em>, <em>kilas siber</em>…). Words that the scam and
+  sector analysis treat as round-ups but that name a single story here (<em>interview</em>, as in the <em>Contagious
+  Interview</em> campaign, <em>lessons from</em>, <em>webinar</em>) don't count;</li>
+<li>or its body carries newsletter boilerplate (<em>Welcome to this week's edition…</em>, <em>Upcoming events where you can
+  find</em>, <em>most prevalent malware files</em>). Talos issue titles such as "Never be afraid to ask questions" say
+  nothing, so the title alone is not enough.</li>
+</ul>
+<p>When one of the two items is a digest, the score is multiplied by <strong>0.4</strong>, and by <strong>0.1</strong> when both are. Two
+issues of the same source are never linked (what they share is the recurring boilerplate), and a digest link whose
+discounted score falls below <strong>1</strong> is dropped before the source bonus above is applied. The links that remain
+carry a <em>digest</em> badge and are never flagged <em>strong</em>.</p>
+<p>The flag is stored on the item (<code>items.is_digest</code>) when it is collected. After an upgrade that changes the
+detection rules, <code>run_digesttag</code> sets it again on every stored item, and <code>manage.py digesttag</code> does the same by
+hand (for example after changing a source's <code>"digest"</code> setting). An item whose text retention has already trimmed
+keeps a digest flag it had, since the body phrases that proved it are gone.</p>
+<p><strong>Co-mentions.</strong> <em>Mentioned together with</em> on an entity's page and in its preview, the indicators listed on a
+family's page, the related chips on the lists and the <code>related</code> list of <code>GET /api/v1/entities/{id}</code> count the
+entities that appear in the same items, and they leave out digests entirely: a hash from a newsletter's weekly
+<em>most prevalent files</em> list sits next to the family of another story, and that is no evidence the two belong
+together. Even outside digests, being in the same article is not attribution (on this deployment's data, an
+indicator and a family from the same article agreed with the provider's family only about a third of the time).
+So on an indicator's page the card is called <em>Seen in the same items as</em> and says so, and <em>Linked by enrichment</em>
+(what a provider attributes) is shown above it.</p>
+<p>To keep this fast, entities mentioned in more than 400 items aren't used to <em>find</em> candidates (although they
+still add weight to candidates found through rarer entities), and at most the 4,000 most recent links are read.</p>
+<h2 id="relationship-graph">Relationship graph<a class="headerlink" href="#relationship-graph" title="Permanent link">¶</a></h2>
+<p>The graph on an item's page is built from:</p>
+<ol>
+<li>the item itself, in the centre;</li>
+<li>its entities (indicators with a bad verdict first), taking up at most 45% of the nodes;</li>
+<li>whatever enrichment linked them to (a hash's family, a domain's IPs, a family's OTX indicators), at most 25%
+   of the nodes;</li>
+<li>the top related items from the correlation above, with lines to the entities they share.</li>
+</ol>
+<p>On an entity's page, the graph shows the entity, its enrichment links, the families, actors and CVEs most often
+mentioned with it, and the 10 highest-severity items that mention it. The graph starts with up to <strong>60 nodes</strong>;
+<em>Show more</em> raises the limit to 150. When something had to be left out, the graph says so.</p>
+<p><strong>Reading the lines.</strong> Under the graph, a second legend row shows each kind of line that appears in it, what it
+means and <em>whose claim it is</em>. Hover an entry for the explanation; hovering a line in the graph shows its label and
+the same claim.</p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Means</th>
+<th>Claim</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Solid, grey (<em>Mentions</em>)</td>
+<td>The item names the entity: extracted from its text by the platform's rules, or listed by the source's own indicator feed</td>
+<td>automatic</td>
+</tr>
+<tr>
+<td>Dashed, green (<em>Provider link</em>)</td>
+<td>A threat-intel provider (OTX, urlscan, MalwareBazaar…) states the relation, such as an indicator attributed to a family</td>
+<td>provider's claim</td>
+</tr>
+<tr>
+<td>Solid, blue (<em>Also mentions</em>)</td>
+<td>Another item names the same entity: not proof that the two items describe the same activity</td>
+<td>needs validation</td>
+</tr>
+<tr>
+<td>Dotted (<em>Mentioned together</em>)</td>
+<td>Two entities named in the same items: not attribution</td>
+<td>needs validation</td>
+</tr>
+</tbody>
+</table>
+<p><em>Needs validation</em> marks relations that come from co-occurrence only. An analyst can remove a wrong link with
+<strong>Correct</strong> (<a href="../corrections/">Analyst corrections</a>). Newsletters and round-ups are left out of <em>Mentioned
+together</em>; an <em>Also mentions</em> line can still lead to one, because those lines come from the correlation above,
+where a digest counts for less.</p>
+<h2 id="other-figures">Other figures<a class="headerlink" href="#other-figures" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Widget</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>KPI tiles</td>
+<td>Stories in the period compared with the period before; families and actors first seen in the period; indicators seen in the period, and how many of them are malicious</td>
+</tr>
+<tr>
+<td>Sparklines</td>
+<td>Stories, plus the number of different families, indicators, CVEs and actors mentioned, per day (per week for periods over 90 days)</td>
+</tr>
+<tr>
+<td>Timeline</td>
+<td>Stories per day (or week), split by source type</td>
+</tr>
+<tr>
+<td>Threat actors by type</td>
+<td>Stories that mention an actor, per type of actor</td>
+</tr>
+<tr>
+<td>Critical infrastructure sectors</td>
+<td>Stories per sector, with all eight sectors listed</td>
+</tr>
+<tr>
+<td>Items per source</td>
+<td>Items per source, copies included</td>
+</tr>
+<tr>
+<td>Indicators by type and verdict</td>
+<td>Indicators last seen in the period, split into malicious, suspicious and the rest</td>
+</tr>
+<tr>
+<td>Geography and the globe</td>
+<td>Target countries of the stories in the period (top 10 on the globe); source countries and languages count items</td>
+</tr>
+<tr>
+<td>Scam &amp; fraud dashboard</td>
+<td>The same rules, applied to scam reports (items with a fraud score above 0). <em>Spreading</em> means at least 5 reports this week and twice as many as the week before</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer">
+        
+          
+          <a href="../enrichment/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Enrichment and verdicts">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Enrichment and verdicts
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../ai/" class="md-footer__link md-footer__link--next" aria-label="Next: AI processing">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                AI processing
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      JATMP by fj4rr
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

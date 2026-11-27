@@ -1,0 +1,2693 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Just Another Threat Monitoring Platform – self-hosted cyber threat and online fraud monitoring">
+      
+      
+      
+        <link rel="canonical" href="https://fj4rr.github.io/just-another-threat-monitoring-platform/architecture/">
+      
+      
+        <link rel="prev" href="../development/">
+      
+      
+        <link rel="next" href="../data-model/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Architecture - JATMP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="JATMP" class="md-header__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JATMP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="JATMP" class="md-nav__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    JATMP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setting up
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using JATMP
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Using JATMP
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-jatmp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using JATMP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geography and Indonesia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fraud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scams and fraud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing and integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reporting-and-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporting and AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../history-and-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History and storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../screenshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Screenshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4">
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../how-it-works/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How it works
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How it works
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ingest and analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/scoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Severity scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/enrichment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrichment and verdicts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/trends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trends and correlation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/sharing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing and delivery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/housekeeping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Housekeeping and re-analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corrections and quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#the-big-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The big picture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-up-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start-up sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#request-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-a-feed-to-the-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From a feed to the database
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="From a feed to the database">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-collection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Collection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-ingest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Ingest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-enrichment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Enrichment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outbound-http" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outbound HTTP
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caches-and-throttles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caches and throttles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#database-and-migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Database and migrations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#front-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Front end
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module map
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module map">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core (app/)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#repository-root" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository root
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../extending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending JATMP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#the-big-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The big picture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-up-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start-up sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#request-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-a-feed-to-the-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From a feed to the database
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="From a feed to the database">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-collection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Collection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-ingest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Ingest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-enrichment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Enrichment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outbound-http" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outbound HTTP
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caches-and-throttles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caches and throttles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#database-and-migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Database and migrations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#front-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Front end
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module map
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module map">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core (app/)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#repository-root" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository root
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform/edit/main/docs/architecture.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"></path></svg>
+    </a>
+  
+  
+
+
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">¶</a></h1>
+<p>This page explains how JATMP is put together: the process model, what happens on start-up and on every request,
+how an item travels from a feed into the database, how background jobs work, and where each concern lives in the
+code. The tables and columns are described in <a href="../data-model/">Data model</a>; step-by-step recipes for common
+changes are in <a href="../extending/">Extending JATMP</a>. The behaviour of each process — the exact rules, weights,
+thresholds and timings — is described in <a href="../how-it-works/">How it works</a>.</p>
+<h2 id="the-big-picture">The big picture<a class="headerlink" href="#the-big-picture" title="Permanent link">¶</a></h2>
+<p>JATMP is a single Python process: a FastAPI web application with an APScheduler <code>BackgroundScheduler</code> running in
+the same process. There is no message queue, no separate worker and no front-end build step.</p>
+<div class="highlight"><pre><span></span><code>browser, API client
+        │ HTTP
+        ▼
+┌─ one process: run.py → uvicorn ──────────────────────────┐
+│                                                           │
+│  FastAPI: middleware → routers → Jinja2 pages / JSON      │
+│        │                                                  │
+│        ▼                                                  │
+│  SQLAlchemy ◀──▶ SQLite (WAL) or PostgreSQL               │
+│        ▲                                                  │
+│        │                                                  │
+│  APScheduler threads                                      │
+│    ├─ collectors → pipeline.ingest                        │
+│    │     → extractor, severity, fraud, sectors, geo       │
+│    ├─ enrichment → intel providers → consensus            │
+│    └─ CVE intel, summary, housekeeping, webhooks,         │
+│       one-off re-analysis                                 │
+│        │                                                  │
+│        ▼                                                  │
+│  app/netguard.py: every outbound request                  │
+│  (SSRF guard, size cap)                                   │
+└────────┼──────────────────────────────────────────────────┘
+         ▼
+     internet: feeds, providers, AI, MISP
+</code></pre></div>
+<p>Consequences of this design that every change has to respect:</p>
+<ul>
+<li><strong>One web worker.</strong> The scheduler lives in the process, so running two workers would run every collector
+  twice. Scale collection by source intervals, not by workers.</li>
+<li><strong>Threads, not processes.</strong> Collectors and enrichment run in the scheduler's thread pool (10 threads). A job
+  that blocks (a slow provider, a regex that backtracks) holds one of those threads; it cannot be killed. Keep
+  network timeouts short, keep regular expressions linear (see <a href="../security/">Security</a>), and push slow side work
+  (AI summaries) into a job of its own.</li>
+<li><strong>One writer on SQLite.</strong> WAL mode lets the web pages read while a job writes, but writes are serialised.
+  Long jobs commit in chunks (usually 200–500 rows) so that pages and other jobs are not blocked for long.</li>
+<li><strong>In-process caches are per process.</strong> The settings cache (5 s), the trending cache (45 s), API-key rate
+  windows and manual-action throttles live in memory and reset on restart.</li>
+</ul>
+<h2 id="start-up-sequence">Start-up sequence<a class="headerlink" href="#start-up-sequence" title="Permanent link">¶</a></h2>
+<p><code>app/main.py</code> defines the FastAPI app and a <code>lifespan</code> handler. On start:</p>
+<ol>
+<li><code>init_db()</code> (<code>app/db.py</code>) creates missing tables, adds missing columns and indexes
+   (<code>_add_missing_columns</code>, see <a href="#database-and-migrations">Database and migrations</a>) and sets up full-text search
+   (<code>app/search.py</code>).</li>
+<li>If the install is not finished (<code>data/config.json</code> has <code>installed: false</code>), the setup token is announced in
+   the log (<code>app/setup_token.py</code>) and nothing else starts. Every request except <code>/setup</code>, <code>/static</code> and <code>/healthz</code>
+   is redirected to the wizard.</li>
+<li>Otherwise:<ul>
+<li>new built-in sources are added (<code>setup_service.auto_seed_sources</code>);</li>
+<li>secret settings written in plain text by older versions are encrypted
+  (<code>settings.encrypt_stored_secrets</code>);</li>
+<li>private hosts the admin already configured are put on the outbound allow-list once
+  (<code>netguard.seed_allowlist</code>);</li>
+<li><code>jobs.start()</code> schedules one job per enabled source, the periodic jobs and the one-off re-analysis jobs,
+  then starts the scheduler.</li>
+</ul>
+</li>
+</ol>
+<p>The same <code>perform_install()</code> (<code>app/setup_service.py</code>) is used by the wizard, by <code>install.py</code> and by the test
+suite's <code>installed</code> fixture.</p>
+<h2 id="request-lifecycle">Request lifecycle<a class="headerlink" href="#request-lifecycle" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong><code>SessionMiddleware</code></strong> (outermost) decodes the signed <code>jatmp_session</code> cookie into <code>request.session</code>. Sessions
+   are stateless: the cookie holds <code>uid</code>, <code>sv</code> (session version), <code>csrf</code> and a few UI choices (dashboard period,
+   region).</li>
+<li><strong><code>setup_guard</code> middleware</strong> redirects to <code>/setup</code> before installation, creates the per-request CSP nonce
+   (<code>request.state.csp_nonce</code>) and adds the security headers to the response (CSP, <code>X-Frame-Options</code>, <code>nosniff</code>,
+   <code>Referrer-Policy</code>, <code>Permissions-Policy</code>, COOP, <code>Cache-Control: no-store</code>, HSTS when
+   <code>JATMP_SECURE_COOKIES=1</code>).</li>
+<li><strong>Router dependencies</strong> (<code>app/auth.py</code>):<ul>
+<li><code>current_user</code> returns the built-in local user in single-user mode; in multi-user mode it loads the user
+  from the session and rejects disabled users and sessions whose <code>sv</code> no longer matches
+  <code>users.session_version</code> (raises <code>LoginRequired</code>, which an exception handler turns into a redirect to
+  <code>/login?next=…</code>).</li>
+<li><code>require("viewer" | "analyst" | "admin")</code> checks the role on top of that.</li>
+<li><code>verify_csrf</code> checks the synchroniser token on every non-GET request: the <code>X-CSRF-Token</code> header (sent by
+  <code>app.js</code> for <code>data-post</code> buttons) or the <code>csrf_token</code> form field.</li>
+<li>The REST API uses <code>api_v1.principal(scope)</code> instead: a Bearer (or Basic) API key with the right scope, or
+  the browser session.</li>
+</ul>
+</li>
+<li><strong>The handler</strong> works with a SQLAlchemy session from <code>get_db()</code> (closed after the request) and returns either
+   <code>web.render(request, "page.html", ctx)</code> or a dict (JSON).</li>
+<li><strong><code>web.render</code></strong> adds what every template needs: <code>app_name</code>, <code>multi_user</code>, <code>csrf</code>, <code>nonce</code>, <code>path</code>, <code>region</code>.
+   Templates extend <code>base.html</code>; inline <code>&lt;script&gt;</code> blocks must carry <code>nonce="{{ nonce }}"</code> or the CSP blocks them.</li>
+</ol>
+<p>Everything that leaves JATMP (REST API, IOC feeds, STIX / TAXII, webhooks, MISP pushes) goes through the rules in
+<code>app/sharing.py</code> (TLP, redistribution) and never includes scammer identifiers (<code>fraud.IDENT_TYPES</code>).</p>
+<h2 id="from-a-feed-to-the-database">From a feed to the database<a class="headerlink" href="#from-a-feed-to-the-database" title="Permanent link">¶</a></h2>
+<h3 id="1-collection">1. Collection<a class="headerlink" href="#1-collection" title="Permanent link">¶</a></h3>
+<p><code>jobs.run_source(source_id)</code> is scheduled every <code>interval_minutes</code> per enabled source (and queued by <em>Run now</em> /
+<em>Collect now</em>). It looks up the collector class by <code>Source.kind</code> in <code>collectors.REGISTRY</code>, calls
+<code>fetch() -&gt; list[RawItem]</code>, and records the run as a <code>CollectorRun</code> row (<code>running</code> → <code>ok</code>, <code>skipped</code> or
+<code>error</code>). A collector raises <code>SkipCollector</code> when it cannot run for a known reason (no API key); that is not an
+error and does not notify.</p>
+<p><code>RawItem</code> (<code>app/processing/pipeline.py</code>) is the only thing collectors produce:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>external_id</code></td>
+<td>Stable id of the entry within its source (GUID, post URI, pulse id). The dedup key.</td>
+</tr>
+<tr>
+<td><code>title</code>, <code>url</code>, <code>author</code>, <code>content</code>, <code>published_at</code></td>
+<td>As the provider gives them. <code>content</code> of <code>kind="article"</code> is HTML and gets stripped; posts are already text.</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>article</code>, <code>post</code>, <code>pulse</code>, <code>scan</code> or <code>analysis</code>. Affects stripping, dedup across sources (articles only) and severity.</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>Provider tags (OTX tags, hashtags). On intel sources they may name malware families.</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>Small provider metadata kept on the item (<code>tlp</code>, <code>sector</code>, <code>industries</code>, <code>listed_by</code>…). Bulky copies of the content are dropped.</td>
+</tr>
+<tr>
+<td><code>indicators</code></td>
+<td>IOCs the feed delivers as structured data (pulse indicators, blocklist entries), already typed.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-ingest">2. Ingest<a class="headerlink" href="#2-ingest" title="Permanent link">¶</a></h3>
+<p><code>pipeline.ingest_committed()</code> wraps <code>ingest()</code> in a transaction and retries on <code>IntegrityError</code> (the scheduled
+collector and a backfill may store the same entry at the same moment). For every new <code>RawItem</code>, <code>ingest()</code>:</p>
+<ol>
+<li><strong>Skips duplicates</strong> of the same source: one query for the whole batch on <code>(source_id, external_id)</code>.
+   External ids longer than 500 characters are shortened with a SHA-256 so they stay unique. An entry that is
+   already stored but carries a <code>merge_title</code> (ThreatFox's one item per family and day) has its new indicators
+   added to the stored item instead (<code>merge_indicators</code>), which is then re-scored.</li>
+<li><strong>Sanitises</strong>: <code>strip_html</code> (scripts, tags, entities, stray stylesheet rules) for articles, <code>safe_url</code> (only
+   <code>http(s)</code> links), length limits, future dates clamped to now.</li>
+<li><strong>Fingerprints articles</strong> (<code>fingerprint()</code>: normalised title without the outlet suffix, plus the start of the
+   text for short titles) and marks a syndicated copy of another source's article from the last four days with
+   <code>dup_of</code>.</li>
+<li><strong>Extracts entities</strong> (<code>extractor.extract_all</code>): IOCs (refanged, strict mode for news: only defanged
+   indicators or link targets count), CVEs, ATT&amp;CK techniques, known families and actors from the knowledge base,
+   new family names by pattern ("Zorblax ransomware", Indonesian "ransomware Zorblax"); plus the feed's
+   structured indicators and family names from intel-feed tags (<code>tag_families</code>).</li>
+<li><strong>Scores severity</strong> (<code>severity.score_item</code>): explainable 0–100 with reasons, see <a href="../analysis/">Analysis</a>.</li>
+<li><strong>Fraud analysis</strong> (<code>fraud.apply</code>): scam types, impersonated brands, scammer identifiers, losses, victims and
+   the fraud score, see <a href="../fraud/">Scams and fraud</a>.</li>
+<li><strong>Sectors</strong> (<code>sectors.apply</code>): critical infrastructure sectors.</li>
+<li><strong>Links entities</strong> (<code>link_entities</code>): one lookup query per entity type, new entities created in one flush,
+   <code>ItemEntity</code> rows with the <code>origin</code> of each extraction, <code>mention_count</code> and <code>first_seen</code> / <code>last_seen</code>
+   maintained.</li>
+<li><strong>Blocklist verdicts</strong> (<code>mark_listed</code>) for curated lists such as ScamSniffer.</li>
+<li><strong>Geography</strong> (<code>geo.tag_item</code>): language, source country, target countries and Indonesian provinces.</li>
+</ol>
+<p>After the commit the trending cache is cleared, and <code>jobs._after_ingest</code> queues webhook events and the MISP
+auto-push; <code>_maybe_auto_summarize</code> queues AI summaries for the separate summary job.</p>
+<h3 id="3-enrichment">3. Enrichment<a class="headerlink" href="#3-enrichment" title="Permanent link">¶</a></h3>
+<p><code>jobs.run_enrichment</code> (every <code>enrichment_interval</code> minutes) picks indicators that were never checked, are due for
+a re-check, or have an aged malicious / suspicious verdict (<code>verdict_recheck_days</code>). <code>enrichment.prefetch</code> then
+looks the whole batch up with one thread per provider, so each provider works at its own pace, and
+<code>enrichment.enrich_entity</code> applies the answers one indicator at a time: every configured provider in
+<code>PROVIDER_CLASSES</code> that supports the indicator type answers with a <code>LookupResult</code>; results are stored per provider
+in <code>enrichments</code>, family labels are mapped to known families (<code>resolve_family</code>) and linked (<code>entity_links</code>), and
+the provider verdicts are combined into the entity's verdict (<code>_consensus</code>: malicious wins, a lone OTX mention is
+only suspicious, GreyNoise "benign" overrides noisy providers) with its date in <code>verdict_at</code>. A verdict that rises
+adds <code>severity.VERDICT_BONUS</code> to the items that mention the indicator and, when it turns malicious, fires the
+<code>ioc.malicious</code> webhook; a re-checked verdict that falls takes the bonus back (<code>_sync_bonus</code>). Trending families
+also get fresh IOCs from OTX / ANY.RUN (<code>enrich_family</code>). <code>enrichment.queue_status</code> and <code>intel/quota.py</code> feed the
+queue and quota panels. Details: <a href="../how-it-works/enrichment/">Enrichment and verdicts</a>.</p>
+<h2 id="background-jobs">Background jobs<a class="headerlink" href="#background-jobs" title="Permanent link">¶</a></h2>
+<p>All jobs are functions in <code>app/jobs.py</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Trigger</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run_source</code></td>
+<td>every <code>interval_minutes</code> per source; manual</td>
+<td>Collect and ingest one source</td>
+</tr>
+<tr>
+<td><code>run_enrichment</code></td>
+<td>every <code>enrichment_interval</code> min; manual</td>
+<td>Look up indicators with the providers</td>
+</tr>
+<tr>
+<td><code>run_cve_intel</code></td>
+<td>every 6 h; manual</td>
+<td>CISA KEV, FIRST EPSS, NVD CVSS into <code>Entity.meta</code></td>
+</tr>
+<tr>
+<td><code>run_webhooks</code></td>
+<td>every 30 s</td>
+<td>Deliver queued webhook events with back-off</td>
+</tr>
+<tr>
+<td><code>run_digest</code></td>
+<td>daily, <code>digest_time</code> (default 06:00 UTC)</td>
+<td>AI executive summary</td>
+</tr>
+<tr>
+<td><code>run_housekeeping</code></td>
+<td>daily, <code>housekeeping_time</code> (default 03:30 UTC)</td>
+<td>Retention (slimming, deletion), identifier pruning, old runs and notifications</td>
+</tr>
+<tr>
+<td><code>run_auto_summaries</code></td>
+<td>after ingest, when enabled</td>
+<td>AI summaries of new high-severity items, one job at a time</td>
+</tr>
+<tr>
+<td><code>run_backfill</code></td>
+<td>manual</td>
+<td>Historical backfill, one source after another</td>
+</tr>
+<tr>
+<td><code>run_source_health</code></td>
+<td>hourly (first 15 min after start)</td>
+<td>Notify about quiet and long-failing sources (<code>app/sourcehealth.py</code>)</td>
+</tr>
+<tr>
+<td><code>run_geoip_update</code></td>
+<td>monthly, when enabled</td>
+<td>Refresh the offline GeoIP database</td>
+</tr>
+<tr>
+<td>One-off re-analysis</td>
+<td>15–90 s after start</td>
+<td>See below</td>
+</tr>
+</tbody>
+</table>
+<p>The daily jobs run in the schedule's time zone (<code>schedule_timezone</code>, <code>jobs.schedule_daily_jobs</code>); they are
+rescheduled when the General settings change. At start-up, <code>requeue_auto_summaries</code> rebuilds the in-memory
+auto-summary queue from the live items of the last 24 hours that still qualify.</p>
+<p><strong>Runs and progress.</strong> Every run is a <code>CollectorRun</code> row. Manual runs are created as <code>queued</code> rows under a
+<code>batch_id</code> first, so the UI shows them at once and a second click finds them (<code>job_running</code>, <code>active_batch</code>).
+Progress is kept in memory (<code>_live</code>, written by <code>_progress</code>) and served by <code>jobs.status()</code> to <code>/api/jobs/status</code>,
+which <code>app.js</code> polls. When the last run of a batch finishes, <code>_maybe_finish_batch</code> writes one notification for
+the whole batch. Runs left <code>queued</code> or <code>running</code> by a restart are marked <code>aborted</code> on the next start.</p>
+<p><strong>Versioned one-off jobs.</strong> When detection rules change, stored items have to be re-analysed once. Each such
+job compares a rules version constant with a value in the <code>settings</code> table and does nothing when it is up to
+date; it runs a few seconds after start and can be forced from the UI or <code>manage.py</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Version constant</th>
+<th>Setting</th>
+<th>What it redoes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run_content_cleanup</code></td>
+<td><code>jobs.CONTENT_VERSION</code></td>
+<td><code>content_version</code></td>
+<td>Text cleaning of stored items</td>
+</tr>
+<tr>
+<td><code>run_geotag</code></td>
+<td><code>geo.GEO_VERSION</code></td>
+<td><code>geo_version</code></td>
+<td>Language, targets, provinces, IP hosting country</td>
+</tr>
+<tr>
+<td><code>run_dedup</code></td>
+<td><code>jobs.DEDUP_VERSION</code></td>
+<td><code>dedup_version</code></td>
+<td>Cross-source fingerprints</td>
+</tr>
+<tr>
+<td><code>run_fraudtag</code></td>
+<td><code>fraud.RULES_VERSION</code></td>
+<td><code>fraud_version</code></td>
+<td>Scam types, brands, identifiers, fraud score</td>
+</tr>
+<tr>
+<td><code>run_sectortag</code></td>
+<td><code>sectors.RULES_VERSION</code></td>
+<td><code>sector_version</code></td>
+<td>Critical infrastructure sectors</td>
+</tr>
+<tr>
+<td><code>run_digesttag</code></td>
+<td><code>digest.RULES_VERSION</code></td>
+<td><code>digest_version</code></td>
+<td>Newsletters and round-ups (<code>Item.is_digest</code>)</td>
+</tr>
+<tr>
+<td><code>run_rescore_if_outdated</code></td>
+<td><code>severity.RULES_VERSION</code></td>
+<td><code>severity_version</code></td>
+<td>Severity from text and linked entities, keeping the enrichment bonus and AI assessment (<code>severity.carry_over</code>); runs last, at 90 s</td>
+</tr>
+</tbody>
+</table>
+<p>Entity extraction has no automatic job: changing it only affects new items until an admin runs
+<code>python manage.py reextract</code> (which rebuilds the extracted links and re-scores, also through <code>carry_over</code>).</p>
+<h2 id="outbound-http">Outbound HTTP<a class="headerlink" href="#outbound-http" title="Permanent link">¶</a></h2>
+<p>Every request JATMP makes on its own goes through <code>netguard.client()</code> (<code>app/netguard.py</code>), directly or through
+<code>Collector.client()</code>, <code>intel.clients._client()</code>, <code>intel.cve._client()</code>, <code>intel.darkweb._client()</code>, the MISP client,
+the LLM client, the GeoIP download and webhook delivery. The client:</p>
+<ul>
+<li>only reaches public addresses; private, loopback and link-local hosts need an entry in the
+  <code>outbound_private_hosts</code> setting (webhooks use their own <code>webhooks_allow_private</code> switch);</li>
+<li>checks every redirect hop, and connects to the address it checked (a custom httpcore network backend), so DNS
+  rebinding does not work;</li>
+<li>reads bodies through a response hook that stops after <code>max_bytes</code> of <em>decompressed</em> data (20 MB by default);</li>
+<li>behind an environment proxy (<code>HTTPS_PROXY</code>…) checks the request URL instead, because the proxy resolves the name.</li>
+</ul>
+<p>Never call <code>httpx.get()</code> or create an <code>httpx.Client</code> directly in application code.</p>
+<h2 id="caches-and-throttles">Caches and throttles<a class="headerlink" href="#caches-and-throttles" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Where</th>
+<th>Lifetime</th>
+<th>Cleared by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Settings values</td>
+<td><code>settings._cache</code></td>
+<td>5 s</td>
+<td><code>settings.set()</code> in the same process</td>
+</tr>
+<tr>
+<td>Trending lists</td>
+<td><code>trends._trend_cache</code></td>
+<td>45 s</td>
+<td>New items (<code>ingest_committed</code>)</td>
+</tr>
+<tr>
+<td>API-key rate windows</td>
+<td><code>apikeys._windows</code></td>
+<td>1 min windows</td>
+<td>Time</td>
+</tr>
+<tr>
+<td>Manual-action throttles</td>
+<td><code>throttle</code></td>
+<td>per call window</td>
+<td>Time; <code>throttle.reset()</code> in tests</td>
+</tr>
+<tr>
+<td>Provider gaps between calls</td>
+<td><code>intel.clients._Throttle</code> (reserves a slot under the lock, sleeps outside it)</td>
+<td>per provider</td>
+<td>Time; restart</td>
+</tr>
+<tr>
+<td>Provider daily budgets</td>
+<td><code>intel.clients._budget_ok</code>, settings <code>_budget_&lt;provider&gt;</code></td>
+<td>per provider and day</td>
+<td>Day (survive restarts)</td>
+</tr>
+<tr>
+<td>AI auto-summary queue</td>
+<td><code>jobs._summary_queue</code> (at most 200 ids)</td>
+<td>until worked off</td>
+<td>Rebuilt at start-up (<code>requeue_auto_summaries</code>)</td>
+</tr>
+<tr>
+<td>Knowledge base patterns</td>
+<td><code>knowledge.compiled_patterns</code> (<code>lru_cache</code>)</td>
+<td>process</td>
+<td>Restart</td>
+</tr>
+</tbody>
+</table>
+<h2 id="database-and-migrations">Database and migrations<a class="headerlink" href="#database-and-migrations" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>Engines.</strong> SQLite (default, <code>data/jatmp.db</code>, WAL, <code>foreign_keys=ON</code>) or PostgreSQL via
+  <code>JATMP_DATABASE_URL</code> (<code>postgresql+psycopg://…</code>). <code>python manage.py copy-db URL</code> copies one into the other.</li>
+<li><strong>Sessions.</strong> <code>SessionLocal</code> has <code>expire_on_commit=False</code> and <code>autoflush=False</code>. Routes get a session from
+  <code>get_db()</code>; jobs open <code>SessionLocal()</code> themselves and close it in <code>finally</code>; scripts and tests use
+  <code>session_scope()</code> (commit on success, rollback on error).</li>
+<li><strong>String lengths.</strong> A <code>before_flush</code> hook trims strings to the column length, because PostgreSQL rejects what
+  SQLite accepts.</li>
+<li><strong>Migrations are forward-only and automatic.</strong> <code>create_all</code> creates new tables; <code>_add_missing_columns</code> adds
+  columns that a model declares but the table lacks (with the column's scalar default, so existing rows get a
+  value) and creates every declared index with <code>checkfirst</code>. There is no Alembic. Consequences: never rename or
+  drop a column in a release, give new columns a default, and write a versioned one-off job when existing rows
+  need computed values.</li>
+<li><strong>Full-text search.</strong> SQLite: an FTS5 table <code>items_fts</code> kept in sync by triggers. PostgreSQL: a GIN index on
+  <code>to_tsvector('simple', title || ' ' || content)</code>. Both are created by <code>search.ensure_fts()</code>; queries go through
+  <code>search.item_text_clause()</code>, which never passes user input into the query syntax.</li>
+</ul>
+<h2 id="front-end">Front end<a class="headerlink" href="#front-end" title="Permanent link">¶</a></h2>
+<p>Server-rendered Jinja2 templates in <code>app/templates/</code>, one stylesheet (<code>static/css/app.css</code>, theme tokens for dark
+and light) and plain JavaScript files with no build step. Because of the CSP there are no inline event
+handlers; behaviour is attached through attributes handled in <code>static/js/app.js</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data-post="/api/…"</code></td>
+<td>POST with the CSRF header, show the message as a toast, optionally <code>data-target</code> (inject HTML), <code>data-reload</code>, <code>data-busy</code></td>
+</tr>
+<tr>
+<td><code>data-confirm="…"</code></td>
+<td>Ask before a form or button submits</td>
+</tr>
+<tr>
+<td><code>data-preview="/items/1/preview"</code></td>
+<td>Open a partial page in the side drawer (<code>_preview_item.html</code>, <code>_preview_entity.html</code>)</td>
+</tr>
+<tr>
+<td><code>data-tip="…"</code></td>
+<td>Explanation tooltip</td>
+</tr>
+</tbody>
+</table>
+<p>Charts use the vendored Chart.js; the radar and sparklines are in <code>motion.js</code>, the relationship graph in
+<code>graph.js</code>, the maps in <code>geomap.js</code> and the dashboard globe in <code>globe.js</code> (pre-projected outlines in
+<code>static/geo/</code>, rebuilt by <code>scripts/build_geo.py</code>).</p>
+<h2 id="module-map">Module map<a class="headerlink" href="#module-map" title="Permanent link">¶</a></h2>
+<h3 id="core-app">Core (<code>app/</code>)<a class="headerlink" href="#core-app" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>main.py</code></td>
+<td>FastAPI app, lifespan (start-up sequence), security headers middleware, <code>/healthz</code></td>
+</tr>
+<tr>
+<td><code>config.py</code></td>
+<td><code>data/config.json</code> (install mode, secret key, database URL), <code>DATA_DIR</code>, <code>.env</code> loading</td>
+</tr>
+<tr>
+<td><code>db.py</code></td>
+<td>Engine, sessions, string trimming, <code>init_db()</code> and the forward-only migration</td>
+</tr>
+<tr>
+<td><code>models.py</code></td>
+<td>All tables (see <a href="../data-model/">Data model</a>), <code>utcnow()</code>, the <code>with_links()</code> loader option</td>
+</tr>
+<tr>
+<td><code>settings.py</code></td>
+<td>Runtime settings: <code>SCHEMA</code>, environment overrides, 5 s cache, encryption of secret values</td>
+</tr>
+<tr>
+<td><code>auth.py</code></td>
+<td>Password hashing, login lockout, CSRF, <code>current_user</code> / <code>require</code>, session versions, <code>audit()</code></td>
+</tr>
+<tr>
+<td><code>web.py</code></td>
+<td>Jinja2 environment, filters (<code>md</code>, <code>timeago</code>, <code>safe_href</code>, <code>idr</code>), <code>render()</code></td>
+</tr>
+<tr>
+<td><code>setup_service.py</code>, <code>setup_token.py</code></td>
+<td>Install (wizard, <code>install.py</code>, tests) and the first-run token</td>
+</tr>
+<tr>
+<td><code>netguard.py</code></td>
+<td>Outbound HTTP client: SSRF guard, connect to the checked address, size cap, private host list</td>
+</tr>
+<tr>
+<td><code>throttle.py</code></td>
+<td>Per-user rate limits and one-at-a-time guards for manual actions</td>
+</tr>
+<tr>
+<td><code>csvsafe.py</code></td>
+<td>CSV writer that neutralises spreadsheet formulas</td>
+</tr>
+<tr>
+<td><code>sharing.py</code></td>
+<td>TLP and redistribution rules for everything that leaves JATMP</td>
+</tr>
+<tr>
+<td><code>apikeys.py</code></td>
+<td>API key creation, verification, scopes, rate limiting</td>
+</tr>
+<tr>
+<td><code>webhooks.py</code></td>
+<td>Events, Slack / Discord / Teams formats, HMAC signatures, delivery and retries</td>
+</tr>
+<tr>
+<td><code>stix.py</code></td>
+<td>STIX 2.1 objects and bundles (served as TAXII 2.1 by <code>routers/taxii.py</code>)</td>
+</tr>
+<tr>
+<td><code>reports.py</code></td>
+<td><em>Threat Intel Findings</em> report: <code>gather()</code> and the PDF / Word / Markdown / CSV exporters</td>
+</tr>
+<tr>
+<td><code>backfill.py</code></td>
+<td>Backfill reach, estimates and storage statistics (the job itself is <code>jobs.run_backfill</code>)</td>
+</tr>
+<tr>
+<td><code>search.py</code></td>
+<td>Full-text search (SQLite FTS5, PostgreSQL GIN) with a <code>LIKE</code> fallback</td>
+</tr>
+<tr>
+<td><code>gazetteer.py</code></td>
+<td>Countries (names, aliases, demonyms), Indonesian provinces, cities, institutions</td>
+</tr>
+<tr>
+<td><code>geoip.py</code></td>
+<td>Offline GeoIP database (download, lookup) for the hosting country of IPs</td>
+</tr>
+<tr>
+<td><code>knowledge.py</code></td>
+<td>Malware families and actors with aliases, everyday-word rules, <code>knowledge_extra.json</code></td>
+</tr>
+<tr>
+<td><code>notify.py</code></td>
+<td>Notification center (de-duplicated by key, per-user read watermark)</td>
+</tr>
+<tr>
+<td><code>sourcehealth.py</code></td>
+<td>Source health: last new item, this week against usual, usual gap, failing since, summary-only feeds; quiet / failing notifications</td>
+</tr>
+<tr>
+<td><code>corrections.py</code></td>
+<td>Analyst corrections (wrong entity here / everywhere, analyst verdict, not a scam report): apply, keep in force, undo, statistics</td>
+</tr>
+<tr>
+<td><code>quality.py</code></td>
+<td>Precision / recall of the detection rules on <code>tests/quality/</code>, corrections as test cases, the CI baseline</td>
+</tr>
+<tr>
+<td><code>jobs.py</code></td>
+<td>Scheduler, every job, runs, batches, progress, <code>status()</code></td>
+</tr>
+<tr>
+<td><code>dbcopy.py</code></td>
+<td><code>copy-db</code> between database engines</td>
+</tr>
+</tbody>
+</table>
+<h3 id="packages">Packages<a class="headerlink" href="#packages" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>collectors/</code></td>
+<td><code>base.Collector</code> and one module per source kind; <code>REGISTRY</code> and <code>DEFAULT_SOURCES</code> in <code>__init__.py</code></td>
+</tr>
+<tr>
+<td><code>processing/</code></td>
+<td><code>pipeline</code> (ingest), <code>extractor</code>, <code>severity</code>, <code>fraud</code>, <code>fraudstats</code>, <code>sectors</code>, <code>geo</code>, <code>enrichment</code>, <code>trends</code>, <code>graph</code>, <code>topics</code> (the topic filters of every news and social source)</td>
+</tr>
+<tr>
+<td><code>intel/</code></td>
+<td>Provider clients (<code>clients.py</code>), <code>quota</code> (daily budgets used and their pace), <code>context</code> lookups, <code>darkweb</code> deep dives, <code>cve</code> intel, <code>misp</code> push and pull</td>
+</tr>
+<tr>
+<td><code>llm/</code></td>
+<td><code>client</code> (Ollama, OpenAI-compatible, Anthropic), <code>presets</code> (vendors), <code>insights</code> (summaries, briefs, executive summary, Q&amp;A), <code>retrieval</code> (which items answer a question), <code>redact</code> (personal data out of cloud prompts)</td>
+</tr>
+<tr>
+<td><code>routers/</code></td>
+<td><code>pages</code>, <code>fraud_pages</code>, <code>api</code> (JSON for the UI and actions), <code>api_v1</code> (REST API), <code>taxii</code>, <code>settings_routes</code>, <code>reports_routes</code>, <code>backfill_routes</code>, <code>admin</code>, <code>auth_routes</code> (setup, login, profile), <code>apikeys_routes</code>, <code>webhooks_routes</code></td>
+</tr>
+<tr>
+<td><code>templates/</code></td>
+<td>Pages and partials (<code>_macros.html</code>, <code>_preview_*.html</code>, <code>_fraud_row.html</code>…)</td>
+</tr>
+<tr>
+<td><code>static/</code></td>
+<td><code>css/app.css</code>, <code>js/</code> (<code>app.js</code>, <code>motion.js</code>, <code>graph.js</code>, <code>geomap.js</code>, <code>globe.js</code>, <code>vendor/chart.umd.min.js</code>), <code>geo/</code>, <code>img/</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="repository-root">Repository root<a class="headerlink" href="#repository-root" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>manage.py</code></td>
+<td>Maintenance CLI, see <a href="../maintenance/">Maintenance commands</a></td>
+</tr>
+<tr>
+<td><code>run.py</code></td>
+<td>Starts uvicorn with one worker and trusted proxy headers from <code>127.0.0.1</code></td>
+</tr>
+<tr>
+<td><code>install.py</code></td>
+<td>Command-line install, interactive or with <code>--mode</code>, <code>--admin</code>, <code>--password</code></td>
+</tr>
+<tr>
+<td><code>scripts/</code></td>
+<td><code>build_geo.py</code> (map outlines), <code>mkdocs_hooks.py</code> (documentation site)</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td>pytest suite: one file per release (<code>test_v040.py</code> … <code>test_v0101.py</code>) plus core tests</td>
+</tr>
+<tr>
+<td><code>requirements*.txt</code>, <code>requirements.lock</code></td>
+<td>Dependency ranges and the pinned lock, see <a href="../development/#dependencies">Development</a></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer">
+        
+          
+          <a href="../development/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Development">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Development
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../data-model/" class="md-footer__link md-footer__link--next" aria-label="Next: Data model">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Data model
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      JATMP by fj4rr
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

@@ -1,0 +1,2248 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Just Another Threat Monitoring Platform – self-hosted cyber threat and online fraud monitoring">
+      
+      
+      
+        <link rel="canonical" href="https://fj4rr.github.io/just-another-threat-monitoring-platform/extending/">
+      
+      
+        <link rel="prev" href="../data-model/">
+      
+      
+        <link rel="next" href="../security/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Extending JATMP - JATMP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#extending-jatmp" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="JATMP" class="md-header__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JATMP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Extending JATMP
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="JATMP" class="md-nav__button md-logo" aria-label="JATMP" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    JATMP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    fj4rr/just-another-threat-monitoring-platform
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setting up
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using JATMP
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Using JATMP
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-jatmp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using JATMP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geography and Indonesia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fraud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scams and fraud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing and integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reporting-and-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporting and AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../history-and-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History and storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../screenshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Screenshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4">
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../how-it-works/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How it works
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How it works
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ingest and analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/scoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Severity scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/enrichment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrichment and verdicts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/trends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trends and correlation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/sharing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing and delivery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/housekeeping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Housekeeping and re-analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/corrections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corrections and quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending JATMP
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending JATMP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#add-a-collector-a-new-kind-of-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a collector (a new kind of source)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-an-enrichment-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add an enrichment provider
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-setting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a setting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#change-detection-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Change detection rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#re-analyse-stored-items-after-a-rules-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-analyse stored items after a rules change
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-ui-action-or-json-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a UI action or JSON endpoint
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extend-the-rest-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extend the REST API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-column-or-a-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a column or a table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#make-outbound-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Make outbound requests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-checklist-for-a-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security checklist for a change
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#add-a-collector-a-new-kind-of-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a collector (a new kind of source)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-an-enrichment-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add an enrichment provider
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-setting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a setting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#change-detection-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Change detection rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#re-analyse-stored-items-after-a-rules-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-analyse stored items after a rules change
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a page
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-ui-action-or-json-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a UI action or JSON endpoint
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extend-the-rest-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extend the REST API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-column-or-a-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a column or a table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#make-outbound-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Make outbound requests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-checklist-for-a-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security checklist for a change
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/fj4rr/just-another-threat-monitoring-platform/edit/main/docs/extending.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"></path></svg>
+    </a>
+  
+  
+
+
+<h1 id="extending-jatmp">Extending JATMP<a class="headerlink" href="#extending-jatmp" title="Permanent link">¶</a></h1>
+<p>Recipes for the changes developers make most often. Each one names the files to touch, the code to write, the
+rules to keep and the tests to add. Read <a href="../architecture/">Architecture</a> first for how the pieces fit together,
+and <a href="../development/">Development</a> for setting up, testing and releasing.</p>
+<h2 id="add-a-collector-a-new-kind-of-source">Add a collector (a new kind of source)<a class="headerlink" href="#add-a-collector-a-new-kind-of-source" title="Permanent link">¶</a></h2>
+<p>A collector turns one provider into <code>RawItem</code>s. It does not touch the database: storing, extraction, scoring and
+linking happen in the pipeline.</p>
+<ol>
+<li>
+<p>Create <code>app/collectors/&lt;name&gt;.py</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..</span><span class="w"> </span><span class="kn">import</span> <span class="n">settings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..processing.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">RawItem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Collector</span><span class="p">,</span> <span class="n">SkipCollector</span><span class="p">,</span> <span class="n">parse_dt</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ExampleCollector</span><span class="p">(</span><span class="n">Collector</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Latest reports from example.org. One sentence on what it collects and what it needs."""</span>
+
+    <span class="n">kind</span> <span class="o">=</span> <span class="s2">"example"</span>           <span class="c1"># stored in Source.kind; never change it once released</span>
+    <span class="n">category</span> <span class="o">=</span> <span class="s2">"intel"</span>         <span class="c1"># news | social | intel</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="s2">"Example reports"</span>  <span class="c1"># shown in the "Add source" form</span>
+    <span class="c1"># config fields for the UI: (name, label, placeholder); values end up in Source.config</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">"query"</span><span class="p">,</span> <span class="s2">"Search query"</span><span class="p">,</span> <span class="s2">"ransomware"</span><span class="p">)]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">RawItem</span><span class="p">]:</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"example_api_key"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">key</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SkipCollector</span><span class="p">(</span><span class="s2">"Example API key not set (Settings → Threat-intel APIs)"</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="n">Authorization</span><span class="o">=</span><span class="sa">f</span><span class="s2">"Bearer </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>  <span class="c1"># netguard client: SSRF guard, size cap</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"https://api.example.org/v1/reports"</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">"q"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"query"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)})</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">RawItem</span><span class="p">(</span><span class="n">external_id</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]),</span> <span class="n">title</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"title"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span> <span class="n">url</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"url"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
+                        <span class="n">content</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"summary"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span> <span class="n">published_at</span><span class="o">=</span><span class="n">parse_dt</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"created"</span><span class="p">)),</span>
+                        <span class="n">kind</span><span class="o">=</span><span class="s2">"pulse"</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"tags"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">]</span>
+</code></pre></div>
+</li>
+<li>
+<p>Register the class in <code>REGISTRY</code> in <code>app/collectors/__init__.py</code>. The settings page, the scheduler and
+   <code>run_source</code> pick it up from there.</p>
+</li>
+<li>Optional: add a default source to <code>DEFAULT_SOURCES</code>. Existing installs get new built-in sources on the next
+   start (<code>auto_seed_sources</code>), so only add sources that work without configuration, or add them disabled.</li>
+<li>Optional: historical backfill. Override <code>backfill_capability()</code> and <code>backfill(since, until, progress)</code>, which
+   yields pages (lists) of <code>RawItem</code>s newest first, calls <code>progress("page 3")</code> and stops at <code>until</code>/<code>since</code>. See
+   <code>mastodon.py</code> for a small example and <code>rss.py</code> for WordPress and Internet Archive.</li>
+</ol>
+<p>Rules:</p>
+<ul>
+<li>Always use <code>self.client(...)</code>, never <code>httpx</code> directly. Header keyword names use <code>_</code> for <code>-</code>.</li>
+<li>Raise <code>SkipCollector</code> for "cannot run, nothing is wrong" (missing key, disabled plan); let other errors raise:
+  the run is marked as an error and the admin is notified once.</li>
+<li><code>external_id</code> must be stable across runs, or every run stores duplicates.</li>
+<li>Put HTML into <code>content</code> only with <code>kind="article"</code> (it gets stripped); posts and pulses are plain text.</li>
+<li>Put structured indicators into <code>indicators</code> (<code>intel.make_ioc(value)</code> builds them) rather than into the text.</li>
+<li>Keep <code>raw</code> small: it is stored on every item.</li>
+<li>If the provider's terms forbid redistribution, add the kind to <code>sharing.NO_REDISTRIBUTE_KINDS</code>.</li>
+</ul>
+<p>Tests: replace the HTTP client with a mock transport and assert on the <code>RawItem</code>s and on what <code>ingest</code> stores.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">test_example_collector</span><span class="p">(</span><span class="n">installed</span><span class="p">,</span> <span class="n">monkeypatch</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">handler</span><span class="p">(</span><span class="n">req</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"data"</span><span class="p">:</span> <span class="p">[{</span><span class="s2">"id"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"title"</span><span class="p">:</span> <span class="s2">"Zzexample LockBit"</span><span class="p">,</span> <span class="s2">"created"</span><span class="p">:</span> <span class="s2">"2026-11-01"</span><span class="p">}]})</span>
+
+    <span class="n">monkeypatch</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="n">Collector</span><span class="p">,</span> <span class="s2">"client"</span><span class="p">,</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">h</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">transport</span><span class="o">=</span><span class="n">httpx</span><span class="o">.</span><span class="n">MockTransport</span><span class="p">(</span><span class="n">handler</span><span class="p">)))</span>
+    <span class="n">settings</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">"example_api_key"</span><span class="p">,</span> <span class="s2">"test"</span><span class="p">)</span>
+    <span class="n">raws</span> <span class="o">=</span> <span class="n">REGISTRY</span><span class="p">[</span><span class="s2">"example"</span><span class="p">](</span><span class="n">Source</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"example"</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="s2">"intel"</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="p">{}))</span><span class="o">.</span><span class="n">fetch</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">raws</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">external_id</span> <span class="o">==</span> <span class="s2">"1"</span>
+</code></pre></div>
+<h2 id="add-an-enrichment-provider">Add an enrichment provider<a class="headerlink" href="#add-an-enrichment-provider" title="Permanent link">¶</a></h2>
+<p>Providers answer "what do you know about this indicator?". They live in <code>app/intel/clients.py</code> (lookups that run
+automatically), <code>app/intel/context.py</code> (on-demand infrastructure context) or <code>app/intel/darkweb.py</code> (deep dive).</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Example</span><span class="p">:</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">"example"</span>                       <span class="c1"># stored in enrichments.provider; never change it</span>
+    <span class="n">supports</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"ip"</span><span class="p">,</span> <span class="s2">"domain"</span><span class="p">}</span>             <span class="c1"># indicator types it can look up</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"example_api_key"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NotConfigured</span><span class="p">(</span><span class="s2">"Example API key not set"</span><span class="p">)</span>   <span class="c1"># the provider is then simply skipped</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">etype</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LookupResult</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">etype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">supports</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_budget_ok</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"example_daily_budget"</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"Example daily budget exhausted"</span><span class="p">)</span>
+        <span class="n">throttle</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>          <span class="c1"># seconds between calls</span>
+        <span class="k">with</span> <span class="n">_client</span><span class="p">({</span><span class="s2">"X-Key"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">})</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">"https://api.example.org/v1/</span><span class="si">{</span><span class="n">etype</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">LookupResult</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">"unknown"</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">"Not known to Example"</span><span class="p">)</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">LookupResult</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">verdict</span><span class="o">=</span><span class="s2">"malicious"</span> <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"bad"</span><span class="p">)</span> <span class="k">else</span> <span class="s2">"unknown"</span><span class="p">,</span> <span class="n">score</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"score"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                            <span class="n">summary</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"summary"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span> <span class="n">permalink</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"link"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
+                            <span class="n">malware</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"families"</span><span class="p">,</span> <span class="p">[]),</span> <span class="n">tags</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"tags"</span><span class="p">,</span> <span class="p">[]))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">test</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>                   <span class="c1"># "Test" button under Settings; avoid spending lookup quota</span>
+        <span class="k">with</span> <span class="n">_client</span><span class="p">({</span><span class="s2">"X-Key"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">})</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"https://api.example.org/v1/account"</span><span class="p">)</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="k">return</span> <span class="s2">"Example reachable, key accepted"</span>
+</code></pre></div>
+<p>Then:</p>
+<ol>
+<li>Add it to <code>PROVIDER_CLASSES</code> in <code>app/processing/enrichment.py</code> (or <code>CONTEXT_CLASSES</code> in <code>intel/context.py</code>).
+   The <em>Test</em> buttons on the settings page find providers by <code>name</code> in those lists.</li>
+<li>Add its settings (<code>example_api_key</code>, a budget) to <code>settings.SCHEMA</code>, see <a href="#add-a-setting">below</a>.</li>
+<li>If its verdicts are noisy (it lists scanners and CDNs), add the name to <code>NOISY_PROVIDERS</code> so a GreyNoise
+   "benign" answer overrides it in <code>_consensus</code>.</li>
+<li>If its relationships may be shared, add the name to <code>sharing.REDISTRIBUTABLE_PROVIDERS</code>.</li>
+<li>Document the key in <a href="../configuration/">Configuration</a>.</li>
+</ol>
+<p><code>malware</code> labels are mapped to known families by <code>enrichment.resolve_family</code>; unknown labels are ignored on
+purpose, so a strange provider label never creates a family.</p>
+<h2 id="add-a-setting">Add a setting<a class="headerlink" href="#add-a-setting" title="Permanent link">¶</a></h2>
+<p>Add one line to <code>SCHEMA</code> in <code>app/settings.py</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="s2">"example_daily_budget"</span><span class="p">:</span> <span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="s2">"EXAMPLE_DAILY_BUDGET"</span><span class="p">,</span> <span class="s2">"Example lookups per day"</span><span class="p">,</span> <span class="s2">"int"</span><span class="p">,</span> <span class="s2">"enrichment"</span><span class="p">),</span>
+<span class="c1">#                        default  env var (or "")    label in the UI            kind   group (= settings tab)</span>
+</code></pre></div>
+<ul>
+<li>The field appears on its tab automatically (<code>settings.html</code> renders every <code>SCHEMA</code> entry of the tab's group).
+  A new group also needs a tab in the list at the top of <code>settings.html</code>.</li>
+<li>Kinds: <code>text</code>, <code>int</code> (add bounds to <code>INT_BOUNDS</code>), <code>bool</code>, <code>secret</code> (never sent to the browser, stored
+  encrypted), <code>select:a,b,c</code>.</li>
+<li>An environment variable, when set, wins and locks the field.</li>
+<li>Read it with <code>settings.get("key")</code>. Values are cached for 5 seconds per process.</li>
+</ul>
+<h2 id="change-detection-rules">Change detection rules<a class="headerlink" href="#change-detection-rules" title="Permanent link">¶</a></h2>
+<p>Rules are data in Python modules. After changing them, update the tests that pin their behaviour, add the case
+that motivated the change (and a counter-example that must not change) to <code>tests/quality/</code>, run
+<code>python manage.py quality</code>, and decide how stored items catch up. The <em>Most corrected</em> list on the Corrections page
+is a good place to find rules worth changing; see <a href="../how-it-works/corrections/">Corrections and quality</a>.</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Where</th>
+<th>Stored items catch up through</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Malware families, actors, aliases</td>
+<td><code>MALWARE</code>, <code>ACTORS</code> in <code>app/knowledge.py</code> (or <code>data/knowledge_extra.json</code> without code, see <a href="../configuration/#extending-the-knowledge-base">Configuration</a>)</td>
+<td><code>manage.py reextract</code></td>
+</tr>
+<tr>
+<td>Names that are everyday words</td>
+<td><code>COMMON_WORDS</code> / <code>AMBIGUOUS</code> in <code>knowledge.py</code>: these need a qualifier ("Pegasus spyware", "Bitter APT"), unless written in a distinctive spelling (<code>knowledge.distinctive</code>: "RedLine", "Cl0p"); <code>QUALIFIERS</code> / <code>ACTOR_QUALIFIERS</code> list the qualifiers</td>
+<td><code>manage.py reextract</code></td>
+</tr>
+<tr>
+<td>Things that are never indicators</td>
+<td><code>BENIGN_DOMAINS</code>, <code>BENIGN_IPS</code> (public DNS resolvers) and <code>ABUSED_HOSTING</code> (paste and file-sharing services: the domain never, a URL with a path always) in <code>processing/extractor.py</code></td>
+<td><code>manage.py reextract</code></td>
+</tr>
+<tr>
+<td>Words that are never a new family</td>
+<td><code>GENERIC_WORDS</code>, <code>LEGIT_TOOLS</code>, <code>PLATFORM_WORDS</code>, <code>ID_GENERIC_WORDS</code> in <code>processing/extractor.py</code> (country names and demonyms come from the gazetteer)</td>
+<td><code>manage.py reextract</code></td>
+</tr>
+<tr>
+<td>Severity terms and weights</td>
+<td><code>GROUPS</code> and <code>ID_TERMS</code> in <code>processing/severity.py</code>, dampeners <code>PATCH_RE</code>, <code>META_RE</code>, <code>NOISE_RE</code></td>
+<td>bump <code>severity.RULES_VERSION</code></td>
+</tr>
+<tr>
+<td>Scam types</td>
+<td><code>SCAM_TYPES</code> in <code>processing/fraud.py</code>: <code>(key, name, weight, strong pattern, weak pattern)</code></td>
+<td>bump <code>fraud.RULES_VERSION</code></td>
+</tr>
+<tr>
+<td>Brands, identifier cues, losses</td>
+<td><code>BRANDS</code>, <code>SCAMMER_SPECIFIC</code>, <code>SCAMMER_CUE</code>, <code>INSTITUTION_CUE</code>, <code>OFFICIAL_CUE</code>, <code>VICTIM_CUE</code>, <code>RE_RUPIAH</code> / <code>RE_DOLLAR</code> in <code>fraud.py</code></td>
+<td>bump <code>fraud.RULES_VERSION</code></td>
+</tr>
+<tr>
+<td>Sectors</td>
+<td><code>SECTORS</code>, <code>FEED_SECTORS</code>, <code>ATTACK_CUE</code> in <code>processing/sectors.py</code></td>
+<td>bump <code>sectors.RULES_VERSION</code></td>
+</tr>
+<tr>
+<td>Countries, provinces, places</td>
+<td><code>app/gazetteer.py</code>, detection in <code>processing/geo.py</code></td>
+<td>bump <code>geo.GEO_VERSION</code></td>
+</tr>
+<tr>
+<td>Text cleaning</td>
+<td><code>strip_html</code> / <code>strip_css</code> in <code>processing/pipeline.py</code></td>
+<td>bump <code>jobs.CONTENT_VERSION</code></td>
+</tr>
+<tr>
+<td>Topic filters (<code>security</code>, <code>cyber</code>, <code>fraud</code>)</td>
+<td><code>processing/topics.py</code>, used by every news and social source</td>
+<td>Not at all: filters only decide what is stored from now on</td>
+</tr>
+</tbody>
+</table>
+<p>Rules for patterns:</p>
+<ul>
+<li><strong>Linear time only.</strong> Every article goes through these regular expressions in a scheduler thread that cannot
+  be killed. Never nest unbounded quantifiers (<code>(a+)+</code>, <code>(x(?:y)?)+(?:\s*(x)+)*</code>), never let two adjacent parts
+  match the same text, bound repetitions (<code>{0,40}</code>), and add a timing test with a hostile input when a pattern
+  is complex (see <code>test_strip_css_is_linear</code>).</li>
+<li>English and Indonesian forms of one signal share a label, so they count once.</li>
+<li>Prefer false negatives to false positives in the fraud section: a wrong scammer phone number is personal data
+  stored without reason.</li>
+<li>Write the reason a pattern exists as a comment next to it, with the example that motivated it.</li>
+</ul>
+<h2 id="re-analyse-stored-items-after-a-rules-change">Re-analyse stored items after a rules change<a class="headerlink" href="#re-analyse-stored-items-after-a-rules-change" title="Permanent link">¶</a></h2>
+<p>For the rules in the table above with a version constant, bumping the constant is enough: the matching
+start-up job re-analyses every stored item once. For a new kind of analysis, add a job following the same
+pattern in <code>app/jobs.py</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">EXAMPLE_VERSION</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># 1 (0.11): what changed, in a few words</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">run_example</span><span class="p">(</span><span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"example_version"</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">EXAMPLE_VERSION</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"example is up to date"</span>
+    <span class="n">db</span> <span class="o">=</span> <span class="n">SessionLocal</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,)</span> <span class="ow">in</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">select</span><span class="p">(</span><span class="n">Item</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Item</span><span class="o">.</span><span class="n">id</span><span class="p">))]</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">),</span> <span class="mi">500</span><span class="p">):</span>          <span class="c1"># chunks: bounded memory, short write transactions</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">select</span><span class="p">(</span><span class="n">Item</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Item</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">ids</span><span class="p">[</span><span class="n">n</span><span class="p">:</span><span class="n">n</span> <span class="o">+</span> <span class="mi">500</span><span class="p">])))</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">scalars</span><span class="p">():</span>
+                <span class="o">...</span>                                   <span class="c1"># recompute and store</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">expunge_all</span><span class="p">()</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">"example_version"</span><span class="p">,</span> <span class="n">EXAMPLE_VERSION</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"updated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span><span class="si">}</span><span class="s2"> item(s)"</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"example failed: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div>
+<p>Schedule it once in <code>jobs.start()</code> (<code>scheduler.add_job(run_example, "date", run_date=_now() + timedelta(seconds=…),
+id="example", replace_existing=True)</code>), mention it in <a href="../upgrading/">Upgrading</a>, and, if users may want to run it
+again, add a <code>manage.py</code> command and a button. Jobs that need progress in the UI create a <code>CollectorRun</code>
+(<code>_start_run</code> / <code>_finish</code>).</p>
+<h2 id="add-a-page">Add a page<a class="headerlink" href="#add-a-page" title="Permanent link">¶</a></h2>
+<ol>
+<li>
+<p>Add a route to the matching router in <code>app/routers/</code> (pages in <code>pages.py</code>, scam pages in <code>fraud_pages.py</code>,
+   admin pages in <code>admin.py</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"/examples"</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">examples</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">days</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">current_user</span><span class="p">),</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+    <span class="n">days</span> <span class="o">=</span> <span class="n">_clamp</span><span class="p">(</span><span class="n">days</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3650</span><span class="p">)</span>                              <span class="c1"># clamp every number from the query string</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">select</span><span class="p">(</span><span class="n">Item</span><span class="p">)</span><span class="o">.</span><span class="n">options</span><span class="p">(</span><span class="n">with_links</span><span class="p">())</span>     <span class="c1"># with_links() when the template reads entity_links</span>
+                      <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Item</span><span class="o">.</span><span class="n">published_at</span><span class="o">.</span><span class="n">desc</span><span class="p">())</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">50</span><span class="p">))</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">scalars</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">render</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="s2">"examples.html"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"user"</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span> <span class="s2">"rows"</span><span class="p">:</span> <span class="n">rows</span><span class="p">,</span> <span class="s2">"days"</span><span class="p">:</span> <span class="n">days</span><span class="p">})</span>
+</code></pre></div>
+</li>
+<li>
+<p>Create <code>app/templates/examples.html</code> extending <code>base.html</code>; reuse the macros in <code>_macros.html</code> (<code>chip</code>, <code>sev</code>,
+   <code>verdict</code>, <code>fraud_score</code>…). Inline scripts need <code>nonce="{{ nonce }}"</code>; behaviour goes through <code>data-*</code>
+   attributes or <code>static/js/app.js</code>, never <code>onclick</code>.</p>
+</li>
+<li>Add the link to the sidebar in <code>base.html</code> if it is a top-level page.</li>
+<li>Use <code>require("analyst")</code> or <code>require("admin")</code> instead of <code>current_user</code> when the page changes data or shows
+   admin information.</li>
+</ol>
+<h2 id="add-a-ui-action-or-json-endpoint">Add a UI action or JSON endpoint<a class="headerlink" href="#add-a-ui-action-or-json-endpoint" title="Permanent link">¶</a></h2>
+<p>Actions the UI calls with <code>data-post</code> live in <code>app/routers/api.py</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">"/examples/</span><span class="si">{item_id}</span><span class="s2">/refresh"</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">verify_csrf</span><span class="p">)])</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">example_refresh</span><span class="p">(</span><span class="n">item_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">require</span><span class="p">(</span><span class="s2">"analyst"</span><span class="p">)),</span>
+                    <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+    <span class="n">item</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Item</span><span class="p">,</span> <span class="n">item_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">item</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="mi">404</span><span class="p">,</span> <span class="s2">"item not found"</span><span class="p">)</span>
+    <span class="n">throttle</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">:example_refresh"</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>     <span class="c1"># when it calls a provider or the AI</span>
+    <span class="o">...</span>
+    <span class="n">audit</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="s2">"example_refresh"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="n">request</span><span class="p">)</span>
+    <span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"ok"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"refreshed"</span><span class="p">}</span>          <span class="c1"># shown as a toast</span>
+</code></pre></div>
+<ul>
+<li>Every non-GET route needs <code>verify_csrf</code>.</li>
+<li>Work that takes more than a second or two goes into a job (<code>jobs.run_now(func, *args)</code>, or a queued
+  <code>CollectorRun</code> so the UI shows progress), not into the request.</li>
+<li>Wrap provider calls that must not run twice at once in <code>with throttle.exclusive(f"example:{id}"): …</code>.</li>
+</ul>
+<h2 id="extend-the-rest-api">Extend the REST API<a class="headerlink" href="#extend-the-rest-api" title="Permanent link">¶</a></h2>
+<p>The versioned API is <code>app/routers/api_v1.py</code>. It is read-only and has its own authentication:</p>
+<ul>
+<li>Use <code>Depends(principal("read"))</code> (or <code>"export"</code> for bulk feeds) instead of <code>current_user</code>.</li>
+<li>Filter with <code>sharing.shareable_item_clause()</code> / <code>sharing.shareable_entity_clause()</code> and check single objects with
+  <code>sharing.item_shareable()</code>; return 404 (not 403) for objects that may not be shared.</li>
+<li>Never return entities of <code>fraud.IDENT_TYPES</code>, in lists, in single-object endpoints or nested in other objects.</li>
+<li>Page with <code>cursor</code> (the last id) and <code>limit</code>, return <code>next_cursor</code>.</li>
+<li>CSV output goes through <code>csvsafe.writer</code>.</li>
+<li>The endpoint appears in the offline docs at <code>/api/v1/docs</code> automatically; give it a <code>summary</code> and describe the
+  query parameters, then mention it in <a href="../integrations/">Sharing and integrations</a>.</li>
+</ul>
+<h2 id="add-a-column-or-a-table">Add a column or a table<a class="headerlink" href="#add-a-column-or-a-table" title="Permanent link">¶</a></h2>
+<ol>
+<li>Declare it in <code>app/models.py</code>. Give new columns a <code>default</code> (scalar defaults are applied to existing rows when
+   the column is added), and <code>index=True</code> when it is filtered or sorted on.</li>
+<li>Restart: <code>init_db()</code> creates new tables, adds new columns and creates declared indexes on existing tables.</li>
+<li>Never rename or drop a column in a release, and never add a <code>NOT NULL</code> column without a default. If existing
+   rows need a computed value, add a versioned one-off job (see above).</li>
+<li>Check the column with PostgreSQL in mind: declared string lengths are enforced there (the <code>before_flush</code> hook
+   trims, but a key that gets trimmed may collide).</li>
+<li>If the data is copied between engines, check <code>app/dbcopy.py</code>.</li>
+<li>Describe it in <a href="../data-model/">Data model</a> and the upgrade notes.</li>
+</ol>
+<h2 id="make-outbound-requests">Make outbound requests<a class="headerlink" href="#make-outbound-requests" title="Permanent link">¶</a></h2>
+<p>Use <code>netguard.client(...)</code> or one of the existing helpers (<code>Collector.client</code>, <code>intel.clients._client</code>). Choose
+<code>max_bytes</code> for large downloads, <code>follow_redirects=False</code> when a redirect would be wrong (webhooks, MISP), and
+<code>allow_private=</code> only where an admin explicitly configured a private target. Tests replace these helpers with an
+<code>httpx.MockTransport</code> client; never let a test reach the internet.</p>
+<h2 id="security-checklist-for-a-change">Security checklist for a change<a class="headerlink" href="#security-checklist-for-a-change" title="Permanent link">¶</a></h2>
+<ul>
+<li>Untrusted input: feed text, provider answers, AI output, query strings, form fields, uploaded settings. Validate
+  and bound it; never build SQL, FTS queries, shell commands or HTML from it without escaping.</li>
+<li>Templates auto-escape; never mark untrusted text <code>|safe</code>. Markdown goes through the <code>md</code> filter (raw HTML off).</li>
+<li>Links from feeds go through <code>safe_url</code> / <code>safe_href</code>.</li>
+<li>New outbound data paths respect <code>sharing.py</code> and leave scammer identifiers out.</li>
+<li>New outbound requests use <code>netguard</code>.</li>
+<li>New regular expressions are linear.</li>
+<li>New secrets are <code>secret</code> settings, never logged and never sent to the browser.</li>
+<li>Admin-only data and actions check <code>require("admin")</code>; changing actions write to the audit log.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer">
+        
+          
+          <a href="../data-model/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Data model">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Data model
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../security/" class="md-footer__link md-footer__link--next" aria-label="Next: Security">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Security
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      JATMP by fj4rr
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

@@ -1,0 +1,36 @@
+/* Docs site in JATMP's own colours (app/static/css/app.css): warm near-black surfaces, one blue accent. */
+:root {
+  --md-text-font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --md-code-font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+[data-md-color-scheme="slate"] {
+  --md-hue: 60;
+  --md-default-bg-color: #121211;
+  --md-default-fg-color: #f0efec;
+  --md-default-fg-color--light: #c3c2b7;
+  --md-default-fg-color--lighter: #8f8e86;
+  --md-primary-fg-color: #1a1a19;
+  --md-primary-bg-color: #f0efec;
+  --md-accent-fg-color: #5a9ced;
+  --md-typeset-a-color: #5a9ced;
+  --md-code-bg-color: #222220;
+  --md-footer-bg-color: #1a1a19;
+  --md-footer-bg-color--dark: #121211;
+}
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #fcfcfb;
+  --md-default-fg-color: #0b0b0b;
+  --md-primary-fg-color: #f4f4f1;
+  --md-primary-bg-color: #0b0b0b;
+  --md-accent-fg-color: #2a78d6;
+  --md-typeset-a-color: #2a78d6;
+  --md-code-bg-color: #f0efec;
+  --md-footer-bg-color: #f0efec;
+  --md-footer-fg-color: #0b0b0b;
+  --md-footer-fg-color--light: #52514e;
+  --md-footer-fg-color--lighter: #77766f;
+}
+.md-header, .md-tabs { box-shadow: 0 1px 0 rgba(128, 128, 120, .25); }
+[data-md-color-scheme="default"] .md-search__form { background: #e6e5e0; }
+.md-typeset table:not([class]) { font-size: .72rem; }
+.md-typeset img { border-radius: 8px; border: 1px solid rgba(128, 128, 120, .25); }
