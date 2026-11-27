@@ -13,5 +13,5 @@ anthropic>=2.8.0,<3
 python-dotenv>=1.2.4,<2
 python-docx>=1.2.0,<2
 reportlab>=4.0,<5
-maxminddb>=3.2.0,<4
+maxminddb>=3.3.0,<4
 cryptography>=50.0.2,<51
