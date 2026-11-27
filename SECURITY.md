@@ -19,6 +19,9 @@ Report it privately through GitHub: **Security → Report a vulnerability** on t
 - what an attacker needs (an account and its role, network position, a crafted feed or article…);
 - steps to reproduce, and the impact you see.
 
+The report becomes a draft security advisory that only you and the maintainer can see; the fix is prepared there
+and the advisory is published (with a CVE when warranted) once a release contains it.
+
 What to expect:
 
 - an acknowledgement within **7 days**;

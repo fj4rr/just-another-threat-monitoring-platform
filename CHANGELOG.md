@@ -4,6 +4,12 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 ## Unreleased
 
+**Documentation**
+
+- Private vulnerability reporting is switched on for the repository. *Security* has a new section, *Reporting a
+  vulnerability*, with the steps and what happens to a report (a private draft advisory, published with the fix),
+  and `SECURITY.md` says the same.
+
 ## 1.0.0
 
 The first public release. JATMP is now released under the MIT License, with a security policy, contribution

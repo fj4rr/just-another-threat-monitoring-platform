@@ -2,9 +2,22 @@
 
 [← Documentation index](README.md)
 
-Found a vulnerability? Report it privately through GitHub's *Report a vulnerability* form, as described in the
-[security policy](https://github.com/fj4rr/just-another-threat-monitoring-platform/blob/main/SECURITY.md), not in a
-public issue.
+## Reporting a vulnerability
+
+Please do not open a public issue for a security problem. The repository has GitHub's private vulnerability
+reporting switched on:
+
+1. Open the repository's **Security** tab and choose **Report a vulnerability**, or go straight to
+   [the reporting form](https://github.com/fj4rr/just-another-threat-monitoring-platform/security/advisories/new)
+   (you need to be signed in to GitHub).
+2. Describe the version, how JATMP runs, what an attacker needs, the steps to reproduce and the impact.
+3. The report becomes a draft security advisory that only you and the maintainer can see. The discussion, a fix
+   in a private fork and, once released, the published advisory (with a CVE when it warrants one) all happen there.
+
+Response times, scope and the disclosure window are in the
+[security policy](https://github.com/fj4rr/just-another-threat-monitoring-platform/blob/main/SECURITY.md).
+
+## How JATMP protects itself
 
 - **Content-Security-Policy.** Scripts load only from the application's origin plus a per-request nonce for the
   few inline blocks; there are no inline event handlers, and Chart.js is vendored under `app/static/js/vendor`.
