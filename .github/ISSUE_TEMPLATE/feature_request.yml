@@ -1,0 +1,20 @@
+name: Feature or source request
+description: A new feature, source or provider
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve
+      description: What you are trying to do, and what is missing today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+      description: For a source or provider, add a link to it and its terms of use (API key, rate limits, redistribution).
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

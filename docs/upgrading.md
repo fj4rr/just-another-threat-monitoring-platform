@@ -4,6 +4,16 @@
 
 Schema changes are applied automatically on start-up (new tables and columns; there are no manual migrations). The notes below list what else to do when moving to a version. After any upgrade, run `pip install -r requirements.txt` (or rebuild the Docker image) and restart. The full list of changes is in the [changelog](../CHANGELOG.md).
 
+## Upgrading to 1.0.0
+
+Nothing to do beyond the usual `pip install -r requirements.txt` (or rebuilding the image) and a restart: no new
+column, no one-off job, no changed default. 1.0.0 is 0.14.1 plus a fix for busy AI providers (the executive summary
+is retried 20 and then 60 minutes later; *Summarise*, *Ask* and the other AI actions answer 503 instead of 400 when
+the provider is only busy) and the project files of the first public release.
+
+From 1.0.0 on, versions follow [semantic versioning](https://semver.org/): patch releases fix, minor releases add,
+and a major release is announced when an upgrade needs more than these notes.
+
 ## Upgrading to 0.14.1
 
 One new column and a clean-up command. No manual migration.

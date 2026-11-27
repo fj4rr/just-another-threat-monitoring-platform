@@ -86,5 +86,6 @@ while you make changes.
 
 | Page | What it covers |
 |---|---|
-| [Security](security.md) | CSP, sessions, untrusted content, outbound requests, API keys, webhooks, deployment advice |
+| [Security](security.md) | CSP, sessions, untrusted content, outbound requests, API keys, webhooks, deployment advice, reporting a vulnerability |
+| [Known limitations](limitations.md) | What 1.0 does not do yet: scale, collection, rule-based analysis, AI search, sharing and accounts |
 | [Changelog](../CHANGELOG.md) | Every release and what changed |

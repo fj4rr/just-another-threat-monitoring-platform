@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/fj4rr/just-another-threat-monitoring-platform/security/advisories/new
+    about: Report security problems privately, never in a public issue.
+  - name: Documentation
+    url: https://fj4rr.github.io/just-another-threat-monitoring-platform/
+    about: Setup, configuration and how every score and verdict is made.

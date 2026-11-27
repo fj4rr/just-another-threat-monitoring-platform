@@ -51,14 +51,16 @@ More in the [screenshot tour](https://fj4rr.github.io/just-another-threat-monito
 
 ## Quick start
 
+Requirements: Python 3.11 or newer.
+
 ```bash
 python -m venv .venv
 ```
 ```bash
-.venv\Scripts\activate        # Linux/macOS: source .venv/bin/activate
+source .venv/bin/activate     # Windows: .venv\Scripts\activate
 ```
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -c requirements.lock
 ```
 ```bash
 python install.py             # interactive: single / multi user, API keys, LLM
@@ -78,16 +80,20 @@ before exposing the port to a network. See [Getting started](https://fj4rr.githu
 | **Set up** | [Getting started](https://fj4rr.github.io/just-another-threat-monitoring-platform/getting-started/) · [Configuration](https://fj4rr.github.io/just-another-threat-monitoring-platform/configuration/) · [Upgrading](https://fj4rr.github.io/just-another-threat-monitoring-platform/upgrading/) · [Maintenance commands](https://fj4rr.github.io/just-another-threat-monitoring-platform/maintenance/) |
 | **Use** | [Sources](https://fj4rr.github.io/just-another-threat-monitoring-platform/sources/) · [Using JATMP](https://fj4rr.github.io/just-another-threat-monitoring-platform/using-jatmp/) · [Analysis](https://fj4rr.github.io/just-another-threat-monitoring-platform/analysis/) · [Geography](https://fj4rr.github.io/just-another-threat-monitoring-platform/geography/) · [Scams and fraud](https://fj4rr.github.io/just-another-threat-monitoring-platform/fraud/) · [Integrations](https://fj4rr.github.io/just-another-threat-monitoring-platform/integrations/) · [Reporting and AI](https://fj4rr.github.io/just-another-threat-monitoring-platform/reporting-and-ai/) · [History and storage](https://fj4rr.github.io/just-another-threat-monitoring-platform/history-and-storage/) |
 | **Develop** | [Development](https://fj4rr.github.io/just-another-threat-monitoring-platform/development/) · [Architecture](https://fj4rr.github.io/just-another-threat-monitoring-platform/architecture/) · [Data model](https://fj4rr.github.io/just-another-threat-monitoring-platform/data-model/) · [Extending JATMP](https://fj4rr.github.io/just-another-threat-monitoring-platform/extending/) |
-| **Reference** | [Security](https://fj4rr.github.io/just-another-threat-monitoring-platform/security/) · [Changelog](https://fj4rr.github.io/just-another-threat-monitoring-platform/changelog/) |
+| **Reference** | [Security](https://fj4rr.github.io/just-another-threat-monitoring-platform/security/) · [Known limitations](https://fj4rr.github.io/just-another-threat-monitoring-platform/limitations/) · [Changelog](https://fj4rr.github.io/just-another-threat-monitoring-platform/changelog/) |
 
 The site is built with MkDocs from the Markdown in [`docs/`](docs/); to read it offline, run
 `pip install -r requirements-docs.txt` and `mkdocs serve`.
 
-## Credits
+## Contributing and security
 
-Built and maintained by [**fj4rr**](https://github.com/fj4rr) ·
-[github.com/fj4rr/just-another-threat-monitoring-platform](https://github.com/fj4rr/just-another-threat-monitoring-platform).
-Issues and pull requests are welcome.
+Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-Map outlines: [Natural Earth](https://www.naturalearthdata.com/) (public domain). Offline GeoIP, when downloaded:
-[IP Geolocation by DB-IP](https://db-ip.com) (CC BY 4.0) or MaxMind GeoLite2 under its own licence.
+## Licence and credits
+
+JATMP is released under the [MIT License](LICENSE). Built and maintained by [**fj4rr**](https://github.com/fj4rr).
+
+Charts: [Chart.js](https://www.chartjs.org/) (MIT). Map outlines: [Natural Earth](https://www.naturalearthdata.com/)
+(public domain). Offline GeoIP, when downloaded: [IP Geolocation by DB-IP](https://db-ip.com) (CC BY 4.0) or
+MaxMind GeoLite2 under its own licence. Details in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

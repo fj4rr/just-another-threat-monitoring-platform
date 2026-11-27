@@ -1,13 +1,22 @@
 [project]
 name = "jatmp"
-version = "0.14.1"
 description = "Just Another Threat Monitoring Platform – self-hosted cyber threat and online fraud monitoring"
 requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "MIT" }
-dynamic = ["dependencies"]
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/fj4rr/just-another-threat-monitoring-platform"
+Documentation = "https://fj4rr.github.io/just-another-threat-monitoring-platform/"
+Changelog = "https://fj4rr.github.io/just-another-threat-monitoring-platform/changelog/"
+Issues = "https://github.com/fj4rr/just-another-threat-monitoring-platform/issues"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.setuptools.dynamic]
+version = { attr = "app.__version__" }
 dependencies = { file = ["requirements.txt"] }
 
 [tool.ruff]

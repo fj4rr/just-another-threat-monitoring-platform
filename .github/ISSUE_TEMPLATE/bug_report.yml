@@ -1,0 +1,49 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problems go through **Security → Report a vulnerability**, not here (see SECURITY.md).
+        Please remove API keys, passwords and personal data from logs and screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: JATMP version
+      description: Shown in the footer of every page.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How it runs
+      multiple: true
+      options:
+        - From source
+        - Docker / docker compose
+        - Single-user
+        - Multi-user
+        - SQLite
+        - PostgreSQL
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Click …
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: The relevant lines of the server log (start-up, the failing job or request).
+      render: text

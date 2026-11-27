@@ -4,6 +4,23 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
 
 ## Unreleased
 
+## 1.0.0
+
+The first public release. JATMP is now released under the MIT License, with a security policy, contribution
+guidelines and a page of known limitations. From this version on, releases follow
+[semantic versioning](https://semver.org/). No schema change and no re-analysis: upgrading from 0.14.1 is a
+restart. Upgrade notes: [docs/upgrading.md](docs/upgrading.md).
+
+**Project**
+
+- `LICENSE` (MIT) and `THIRD_PARTY_NOTICES.md` (Chart.js, Natural Earth, DB-IP / MaxMind GeoLite2, provider
+  terms).
+- `SECURITY.md`: supported versions, private reporting through GitHub's *Report a vulnerability* form, response
+  times and scope.
+- `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`, issue forms (bug, wrong or missed detection, feature or source) and a
+  pull request checklist.
+- The version is kept in one place, `app/__init__.py`; `pyproject.toml` reads it and lists the project links.
+
 **Fixes**
 
 - A model that stays busy no longer costs the day's executive summary. The client retries a provider's "high
@@ -11,6 +28,14 @@ All notable changes to JATMP. Upgrade steps per version are in [docs/upgrading.m
   minutes later, and the failure notification says when. A provider that is only busy is also told apart from a
   request it rejected: *Summarise*, *Write brief*, *AI summary* and *Ask* answer **503** with the provider's
   sentence, where they used to answer 400 as if the request were wrong.
+
+**Documentation**
+
+- New *Known limitations* page: the single process, feed-text-only analysis, rule-based detection and what its
+  quality numbers mean, word-based Q&A, watched-entity webhooks that are not per user, no single sign-on.
+- The README quick start shows Linux / macOS first and installs with the lock file; it links the licence, the
+  security policy and the contribution guide. *Security* points to the reporting channel, and the release checklist
+  in *Development* describes the versioning rules.
 
 ## 0.14.1
 

@@ -1,0 +1,43 @@
+name: Wrong or missed detection
+description: JATMP found something that is not there, or missed something that is (an entity, a score, a scam type, a country, a sector)
+labels: [detection]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These reports tune the rules. Paste only public text, and redact victims' personal data.
+  - type: input
+    id: version
+    attributes:
+      label: JATMP version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Malware families / actors
+        - Indicators (IP, domain, URL, hash)
+        - CVEs
+        - Severity score
+        - Scams and fraud
+        - Geography
+        - Sectors
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: text
+    attributes:
+      label: The item
+      description: Its title, source and link, and the sentence that matters.
+    validations:
+      required: true
+  - type: textarea
+    id: found
+    attributes:
+      label: What JATMP found, and what it should have found
+    validations:
+      required: true

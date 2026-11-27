@@ -2,6 +2,10 @@
 
 [← Documentation index](README.md)
 
+Found a vulnerability? Report it privately through GitHub's *Report a vulnerability* form, as described in the
+[security policy](https://github.com/fj4rr/just-another-threat-monitoring-platform/blob/main/SECURITY.md), not in a
+public issue.
+
 - **Content-Security-Policy.** Scripts load only from the application's origin plus a per-request nonce for the
   few inline blocks; there are no inline event handlers, and Chart.js is vendored under `app/static/js/vendor`.
   `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, COOP and

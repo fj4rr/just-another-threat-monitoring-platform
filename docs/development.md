@@ -185,8 +185,10 @@ Which page to update:
 
 ## Release checklist
 
-1. Bump the version in `app/__init__.py` (`__version__`, shown in the UI and the API docs) and in
-   `pyproject.toml`.
+1. Bump the version in `app/__init__.py` (`__version__`, shown in the UI and the API docs); `pyproject.toml`
+   reads it from there. JATMP follows [semantic versioning](https://semver.org/) from 1.0.0: a patch release for
+   fixes, a minor release for new features, a major release when an upgrade needs more than the automatic
+   schema update and the steps in `docs/upgrading.md` (a removed setting, a changed REST API v1 response).
 2. Rules changed? Bump the matching version constant so stored items are re-analysed once (see
    [Background jobs](architecture.md#background-jobs)).
 3. Add a section to `CHANGELOG.md` (what changed, from the user's point of view) and to `docs/upgrading.md` (what

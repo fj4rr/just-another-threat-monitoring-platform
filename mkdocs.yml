@@ -113,4 +113,5 @@ nav:
       - Extending JATMP: extending.md
   - Reference:
       - Security: security.md
+      - Known limitations: limitations.md
       - Changelog: changelog.md
